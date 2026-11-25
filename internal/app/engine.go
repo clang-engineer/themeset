@@ -24,6 +24,7 @@ type ToolResult struct {
 	Outcome  string      `json:"outcome"`
 	Port     *model.Port `json:"port,omitempty"`
 	Warnings []string    `json:"warnings,omitempty"`
+	Reason   string      `json:"reason,omitempty"`
 	Error    string      `json:"error,omitempty"`
 }
 
@@ -84,6 +85,7 @@ func plan(theme string, config model.Config, env model.Environment, adapters []m
 		item := ToolResult{Tool: adapter.ID, Outcome: "planned"}
 		if !adapter.Installed() {
 			item.Status, item.Outcome = "not-installed", "skipped"
+			item.Reason = fmt.Sprintf("%s executable not installed", adapter.Binary)
 			result.Tools = append(result.Tools, item)
 			continue
 		}
@@ -113,12 +115,25 @@ func plan(theme string, config model.Config, env model.Environment, adapters []m
 				item.Status, item.Port = port.Kind, &port
 			default:
 				item.Status, item.Outcome = "unsupported", "skipped"
+				item.Reason = unsupportedReason(adapter.ID, theme)
 				item.Warnings = append(item.Warnings, "no verified native or official theme available", "no registered custom port; settings unchanged")
 			}
 		}
 		result.Tools = append(result.Tools, item)
 	}
 	return result
+}
+
+func unsupportedReason(tool, theme string) string {
+	switch tool {
+	case "tmux":
+		return "no registered styles-only theme; full plugins can replace the existing status layout"
+	case "yazi":
+		return "no complete compatible installed flavor or pinned official flavor recipe"
+	case "lazydocker":
+		return "no compatible native theme or verified lazydocker port registered"
+	}
+	return fmt.Sprintf("no compatible installed theme or verified official port registered for %s on %s", theme, tool)
 }
 
 func apply(result *Result, env model.Environment, adapters []model.Adapter) {

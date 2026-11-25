@@ -3,7 +3,6 @@ package adapter
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -29,36 +28,13 @@ var filesYaziDraculaAssets = []struct {
 }
 
 func filesYaziDraculaRoot(env model.Environment) string {
-	return filepath.Join(filepath.Dir(filesPath("yazi", env)), "flavors", "dracula.yazi")
+	return filesYaziFlavorRoot("dracula", env)
 }
 
 // Independently installed compatible flavors remain native: never replace a
 // complete user flavor just because it differs from our registered revision.
 func filesYaziDraculaInstalled(env model.Environment) (bool, error) {
-	root := filesYaziDraculaRoot(env)
-	data, err := filesRead(filepath.Join(root, "flavor.toml"), true)
-	if err != nil || len(data) == 0 {
-		return false, err
-	}
-	config, err := filesTOML(data)
-	if err != nil {
-		return false, fmt.Errorf("parse installed Dracula flavor: %w", err)
-	}
-	mgr, ok := config["mgr"].(map[string]any)
-	if !ok || len(mgr) == 0 {
-		return false, errors.New("installed Dracula flavor requires a nonempty [mgr] table")
-	}
-	data, err = filesRead(filepath.Join(root, "tmtheme.xml"), true)
-	if err != nil || len(data) == 0 {
-		return false, err
-	}
-	var theme struct {
-		XMLName xml.Name `xml:"plist"`
-	}
-	if err := xml.Unmarshal(data, &theme); err != nil {
-		return false, fmt.Errorf("parse installed Dracula syntax theme: %w", err)
-	}
-	return true, nil
+	return filesYaziFlavorInstalled("dracula", env)
 }
 
 func filesResolveYaziDracula(env model.Environment) (model.Port, bool, error) {

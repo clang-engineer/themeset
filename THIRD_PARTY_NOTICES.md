@@ -87,9 +87,8 @@ licenses do not become official merely by being registered in configuration.
 ## Registered downloaded ports
 
 These files are acquired during apply, not embedded in the executable.
-Immutable URLs and SHA-256 hashes are defined in `internal/adapter/yazi_dracula.go`
-and `internal/adapter/eza_dracula.go`; the acquisition helper verifies cache and
-downloaded bytes before use.
+Immutable URLs and SHA-256 hashes are defined in the `internal/adapter/`
+acquisition modules; the helper verifies cached and downloaded bytes before use.
 
 - Application-maintained Yazi Dracula flavor:
   https://github.com/yazi-rs/flavors/tree/38c08d8eb9ea0d28c8c911a249a08f27ba2151ac/dracula.yazi
@@ -101,3 +100,23 @@ downloaded bytes before use.
   The theme and upstream MIT `LICENSE` are retained in the verified cache.
   Exact source values are preserved; active configuration is merged, not copied
   over unrelated user rules.
+- Application-maintained eza Gruvbox Dark native YAML:
+  https://github.com/eza-community/eza-themes/blob/21184b55bfe34e8473c8160f9de0c03e4f76857f/themes/gruvbox-dark.yml
+  The YAML and matching MIT `LICENSE` are kept in the verified cache;
+  existing filename/icon rules are preserved.
+- Theme-author Catppuccin Mocha btop:
+  https://github.com/catppuccin/btop/blob/f437574b600f1c6d932627050b15ff5153b58fa3/themes/catppuccin_mocha.theme
+  SHA-256-verified `.theme` and the MIT `LICENSE` are cached; the theme is
+  installed under the effective btop user theme directory when not installed.
+- Application-maintained btop Dracula, Gruvbox Dark, and Nord:
+  https://github.com/aristocratos/btop/tree/5d03929a45e0720a4c8e2d189360ff1eb9ce1731/themes
+  Exact `.theme` assets and their upstream Apache-2.0 `LICENSE` are cached;
+  already-installed system/user themes are reused instead of downloaded.
+- Theme-author Catppuccin Mocha Starship:
+  https://github.com/catppuccin/starship/blob/5906cc369dd8207e063c0e6e2d27bd0c0b567cb8/themes/mocha.toml
+  The palette and MIT `LICENSE` are cached; only `[palettes.catppuccin_mocha]`
+  is merged, not an example prompt layout.
+- Application-maintained Starship Gruvbox Rainbow:
+  https://github.com/starship/starship/blob/1b5c2f257ef276c3020899623a1942b3ecd457f7/docs/public/presets/toml/gruvbox-rainbow.toml
+  The preset and ISC `LICENSE` are cached; only `[palettes.gruvbox_dark]`
+  is imported, without module or prompt-layout settings.

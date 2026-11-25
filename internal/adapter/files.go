@@ -66,6 +66,9 @@ func filesResolveStarship(name string, env model.Environment) (model.Port, bool,
 	case "moonfly":
 		return model.Port{Kind: "official", Name: name, Source: filesMoonflySource + "moonfly-starship.toml"}, true, nil
 	}
+	if port, found, err := filesResolvePaletteFamily("starship", name, env); found || err != nil {
+		return port, found, err
+	}
 	data, err := filesRead(filesPath("starship", env), true)
 	if err != nil {
 		return model.Port{}, false, err
@@ -98,7 +101,11 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 			case "moonfly":
 				data = filesStarshipMoonfly
 			default:
-				return errors.New("unknown official Starship port")
+				var err error
+				data, err = filesAcquirePaletteFamily("starship", port.Name, env)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		var err error
@@ -260,6 +267,9 @@ func filesResolveYazi(name string, env model.Environment) (model.Port, bool, err
 	if port, ok := filesOfficialYazi(name); ok {
 		return port, true, nil
 	}
+	if filesYaziFamilyName(name) {
+		return filesResolveYaziFamily(name, env)
+	}
 	if !filesName(name) {
 		return model.Port{}, false, nil
 	}
@@ -284,6 +294,9 @@ func filesResolveYazi(name string, env model.Environment) (model.Port, bool, err
 }
 
 func filesApplyYazi(port model.Port, env model.Environment) error {
+	if port.Kind == "native" && filesYaziFamilyName(port.Name) {
+		return filesApplyYaziFamily(port, env)
+	}
 	if port.Name == "dracula" && (port.Kind == "native" || port.Kind == "official" && port.File == "") {
 		return filesEditTOML(filesPath("yazi", env), func(config map[string]any) error {
 			flavor, err := filesTable(config, "flavor")
@@ -562,12 +575,32 @@ func filesResolveBtop(name string, env model.Environment) (model.Port, bool, err
 			return model.Port{Kind: "native", Name: candidate, File: path, Source: filesBtopSource}, true, nil
 		}
 	}
-	return model.Port{}, false, nil
+	if name == "catppuccin-mocha" {
+		return filesResolveBtopCatppuccin()
+	}
+	return filesResolveBtopUpstream(name)
 }
 
 func filesApplyBtop(port model.Port, env model.Environment) error {
 	var asset []byte
-	if port.Kind != "native" {
+	switch port.Kind {
+	case "official":
+		var err error
+		if port.Source == filesBtopCatppuccinSource && port.Name == "catppuccin_mocha" {
+			asset, err = filesAcquireBtopCatppuccin(env)
+		} else {
+			asset, err = filesAcquireBtopUpstream(port, env)
+		}
+		if err != nil {
+			return err
+		}
+	case "native":
+		if _, ok, err := filesResolveBtop(port.Name, env); err != nil {
+			return err
+		} else if !ok {
+			return fmt.Errorf("btop theme %q is not installed", port.Name)
+		}
+	default:
 		var err error
 		asset, err = filesCustom(port, env)
 		if err != nil {
@@ -577,10 +610,6 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 			return err
 		}
 		port.Name = "themeset"
-	} else if _, ok, err := filesResolveBtop(port.Name, env); err != nil {
-		return err
-	} else if !ok {
-		return fmt.Errorf("btop theme %q is not installed", port.Name)
 	}
 	path := filesPath("btop", env)
 	data, err := filesRead(path, true)
@@ -603,7 +632,11 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		lines = append(lines, setting, "")
 	}
 	if asset != nil {
-		if err := filesAtomic(filepath.Join(filepath.Dir(path), "themes", "themeset.theme"), asset); err != nil {
+		name := "themeset.theme"
+		if port.Kind == "official" {
+			name = port.Name + ".theme"
+		}
+		if err := filesAtomic(filepath.Join(filepath.Dir(path), "themes", name), asset); err != nil {
 			return err
 		}
 	}

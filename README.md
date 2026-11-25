@@ -123,16 +123,19 @@ result, including partial failures; it does not assert that every app currently
 matches the last requested theme.
 
 Human-readable results include a per-tool table and a summary of applied, planned,
-skipped, and failed tools. Normal unsupported tools produce one aggregate warning
-and keep their settings unchanged. Selecting a custom override is not a warning.
+skipped, and failed tools. Each skipped row explains whether the executable is
+missing, no compatible installed/registered port exists, a complete Yazi flavor
+is unavailable, or a tmux plugin would alter the existing status layout.
+Normal unsupported tools also produce one aggregate warning; settings stay
+unchanged. JSON results include each tool's `reason` and structured warnings.
 Inspection/apply errors remain visible and make the command fail.
-JSON output retains each tool's structured warnings and errors.
 
 The default catalog is curated to five themes with broader native/official
 coverage: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, and `nord`.
 The same catalog feeds `list`, shell completion, and the interactive picker.
 This is a fixed shortlist, not a dynamic filter or a promise that every tool
-supports each theme; providers must already be installed.
+supports each theme. Some sources are acquired automatically; otherwise the
+native provider must already be installed or an explicit custom port registered.
 Other theme IDs can be explicitly registered under `themes` in the JSON config,
 including an empty entry when only installed native providers are needed.
 A custom registration is never relabeled as official.
@@ -142,8 +145,9 @@ A custom registration is never relabeled as official.
 For each tool's source, installation/placement, activation, reload, preservation
 rules, and current implementation gaps, see the
 [adapter lifecycle reference](theme-adapters.md).
-Dracula for Yazi and eza implements acquire-if-missing now; other integrations
-still use installed providers, bundled files, or explicit custom ports.
+Missing registered btop, eza, Starship, or Yazi Dracula assets are downloaded
+from pinned HTTPS sources on first apply, checked against SHA-256, and cached.
+Other integrations use installed providers, bundled files, or custom ports.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
@@ -153,25 +157,28 @@ still use installed providers, bundled files, or explicit custom ports.
 | bat | Installed syntax-theme list | bat config containing `--theme` |
 | delta | Installed syntax-theme list | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
-| Starship | Existing named palettes; pinned official Dracula and Moonfly | Selected palette in Starship TOML |
+| Starship | Existing named palettes; bundled Dracula/Moonfly; acquire Catppuccin Mocha or Starship's Gruvbox Dark palette | Selected palette in Starship TOML |
 | fzf | Pinned Dracula, Moonfly, Catppuccin Mocha ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
-| Yazi | Installed flavors; acquire missing Dracula flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
+| Yazi | Installed complete flavors (including user-installed Gruvbox/Nord/Moonfly); acquire Dracula flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
 | Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve | Native theme TOML asset |
 | lazygit | Bundled Dracula and Catppuccin Mocha/Mauve | `gui.theme` YAML fragment |
 | lazydocker | Bundled Dracula | `gui.theme` YAML fragment |
-| btop | Installed user/system theme files | Native `.theme` file |
-| eza | Acquire/cache Dracula YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
+| btop | Installed user/system themes, otherwise acquire Catppuccin Mocha or btop-maintained Dracula/Gruvbox Dark/Nord | Native `.theme` file |
+| eza | Acquire/cache Dracula or Gruvbox Dark YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
 honestly rather than replaced by newly synthesized colors.
 
 Bundled ports are applied by writing the application's native settings/assets;
-no separate theme installation, runtime network fetch, or installer script is
-needed. Native discovery inspects fixed app commands or local theme files.
-`native` means available through the app; it does not certify theme-author
-provenance. Bundled `official` ports record whether their source is the theme
-author or, for fzf Gruvbox/Nord, the application's author.
+no separate theme installation or installer script is needed. Downloaded ports
+fetch only their pinned assets and licenses when absent, and reuse a verified
+local cache offline. Native discovery inspects fixed app commands or local
+theme files. `native` means available through the app; it does not certify
+theme-author provenance. `official` includes application-maintained recipes
+for Gruvbox eza/Starship and btop's shipped colors; it is not a claim that
+Gruvbox's theme author maintains those repos. Starship's palette selection
+does not recolor modules that hardcode colors instead of using palette names.
 
 Catppuccin Mocha fzf requires fzf 0.52.0 or newer; resolution and apply report an
 error for older versions before writing its options. Gruvbox/Nord use stable
@@ -180,13 +187,13 @@ Catppuccin Atuin installs and selects its declared `catppuccin-mocha-mauve`
 name. Yazi imports only UI style tables and installs the official Catppuccin
 syntax theme; separators, icons, file rules, layouts, and keymaps remain intact.
 
-### Dracula acquisition for Yazi and eza
+### Acquiring missing registered assets
 
-`apply dracula` downloads missing registered assets from immutable HTTPS URLs
-and checks their SHA-256 hashes. Verified assets and licenses are cached under
+`apply` downloads missing registered assets from immutable HTTPS URLs and checks
+SHA-256 hashes. Verified assets and licenses are cached under
 `~/.cache/themeset/assets/<sha256>` (under `--home` when supplied). Later applies
-reuse the cache without downloading or updating upstream revisions. No new
-update command is introduced. Dry-run never downloads or creates this cache.
+reuse the cache without updating upstream revisions. Dry-run never downloads or
+creates this cache.
 
 - **Yazi:** installs `flavor.toml`, `tmtheme.xml`, and both licenses from the
   application-maintained `yazi-rs/flavors` Dracula package beneath the effective
@@ -195,16 +202,24 @@ update command is introduced. Dry-run never downloads or creates this cache.
   Compatible independently installed flavors are reused, not replaced.
   Switching from the bundled Catppuccin import removes only matching old styles
   identified by its themeset-owned syntax path, preserving user edits and layout.
-- **eza:** fetches `eza-community/eza-themes`' native Dracula YAML and MIT license,
-  validates the theme structure, and merges styles into `theme.yml`, preserving
-  unrelated filename/icon rules. Honors `EZA_CONFIG_DIR` or `paths.eza`.
-  Existing `LS_COLORS`/`EZA_COLORS` overrides can still affect rendering.
+- **eza:** fetches `eza-community/eza-themes`' native Dracula or Gruvbox Dark
+  YAML and MIT license, validates the theme structure, and merges styles into
+  `theme.yml`, preserving unrelated filename/icon rules. Honors `EZA_CONFIG_DIR`
+  or `paths.eza`. Existing `LS_COLORS`/`EZA_COLORS` overrides can affect rendering.
+- **btop:** reuses installed user/system themes; otherwise fetches Catppuccin's
+  Mocha file or btop's Dracula/Gruvbox Dark/Nord files and license, installs the
+  native `.theme` under the effective user theme directory, then selects it in
+  `btop.conf`. Relaunch btop to see the change.
+- **Starship:** fetches Catppuccin Mocha or Starship's Gruvbox Rainbow preset
+  and license, imports only the exact selected palette, then changes `palette`.
+  It never replaces a custom prompt layout or module configuration.
 
 Fetch/checksum/install failures remain errors and do not change the prior theme
-selection. An incomplete conflicting user flavor is not silently overwritten.
-These sources are application-maintained, not the obsolete Dracula-author Yazi
-example or the eza shell-export port. Relaunch Yazi; the next eza invocation reads
-its YAML. Source revisions/hashes are registered in the adapter code and notices.
+selection. An incomplete conflicting user Yazi flavor is not silently
+overwritten. Yazi Dracula and eza's files are application-maintained, not
+necessarily theme-author ports. Relaunch Yazi; eza and Starship use their new
+settings on the next invocation/prompt. Source revisions and hashes are in the
+adapter code and notices.
 
 Dracula still skips Atuin (no registered verified port) and tmux (full plugin
 installation/layout integration is not implemented).

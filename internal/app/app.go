@@ -391,6 +391,8 @@ func printResult(stdout, stderr io.Writer, result Result) int {
 		detail := ""
 		if item.Error != "" {
 			detail = "\t" + item.Error
+		} else if item.Reason != "" {
+			detail = "\t" + item.Reason
 		}
 		if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s%s\n", item.Tool, item.Status, item.Outcome, detail); err != nil {
 			fmt.Fprintln(stderr, "error: write output:", err)

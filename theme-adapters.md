@@ -2,13 +2,13 @@
 
 This is the per-tool implementation reference for themeset's requested
 **registered source → acquire if missing → activate using the tool's own mechanism**
-lifecycle. It is implemented for the registered Yazi/eza Dracula recipes;
-the remaining entries distinguish existing behavior from the target lifecycle.
-
-**Current implementation:** Yazi/eza Dracula acquires pinned, hash-verified assets
-when needed and reuses them offline. Other adapters inspect installed providers,
-write bundled official assets, or apply explicitly registered native files.
-No plugin manager or arbitrary installer script is invoked.
+lifecycle. Pinned recipes acquire Catppuccin/btop themes, btop's own
+Dracula/Gruvbox Dark/Nord files, eza's Dracula/Gruvbox Dark YAML,
+Starship's Catppuccin Mocha/Gruvbox Dark palettes, and Yazi's Dracula flavor.
+Complete independently installed Yazi Gruvbox/Nord/Moonfly flavors are selected
+without downloading. Other adapters inspect installed providers, write bundled
+official assets, or apply explicitly registered native files. No plugin manager
+or arbitrary installer script is invoked.
 See [current integrations](README.md#integrations) and
 [pinned bundled sources/licenses](THIRD_PARTY_NOTICES.md).
 
@@ -177,7 +177,9 @@ roots and existing package managers; do not hardcode a developer's home path.
 
 - **Sources:** [Starship palette configuration](https://starship.rs/config/#color-palette),
   [Dracula palette instructions](https://github.com/dracula/starship/blob/master/INSTALL.md),
-  and [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras).
+  [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras),
+  [Catppuccin Starship palette](https://github.com/catppuccin/starship),
+  and [Starship's Gruvbox Rainbow preset](https://github.com/starship/starship/blob/1b5c2f257ef276c3020899623a1942b3ecd457f7/docs/public/presets/toml/gruvbox-rainbow.toml).
 - **Detect / acquire:** inspect a nonempty `[palettes.<name>]` in the effective
   config. Otherwise fetch the registered palette TOML. Dracula's `starship.toml`
   palette and its full `starship.theme.toml` prompt preset are different artifacts.
@@ -188,9 +190,12 @@ roots and existing package managers; do not hardcode a developer's home path.
   present. Keep prompt formats, modules, symbols and unrelated palettes. Modules
   with hardcoded colors do not become themed merely by selecting a palette;
   styles must reference its semantic color names.
-- **Current / target gap:** current code imports bundled Dracula/Moonfly palettes
-  or selects an existing palette. It does not fetch missing registered palettes
-  and uses `paths.starship` rather than automatically honoring `STARSHIP_CONFIG`.
+- **Current / target gap:** current code imports bundled Dracula/Moonfly palettes,
+  selects an existing palette, or acquires pinned Catppuccin Mocha/Gruvbox Dark
+  palettes and licenses. It never imports the Gruvbox Rainbow preset's prompt
+  modules/layout. A palette selector alone cannot recolor modules with hardcoded
+  styles; `paths.starship` is supported but `STARSHIP_CONFIG` is not detected
+  automatically.
 
 ## fzf
 
@@ -264,13 +269,16 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Source caveat:** `dracula/yazi`'s old `flavor.toml` and `[flavor] use` example
   are not a complete current package. `yazi-rs/flavors:dracula` is a verified
   application-maintained alternative, not the same source/provenance claim.
-- **Current / target gap:** Dracula now downloads the pinned native runtime files
-  and both licenses when missing, stages installation, and selects the flavor.
+- **Current / target gap:** Dracula downloads the pinned native runtime files and
+  both licenses when missing, stages installation, and selects the flavor.
   Existing compatible flavors are reused offline. `YAZI_CONFIG_HOME` is honored.
-  Previous bundled Catppuccin styles are removed only when ownership is established
-  by its exact managed syntax path and individual values still match. This does
-  not run `ya` or register a package-manager dependency; general flavor acquisition
-  beyond the registered Dracula recipe is not implemented.
+  Independently installed complete Gruvbox, Nord and Moonfly flavors can be
+  selected without network access; the application-maintained collection does
+  not ship these three. Its Gruvbox/Nord README links lead to independent
+  community ports, not registered automatic recipes. Previous bundled
+  Catppuccin styles are removed only when the managed syntax path establishes
+  ownership and individual values still match. No `ya` command or package
+  manager registration is performed.
 
 ## atuin
 
@@ -359,9 +367,11 @@ roots and existing package managers; do not hardcode a developer's home path.
   assume a universal external hot-reload command.
 - **Preserve:** truecolor/background options, boxes/layout, graphs, process sort,
   intervals and filters. Avoid competing with a running UI saving its settings.
-- **Current / target gap:** current code detects installed files and changes the
-  selector, or installs an explicit custom file. It does not fetch missing official
-  assets; absence from btop's shipped set is not proof a theme-author port cannot exist.
+- **Current / target gap:** installed complete themes take priority. Otherwise
+  Catppuccin Mocha is acquired from `catppuccin/btop`, while Dracula, Gruvbox
+  Dark and Nord come from btop's own pinned upstream theme files. Their licenses
+  are cached with verified SHA-256 assets before the user theme is written.
+  Applying a theme still does not reload an already-running btop UI.
 
 ## eza
 
@@ -381,11 +391,12 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Precedence:** `LS_COLORS` / `EZA_COLORS` can override YAML colors;
   `EXA_COLORS` is a fallback when `EZA_COLORS` is unset. `NO_COLOR` also affects
   rendering. Report conflicts rather than silently editing shell definitions.
-- **Current / target gap:** Dracula now acquires pinned native YAML and its MIT
-  license through a verified persistent cache, then merges the active config.
-  `EZA_CONFIG_DIR` and explicit paths are honored; bundled Catppuccin is unchanged.
-  Alternate `theme.yaml` discovery and environment-precedence reporting are not
-  implemented. Other sources, such as Gruvbox YAML, need their own registrations.
+- **Current / target gap:** Dracula and Gruvbox Dark acquire pinned native YAML
+  and the MIT license through a verified persistent cache, then merge active
+  config. `EZA_CONFIG_DIR` and explicit paths are honored; bundled Catppuccin is
+  unchanged. Nord/Moonfly lack a verified eza-maintained or theme-author YAML
+  in the inspected sources. Alternate `theme.yaml` discovery and
+  environment-precedence reporting are not implemented.
 
 ## Implementation anchors and verification scope
 
@@ -396,13 +407,20 @@ roots and existing package managers; do not hardcode a developer's home path.
   [Harlequin](internal/adapter/native_harlequin.go).
 - [File adapters](internal/adapter/files.go),
   [bundled official assets](internal/adapter/files_ports.go),
-  [current path resolution](internal/adapter/files_helpers.go),
-  [custom-first selection](internal/app/engine.go).
+  [Yazi flavor recipes](internal/adapter/yazi_dracula.go),
+  [installed Yazi family](internal/adapter/yazi_family.go),
+  [btop source recipes](internal/adapter/btop_upstream.go),
+  [eza Gruvbox](internal/adapter/eza_family.go),
+  [Starship palettes](internal/adapter/palette_family.go),
+  [path resolution](internal/adapter/files_helpers.go),
+  [custom-first selection and skip reasons](internal/app/engine.go).
 
-Local read-only checks confirmed installed Ghostty/bat/delta theme-list commands,
-bat's config-directory command, and Neovim's clean data-path query. Isolated
-runtime checks also verified initial Yazi/eza Dracula downloads, offline cache
-reuse, actual eza YAML consumption, actual Yazi Dracula colors and syntax preview,
-Catppuccin-to-Dracula transition, and prior-selection preservation on acquisition
-failure. Dry-run created no cache/config files. No live user theme settings were
-changed, and no plugin-manager invocation was exercised.
+Isolated runtime checks verified fresh Catppuccin btop/Starship and Gruvbox
+eza/Starship downloads, btop-maintained Dracula/Gruvbox Dark/Nord downloads
+without packaged themes, and offline reapplication. Actual btop rendered an
+acquired Nord `.theme`, eza emitted the selected Gruvbox RGB directory color,
+and Starship reported the selected Gruvbox palette. A failed Catppuccin btop
+download preserved the prior config. Earlier isolated checks also exercised
+Yazi Dracula colors, syntax preview and Catppuccin-to-Dracula switching.
+Dry-run remains read-only; no live theme settings or plugin-manager commands
+were changed or invoked by these checks.

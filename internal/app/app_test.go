@@ -194,6 +194,28 @@ func TestOmittedToolsSelectAllAndMissingAppsSkip(t *testing.T) {
 	}
 }
 
+func TestSkippedToolsExplainUnchangedSettings(t *testing.T) {
+	installedFixtures(t, "tmux")
+	home := t.TempDir()
+	code, result, diagnostics := invoke(t, "apply", "nord", "--dry-run", "--home", home, "--tools", "tmux,lazydocker")
+	if code != 0 || len(result.Tools) != 2 {
+		t.Fatalf("code=%d result=%+v diagnostics=%s", code, result, diagnostics)
+	}
+	if result.Tools[0].Status != "not-installed" || !strings.Contains(result.Tools[0].Reason, "lazydocker") {
+		t.Fatalf("missing executable not explained: %+v", result.Tools[0])
+	}
+	if result.Tools[1].Status != "unsupported" || !strings.Contains(result.Tools[1].Reason, "status layout") {
+		t.Fatalf("unsafe plugin not distinguished from absent binary: %+v", result.Tools[1])
+	}
+	var stdout, stderr bytes.Buffer
+	if printResult(&stdout, &stderr, result) != 0 || !strings.Contains(stdout.String(), result.Tools[1].Reason) {
+		t.Fatalf("user-facing skip reason missing: %s / %s", stdout.String(), stderr.String())
+	}
+	if entries, err := os.ReadDir(home); err != nil || len(entries) != 0 {
+		t.Fatalf("dry run changed settings: %v, %v", entries, err)
+	}
+}
+
 func TestInvalidSelectedToolRejectsBeforeWrites(t *testing.T) {
 	installedFixtures(t, "tmux")
 	home := t.TempDir()
