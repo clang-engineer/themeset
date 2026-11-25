@@ -88,10 +88,17 @@ source <(themeset completion zsh)
 themeset completion fish | source
 ```
 
-Use `themeset <Tab>` and `themeset apply <Tab>`. The executable is spelled
-`themeset`, not `themset`. Shift+Tab follows your shell's existing reverse-menu
-or picker binding; themeset does not change global key bindings. In Zsh,
-Homebrew's completion directory must be in `fpath` before `compinit`.
+Use `themeset <Tab>` for command names. In interactive Fish, Tab or Shift+Tab
+while completing the first theme in `themeset apply ` opens the sourced preview
+picker. Enter fills the selected theme into the command line only; it never
+executes `apply`. Escape leaves the line unchanged. Already supplied themes,
+flags, file paths, and other commands retain their previous key handlers.
+
+Homebrew installs an interactive Fish startup hook so this works on the first
+Tab of a fresh shell, not just after lazy-loading completions. Existing sessions
+can load it with the Fish `source` command above. The wrapper preserves existing
+bindings outside the theme position; Bash/Zsh completion remains unchanged.
+In Zsh, Homebrew's completion directory must be in `fpath` before `compinit`.
 
 ## Resolution and results
 

@@ -63,6 +63,7 @@ type options struct {
 	dryRun      bool
 	help        bool
 	version     bool
+	literal     bool
 	positionals []string
 }
 
@@ -81,6 +82,7 @@ func parse(args []string) (options, error) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
+			opts.literal = true
 			opts.positionals = append(opts.positionals, args[i+1:]...)
 			break
 		}
@@ -130,8 +132,17 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		}
 		return 0
 	}
-	opts, err := parse(args)
-	if err != nil {
+	var opts options
+	var query string
+	var err error
+	picking := len(args) > 0 && args[0] == "__pick"
+	if picking {
+		var valid bool
+		opts, query, valid = pickContext(args[1:])
+		if !valid {
+			return 2
+		}
+	} else if opts, err = parse(args); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 2
 	}
@@ -270,13 +281,22 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		ids, err = splitTools(opts.tools)
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)
+			if picking {
+				return 1
+			}
 			return 2
 		}
 	}
 	selected, err := selectTools(ids, adapters)
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
+		if picking {
+			return 1
+		}
 		return 2
+	}
+	if picking {
+		return printPickedTheme(opts, config, query, stdout, stderr)
 	}
 	var theme string
 	if command == "apply" && len(opts.positionals) == 1 {

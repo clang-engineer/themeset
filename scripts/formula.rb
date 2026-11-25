@@ -43,6 +43,11 @@ formula = <<~RUBY
       bin.install "themeset"
       pkgshare.install "licenses", "THIRD_PARTY_NOTICES.md"
       generate_completions_from_executable(bin/"themeset", "completion", shells: [:bash, :zsh, :fish])
+      (share/"fish/vendor_conf.d/themeset.fish").write <<~FISH
+        if status is-interactive
+          "\#{bin}/themeset" completion fish | source
+        end
+      FISH
     end
 
     test do

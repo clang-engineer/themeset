@@ -21,3 +21,131 @@ end
 complete -c themeset -f -a '(__themeset_complete)'
 complete -c themeset -l config -r -F
 complete -c themeset -l home -r -a '(__fish_complete_directories)'
+
+# Return failure only when the original key binding should handle this token.
+# The picker never applies a theme: its sole successful result is replacement text.
+function __themeset_pick_token
+    set -l args (commandline -xpc)
+    if not set -q args[1]
+        return 1
+    end
+    if test "$args[1]" = command
+        set -e args[1]
+    end
+    if not set -q args[1]; or test "$args[1]" != themeset
+        return 1
+    end
+    set -e args[1]
+
+    set -l current (commandline -ct)
+    set -l unescaped
+    printf '%s\0' "$current" | read --null --tokenize --array unescaped
+    if test (count $unescaped) -eq 1
+        set current "$unescaped[1]"
+    end
+
+    set -l selected (command themeset __pick $args "$current")
+    set -l picker_status $status
+    if test $picker_status -eq 2
+        return 1
+    end
+    if test $picker_status -eq 0; and test (count $selected) -eq 1
+        # Escape external theme names as data, never as executable Fish code.
+        commandline --current-token --replace -- (string escape -- "$selected")
+    end
+    commandline -f repaint
+    return 0
+end
+
+# Replay the effective binding, including native input functions and mode changes.
+# Only bind's serialization of trusted shell configuration is tokenized/evaluated;
+# neither command-line tokens nor picker output are evaluated.
+function __themeset_original_binding --argument-names mode key saved
+    set -l binding "$saved"
+    if test -z "$binding"
+        set binding (bind --preset --mode "$mode" "$key" 2>/dev/null | string collect)
+    end
+    if test -z "$binding"
+        set binding (bind --user --mode "$mode" '' 2>/dev/null | string collect)
+    end
+    if test -z "$binding"
+        set binding (bind --preset --mode "$mode" '' 2>/dev/null | string collect)
+    end
+    if test -z "$binding"
+        return
+    end
+
+    set -l words
+    printf '%s\0' "$binding" | read --null --tokenize --array words
+    set -e words[1]
+    set -l next_mode
+    while set -q words[1]
+        switch "$words[1]"
+            case -M --mode
+                set -e words[1..2]
+            case -m --sets-mode
+                set next_mode "$words[2]"
+                set -e words[1..2]
+            case --preset --user -s --silent -k --key
+                set -e words[1]
+            case --
+                set -e words[1]
+                break
+            case '*'
+                break
+        end
+    end
+    # The remaining first word is the serialized key, not a handler.
+    set -e words[1]
+    if set -q next_mode[1]
+        set -g fish_bind_mode "$next_mode"
+    end
+    set -l input_functions (bind --function-names)
+    set -l pending
+    for handler in $words
+        if contains -- "$handler" $input_functions
+            set -a pending "$handler"
+        else
+            if set -q pending[1]
+                commandline -f $pending
+                set pending
+            end
+            eval "$handler"
+        end
+    end
+    if set -q pending[1]
+        commandline -f $pending
+    end
+end
+
+function __themeset_install_bindings
+    # Leave other editing modes alone; vi's insert map exists only when enabled.
+    for mode in default insert
+        if not contains -- "$mode" (bind --list-modes)
+            continue
+        end
+        for key in tab shift-tab
+            set -l suffix (string replace -a - _ -- "$key")
+            set -l wrapper "__themeset_key_"$mode"_"$suffix
+            set -l saved (bind --user --mode "$mode" "$key" 2>/dev/null | string collect)
+            # Re-sourcing or a new prompt must not save our own wrapper.
+            if string match -q -- "* $wrapper" "$saved"
+                continue
+            end
+            function $wrapper --inherit-variable mode --inherit-variable key --inherit-variable saved
+                __themeset_pick_token
+                or __themeset_original_binding "$mode" "$key" "$saved"
+            end
+            bind --mode "$mode" "$key" "$wrapper"
+        end
+    end
+end
+
+if status is-interactive
+    # Startup sourcing installs immediately; prompts also catch bindings installed
+    # later by config.fish, fish_user_key_bindings, or a switch to vi mode.
+    function __themeset_refresh_bindings --on-event fish_prompt
+        __themeset_install_bindings
+    end
+    __themeset_install_bindings
+end
