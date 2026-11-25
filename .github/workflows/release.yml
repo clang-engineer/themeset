@@ -1,0 +1,28 @@
+name: Release
+on:
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./...
+      - name: Build archives and Homebrew formula
+        run: sh scripts/package.sh "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY"
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes
+      - name: Update configured Homebrew tap
+        if: ${{ vars.HOMEBREW_TAP_REPOSITORY != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+        run: ruby scripts/publish-tap.rb "$HOMEBREW_TAP_REPOSITORY" dist/themeset.rb

@@ -1,0 +1,322 @@
+// Package app implements the CLI without owning the caller's process or streams.
+package app
+
+import (
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strings"
+
+	"github.com/clang-engineer/themeset/internal/adapter"
+	"github.com/clang-engineer/themeset/internal/model"
+)
+
+// Version can be set by the release build with -ldflags '-X .../internal/app.Version=...'.
+var Version = "dev"
+
+const usage = `Usage: themeset [flags] COMMAND [flags] [THEME]
+
+Commands:
+  list          List built-in theme identifiers and configured theme keys
+  tools         List registered tool IDs and whether each app is installed
+  check THEME   Inspect available native/official/custom support without writes
+  apply THEME   Apply available themes; continue after individual tool failures
+  current       Show the last apply result (including skips and failures)
+  help          Show this help
+  version       Show the build version
+
+Flags (accepted before or after the command or theme):
+  --config PATH     JSON config; default $XDG_CONFIG_HOME/themeset/config.json
+                    or ~/.config/themeset/config.json (missing default is okay)
+  --home PATH       Use this home and PATH/.config, ignoring XDG_CONFIG_HOME
+                    Explicit paths overrides still apply; not a security sandbox
+  --tools IDS       Comma-separated IDs overriding config tools; empty means none
+  --json            Emit JSON to stdout; diagnostics remain on stderr
+  --dry-run         With apply only: inspect a plan, change no files or state
+  --help, -h        Show help
+  --version         Show version
+
+Config supports tools, paths, and themes with explicitly registered custom ports.
+Omitted tools selects all adapters; tools: [] selects none. Relative paths and
+custom file references resolve against the config directory; ~/ uses --home.
+Native/official ports always take precedence over custom ports. Missing native
+ports warn, even when a custom fallback is used. Unsupported or uninstalled apps
+are skipped unchanged. Errors are visible and return a nonzero exit status.
+Apply records only result metadata in the app's own state.json; current reports
+that historical result, not a live assertion of current application settings.
+`
+
+type options struct {
+	config      string
+	home        string
+	tools       string
+	toolsSet    bool
+	json        bool
+	dryRun      bool
+	help        bool
+	version     bool
+	positionals []string
+}
+
+func parse(args []string) (options, error) {
+	var opts options
+	flags := flag.NewFlagSet("themeset", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.StringVar(&opts.config, "config", "", "")
+	flags.StringVar(&opts.home, "home", "", "")
+	flags.StringVar(&opts.tools, "tools", "", "")
+	flags.BoolVar(&opts.json, "json", false, "")
+	flags.BoolVar(&opts.dryRun, "dry-run", false, "")
+	flags.BoolVar(&opts.help, "help", false, "")
+	flags.BoolVar(&opts.help, "h", false, "")
+	flags.BoolVar(&opts.version, "version", false, "")
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			opts.positionals = append(opts.positionals, args[i+1:]...)
+			break
+		}
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			opts.positionals = append(opts.positionals, arg)
+			continue
+		}
+		name, value, hasValue := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(arg, "-"), "-"), "=")
+		entry := flags.Lookup(name)
+		if entry == nil {
+			return opts, fmt.Errorf("unknown flag %q", arg)
+		}
+		boolean, isBool := entry.Value.(interface{ IsBoolFlag() bool })
+		if !hasValue {
+			if isBool && boolean.IsBoolFlag() {
+				value = "true"
+			} else {
+				i++
+				if i == len(args) {
+					return opts, fmt.Errorf("flag --%s requires a value", name)
+				}
+				value = args[i]
+			}
+		}
+		if err := flags.Set(name, value); err != nil {
+			return opts, err
+		}
+		if name == "tools" {
+			opts.toolsSet = true
+		}
+	}
+	return opts, nil
+}
+
+// Run executes one command and returns an exit code without terminating the process.
+func Run(args []string, stdout, stderr io.Writer) int {
+	return run(args, stdout, stderr, adapter.All())
+}
+
+func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int {
+	opts, err := parse(args)
+	if err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 2
+	}
+	command := "help"
+	if len(opts.positionals) > 0 {
+		command = opts.positionals[0]
+	}
+	if opts.help {
+		command = "help"
+	} else if opts.version {
+		command = "version"
+	}
+	if command == "help" {
+		_, err := io.WriteString(stdout, usage)
+		if err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 1
+		}
+		return 0
+	}
+	if command == "version" {
+		if opts.json {
+			return emitJSON(stdout, stderr, struct {
+				Version string `json:"version"`
+			}{Version})
+		}
+		if _, err := fmt.Fprintln(stdout, Version); err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 1
+		}
+		return 0
+	}
+	expected := 1
+	switch command {
+	case "check", "apply":
+		expected = 2
+	case "list", "tools", "current":
+	default:
+		fmt.Fprintf(stderr, "error: unknown command %q; use help\n", command)
+		return 2
+	}
+	if len(opts.positionals) != expected {
+		fmt.Fprintf(stderr, "error: %s expects %d argument(s)\n", command, expected-1)
+		return 2
+	}
+	if opts.dryRun && command != "apply" {
+		fmt.Fprintln(stderr, "error: --dry-run is only valid with apply")
+		return 2
+	}
+	env, err := environment(opts.home)
+	if err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 1
+	}
+	if command == "current" {
+		result, err := readState(statePath(env))
+		if err != nil {
+			fmt.Fprintln(stderr, "error: read state:", err)
+			return 1
+		}
+		if opts.json {
+			return emitJSON(stdout, stderr, result)
+		}
+		if result == nil {
+			fmt.Fprintln(stdout, "No apply result recorded.")
+			return 0
+		}
+		return printResult(stdout, stderr, *result)
+	}
+	config, _, err := loadConfig(opts.config, env)
+	if err != nil && !(opts.config == "" && errors.Is(err, os.ErrNotExist)) {
+		fmt.Fprintln(stderr, "error:", err)
+		return 1
+	}
+	env.Paths = config.Paths
+	if command == "list" {
+		names := themeIDs(config)
+		if opts.json {
+			return emitJSON(stdout, stderr, names)
+		}
+		for _, name := range names {
+			if _, err := fmt.Fprintln(stdout, name); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
+			}
+		}
+		return 0
+	}
+	if command == "tools" {
+		type tool struct {
+			ID        string `json:"id"`
+			Binary    string `json:"binary"`
+			Installed bool   `json:"installed"`
+		}
+		tools := make([]tool, 0, len(adapters))
+		for _, entry := range adapters {
+			tools = append(tools, tool{entry.ID, entry.Binary, entry.Installed()})
+		}
+		sort.Slice(tools, func(i, j int) bool { return tools[i].ID < tools[j].ID })
+		if opts.json {
+			return emitJSON(stdout, stderr, tools)
+		}
+		for _, entry := range tools {
+			status := "not-installed"
+			if entry.Installed {
+				status = "installed"
+			}
+			if _, err := fmt.Fprintf(stdout, "%s\t%s\n", entry.ID, status); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
+			}
+		}
+		return 0
+	}
+	ids := config.Tools
+	if opts.toolsSet {
+		ids, err = splitTools(opts.tools)
+		if err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 2
+		}
+	}
+	selected, err := selectTools(ids, adapters)
+	if err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 2
+	}
+	theme := opts.positionals[1]
+	known := false
+	for _, name := range themeIDs(config) {
+		if theme == name {
+			known = true
+			break
+		}
+	}
+	if !known {
+		fmt.Fprintf(stderr, "error: unknown theme %q; use list or register it in config\n", theme)
+		return 2
+	}
+	result := plan(theme, config, env, selected, opts.dryRun)
+	stateError := false
+	if command == "apply" && !opts.dryRun {
+		apply(&result, env, selected)
+		if err := saveState(statePath(env), result); err != nil {
+			fmt.Fprintln(stderr, "error: save state:", err)
+			stateError = true
+		}
+	}
+	for _, item := range result.Tools {
+		for _, warning := range item.Warnings {
+			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
+		}
+		if item.Error != "" {
+			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
+		}
+	}
+	code := 0
+	if opts.json {
+		code = emitJSON(stdout, stderr, result)
+	} else {
+		code = printResult(stdout, stderr, result)
+	}
+	if stateError || failed(result) {
+		return 1
+	}
+	return code
+}
+
+func emitJSON(stdout, stderr io.Writer, value any) int {
+	encoder := json.NewEncoder(stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(value); err != nil {
+		fmt.Fprintln(stderr, "error: write output:", err)
+		return 1
+	}
+	return 0
+}
+
+func printResult(stdout, stderr io.Writer, result Result) int {
+	if _, err := fmt.Fprintf(stdout, "Theme: %s\n", result.Theme); err != nil {
+		fmt.Fprintln(stderr, "error: write output:", err)
+		return 1
+	}
+	if result.AppliedAt != "" {
+		if _, err := fmt.Fprintf(stdout, "Applied at: %s\n", result.AppliedAt); err != nil {
+			fmt.Fprintln(stderr, "error: write output:", err)
+			return 1
+		}
+	}
+	for _, item := range result.Tools {
+		detail := ""
+		if item.Error != "" {
+			detail = "\t" + item.Error
+		}
+		if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s%s\n", item.Tool, item.Status, item.Outcome, detail); err != nil {
+			fmt.Fprintln(stderr, "error: write output:", err)
+			return 1
+		}
+	}
+	return 0
+}

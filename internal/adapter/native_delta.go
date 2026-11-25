@@ -1,0 +1,92 @@
+package adapter
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/clang-engineer/themeset/internal/model"
+)
+
+func nativeDeltaThemeKey(key string) bool {
+	if !strings.HasPrefix(strings.ToLower(key), "delta.") {
+		return false
+	}
+	_, option, _ := strings.Cut(key, ".")
+	if index := strings.LastIndexByte(option, '.'); index >= 0 {
+		option = option[index+1:]
+	}
+	option = strings.ToLower(option)
+	return option == "syntax-theme" || option == "features" || option == "dark" || option == "light" || strings.HasSuffix(option, "-style") || strings.HasSuffix(option, "-syntax-theme")
+}
+
+func nativeApplyDelta(port model.Port, env model.Environment) error {
+	settings := map[string]string{}
+	if port.File != "" {
+		source := nativeExpand(port.File, env)
+		info, err := os.Stat(source)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("delta custom config must be a regular gitconfig file")
+		}
+		out, err := nativeCommand(env, "git", "config", "--file", source, "--no-includes", "--null", "--list")
+		if err != nil {
+			return err
+		}
+		for _, entry := range strings.Split(string(out), "\x00") {
+			key, value, ok := strings.Cut(entry, "\n")
+			if ok && nativeDeltaThemeKey(key) {
+				settings[key] = value
+			}
+		}
+	}
+	if port.Name != "" {
+		if strings.ContainsAny(port.Name, "\r\n\x00") {
+			return fmt.Errorf("invalid delta theme name")
+		}
+		key := "delta.syntax-theme"
+		if port.Kind == "feature" {
+			key = "delta.features"
+		}
+		settings[key] = port.Name
+	}
+	if len(settings) == 0 {
+		return fmt.Errorf("delta custom file contains no native theme settings; provide syntax-theme, theme styles, or a named feature")
+	}
+	path := nativePath("delta", env, filepath.Join(env.Home, ".gitconfig"))
+	data, err := nativeRead(path)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	// Let Git parse and edit its own format, in an isolated temporary copy. No
+	// global config command, include execution, or working-tree access occurs.
+	file, err := os.CreateTemp(filepath.Dir(path), ".themeset-git-*")
+	if err != nil {
+		return err
+	}
+	tmp := file.Name()
+	defer os.Remove(tmp)
+	if _, err = file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err = file.Close(); err != nil {
+		return err
+	}
+	for key, value := range settings {
+		if _, err := nativeCommand(env, "git", "config", "--file", tmp, "--replace-all", key, value); err != nil {
+			return err
+		}
+	}
+	result, err := os.ReadFile(tmp)
+	if err != nil {
+		return err
+	}
+	return nativeWrite(path, result)
+}
