@@ -75,14 +75,23 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Placement:** `$XDG_CONFIG_HOME/ghostty/themes/<name>` or
   `~/.config/ghostty/themes/<name>`; an absolute theme asset path is also valid.
 - **Activate:** edit `theme = <native-name-or-absolute-path>` in the effective
-  Ghostty config or an already included theme selector file. There is no assumed
-  `ghostty theme set` command.
-- **Effect / preserve:** use the app's `reload_config` action or relaunch. Retain
-  fonts, keybindings and terminal behavior. Explicit `background`, `foreground`
-  and `palette` settings can override theme colors. A theme file can contain
-  non-color configuration: validate the registered asset's scope.
-- **Current / target gap:** current code probes installed names and writes the
-  selector; it does not retrieve missing assets or trigger a live GUI reload.
+  Ghostty config or an already included theme selector file. On macOS, when
+  Ghostty is running and `--home` refers to the current user's home, use its
+  [native AppleScript `perform action`](https://ghostty.org/docs/features/applescript)
+  to invoke `reload_config` on the front window's focused terminal.
+- **Effect / preserve:** the action's acknowledgement confirms a reload
+  request, not visual verification of every window. macOS Automation permission
+  may be required; failure leaves the theme file saved and reports an error.
+  If Ghostty is not running or the target is a scratch home, next launch reads
+  the selection. On Linux, reload manually with `Ctrl+Shift+,` or open a fresh
+  window. Retain fonts, keybindings and terminal behavior. Explicit
+  `background`, `foreground` and `palette` settings can override theme colors.
+  Never automate `SIGUSR2`: on Ghostty 1.4.0 its hard reload can desynchronize
+  attached tmux mouse/paste modes
+  ([upstream report](https://github.com/ghostty-org/ghostty/discussions/15101)).
+- **Current / target gap:** installed names are selected but missing themes
+  are not retrieved. No safe noninteractive GUI reload has been verified on
+  Linux, and some options require a fresh window.
 
 ## neovim
 

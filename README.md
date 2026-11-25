@@ -130,6 +130,15 @@ Normal unsupported tools also produce one aggregate warning; settings stay
 unchanged. JSON results include each tool's `reason` and structured warnings.
 Inspection/apply errors remain visible and make the command fail.
 
+Ghostty saves its theme selector and, on macOS, requests `reload_config`
+through Ghostty's native AppleScript API when the app is running for the
+current account. `--home` pointing at a scratch home never reloads the user's
+real app. Automation permission may be required; a denied request reports an
+error after saving the file. `applied` confirms the action acknowledged the
+request, not that every window visually refreshed. On Linux, press
+`Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
+used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
+
 The default catalog is curated to five themes with broader native/official
 coverage: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, and `nord`.
 The same catalog feeds `list`, shell completion, and the interactive picker.

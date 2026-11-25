@@ -115,7 +115,10 @@ func nativeApplyGhostty(port model.Port, env model.Environment) error {
 	if err != nil {
 		return err
 	}
-	return nativeWrite(path, nativeReplaceLines(data, func(s string) bool { return nativeGhosttyTheme.MatchString(s) }, "theme = "+strconv.Quote(name)))
+	if err := nativeWrite(path, nativeReplaceLines(data, func(s string) bool { return nativeGhosttyTheme.MatchString(s) }, "theme = "+strconv.Quote(name))); err != nil {
+		return err
+	}
+	return nativeReloadGhostty(env)
 }
 
 var nativeBatTheme = regexp.MustCompile(`^\s*--theme(?:\s*=|\s+|$)`)
