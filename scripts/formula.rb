@@ -40,6 +40,7 @@ formula = <<~RUBY
   #{sections.map { |s| s.lines.map { |line| "  #{line}" }.join }.join("\n")}
     def install
       bin.install "themeset"
+      pkgshare.install "licenses", "THIRD_PARTY_NOTICES.md"
     end
 
     test do
