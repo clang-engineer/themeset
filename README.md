@@ -48,9 +48,11 @@ themeset current
   check that any configured destinations also point into it.
 - Flags are accepted before or after positional arguments.
 
-`apply` without a theme opens an fzf picker: themes on the left, a sourced
-visual preview and per-tool support on the right. Enter reviews the plan; a
-separate `[y/N]` confirmation is required before any configuration/state write.
+`apply` without a theme opens a single-selection fzf picker: themes on the left,
+a sourced visual preview and per-tool support on the right. The picker ignores
+`FZF_DEFAULT_OPTS` and `FZF_DEFAULT_OPTS_FILE`; Tab/Shift+Tab do not mark multiple
+themes. Enter reviews the current theme's plan; a separate `[y/N]` confirmation
+is required before any configuration/state write.
 Escape or a declined confirmation changes nothing. `apply --dry-run` uses the
 picker and shows the plan without confirmation or writes. Interactive selection
 needs a terminal and fzf (Homebrew installs it); `--json` requires an explicit
@@ -88,16 +90,19 @@ source <(themeset completion zsh)
 themeset completion fish | source
 ```
 
-Use `themeset <Tab>` for command names. In interactive Fish, Tab or Shift+Tab
-while completing the first theme in `themeset apply ` opens the sourced preview
-picker. Enter fills the selected theme into the command line only; it never
+Use `themeset <Tab>` for command names. Tab always retains the shell's existing
+completion behavior. In interactive Fish, only Shift+Tab while completing the
+first theme in `themeset apply ` opens the sourced preview picker.
+Enter fills the selected theme into the command line only; it never
 executes `apply`. Escape leaves the line unchanged. Already supplied themes,
 flags, file paths, and other commands retain their previous key handlers.
 
 Homebrew installs an interactive Fish startup hook so this works on the first
-Tab of a fresh shell, not just after lazy-loading completions. Existing sessions
-can load it with the Fish `source` command above. The wrapper preserves existing
-bindings outside the theme position; Bash/Zsh completion remains unchanged.
+Shift+Tab of a fresh shell, not just after lazy-loading completions. Existing
+sessions can load it with the Fish `source` command above. When upgrading from
+v0.2.2, start a fresh Fish session (`exec fish`) to discard its old Tab wrapper.
+The Shift+Tab wrapper preserves previous bindings outside the theme position;
+Bash/Zsh completion remains unchanged.
 In Zsh, Homebrew's completion directory must be in `fpath` before `compinit`.
 
 ## Resolution and results

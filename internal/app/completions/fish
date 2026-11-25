@@ -124,7 +124,7 @@ function __themeset_install_bindings
         if not contains -- "$mode" (bind --list-modes)
             continue
         end
-        for key in tab shift-tab
+        for key in shift-tab
             set -l suffix (string replace -a - _ -- "$key")
             set -l wrapper "__themeset_key_"$mode"_"$suffix
             set -l saved (bind --user --mode "$mode" "$key" 2>/dev/null | string collect)
