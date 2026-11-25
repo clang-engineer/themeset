@@ -47,8 +47,8 @@ Use an explicit THEME with --json or from scripts.
 Config supports tools, paths, and themes with explicitly registered custom ports.
 Omitted tools selects all adapters; tools: [] selects none. Relative paths and
 custom file references resolve against the config directory; ~/ uses --home.
-Native/official ports always take precedence over custom ports. Missing native
-ports warn, even when a custom fallback is used. Unsupported or uninstalled apps
+Explicit custom ports take precedence over native/official ports. Invalid custom
+ports fail rather than silently falling back. Unsupported or uninstalled apps
 are skipped unchanged. Errors are visible and return a nonzero exit status.
 Apply records only result metadata in the app's own state.json; current reports
 that historical result, not a live assertion of current application settings.
@@ -409,12 +409,8 @@ func printDiagnostics(stderr io.Writer, result Result) {
 		if normalSkip {
 			unsupported++
 		}
-		custom := item.Status == "custom" || (item.Port != nil && item.Port.Kind == "custom")
-		if custom {
-			fmt.Fprintf(stderr, "warning: %s: using a custom fallback; no verified native or official theme available\n", item.Tool)
-		}
 		for _, warning := range item.Warnings {
-			if (normalSkip || custom) && warning == "no verified native or official theme available" {
+			if normalSkip && warning == "no verified native or official theme available" {
 				continue
 			}
 			if normalSkip && warning == "no registered custom port; settings unchanged" {

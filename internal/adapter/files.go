@@ -18,6 +18,15 @@ import (
 //go:embed assets/fzf-dracula.opts
 var filesFZFDracula []byte
 
+//go:embed assets/fzf-catppuccin-mocha.opts
+var filesFZFCatppuccinMocha []byte
+
+//go:embed assets/fzf-gruvbox.opts
+var filesFZFGruvbox []byte
+
+//go:embed assets/fzf-nord.opts
+var filesFZFNord []byte
+
 //go:embed assets/starship-dracula.toml
 var filesStarshipDracula []byte
 
@@ -31,6 +40,8 @@ const filesMoonflySource = "https://github.com/bluz71/vim-moonfly-colors/blob/2c
 
 const filesStarshipSource = "https://github.com/dracula/starship/blob/920e9f46ccc25beee15ed7fe0baddabdfeaaf92a/starship.toml"
 const filesFZFSource = "https://github.com/dracula/fzf/tree/f4c7758a813ca73b69e9c954c001586c33858c24"
+const filesFZFCatppuccinSource = "https://github.com/catppuccin/fzf/blob/7508f8141286fb95249100a2b5325960320dcf32/themes/catppuccin-fzf-mocha.rc"
+const filesFZFPresetsSource = "https://github.com/junegunn/junegunn.github.io/blob/8112383a1781605e7b181c5b717327439a0fb981/static/js/fzf-color-themes.js"
 const filesYaziSource = "https://yazi-rs.github.io/docs/flavors/overview/"
 const filesAtuinSource = "https://docs.atuin.sh/latest/guide/theming/"
 const filesBtopSource = "https://github.com/aristocratos/btop#themes"
@@ -41,10 +52,10 @@ func fileAdapters() []model.Adapter {
 		{ID: "fzf", Binary: "fzf", Resolve: filesResolveFZF, Apply: filesApplyFZF},
 		{ID: "yazi", Binary: "yazi", Resolve: filesResolveYazi, Apply: filesApplyYazi},
 		{ID: "atuin", Binary: "atuin", Resolve: filesResolveAtuin, Apply: filesApplyAtuin},
-		{ID: "lazygit", Binary: "lazygit", Resolve: filesUnsupported, Apply: filesApplyLazy("lazygit")},
-		{ID: "lazydocker", Binary: "lazydocker", Resolve: filesUnsupported, Apply: filesApplyLazy("lazydocker")},
+		{ID: "lazygit", Binary: "lazygit", Resolve: filesResolveLazy("lazygit"), Apply: filesApplyLazy("lazygit")},
+		{ID: "lazydocker", Binary: "lazydocker", Resolve: filesResolveLazy("lazydocker"), Apply: filesApplyLazy("lazydocker")},
 		{ID: "btop", Binary: "btop", Resolve: filesResolveBtop, Apply: filesApplyBtop},
-		{ID: "eza", Binary: "eza", Resolve: filesUnsupported, Apply: filesApplyEza},
+		{ID: "eza", Binary: "eza", Resolve: filesResolveEza, Apply: filesApplyEza},
 	}
 }
 
@@ -124,8 +135,15 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 	})
 }
 
-func filesResolveFZF(name string, _ model.Environment) (model.Port, bool, error) {
+func filesResolveFZF(name string, env model.Environment) (model.Port, bool, error) {
 	switch name {
+	case "catppuccin-mocha":
+		if err := filesFZFRequireSelectedColors(env); err != nil {
+			return model.Port{}, false, err
+		}
+		return model.Port{Kind: "official", Name: name, Source: filesFZFCatppuccinSource}, true, nil
+	case "gruvbox", "nord":
+		return model.Port{Kind: "official", Name: name, Source: filesFZFPresetsSource}, true, nil
 	case "dracula":
 		return model.Port{Kind: "official", Name: name, Source: filesFZFSource}, true, nil
 	case "moonfly":
@@ -156,6 +174,31 @@ func filesFZFOptions(data []byte) error {
 	return nil
 }
 
+var filesFZFVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:\s|$)`)
+
+func filesFZFSelectedColors(version []byte) bool {
+	text := strings.TrimSpace(string(version))
+	if !filesFZFVersion.MatchString(text) {
+		return false
+	}
+	var major, minor, patch int
+	if n, err := fmt.Sscanf(text, "%d.%d.%d", &major, &minor, &patch); err != nil || n != 3 {
+		return false
+	}
+	return major > 0 || minor >= 52
+}
+
+func filesFZFRequireSelectedColors(env model.Environment) error {
+	version, err := nativeCommand(env, "fzf", "--version")
+	if err != nil {
+		return fmt.Errorf("Catppuccin Mocha requires fzf 0.52.0 or newer: %w", err)
+	}
+	if !filesFZFSelectedColors(version) {
+		return errors.New("Catppuccin Mocha requires fzf 0.52.0 or newer")
+	}
+	return nil
+}
+
 func filesApplyFZF(port model.Port, env model.Environment) error {
 	var data []byte
 	if port.File != "" {
@@ -166,6 +209,16 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 		}
 	} else if port.Kind == "official" {
 		switch port.Name {
+		case "catppuccin-mocha":
+			// The exact theme-author port uses selected-bg, added in 0.52.0.
+			if err := filesFZFRequireSelectedColors(env); err != nil {
+				return err
+			}
+			data = filesFZFCatppuccinMocha
+		case "gruvbox":
+			data = filesFZFGruvbox
+		case "nord":
+			data = filesFZFNord
 		case "dracula":
 			data = filesFZFDracula
 		case "moonfly":
@@ -201,6 +254,9 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 }
 
 func filesResolveYazi(name string, env model.Environment) (model.Port, bool, error) {
+	if port, ok := filesOfficialYazi(name); ok {
+		return port, true, nil
+	}
 	if !filesName(name) {
 		return model.Port{}, false, nil
 	}
@@ -234,7 +290,7 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 		}
 		incoming = map[string]any{"flavor": map[string]any{"dark": port.Name, "light": port.Name}}
 	} else {
-		data, err := filesCustom(port, env)
+		data, err := filesPortData("yazi", port, env)
 		if err != nil {
 			return err
 		}
@@ -249,6 +305,9 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 	// theme.toml is dedicated to styles. Recursively merge supplied sections,
 	// retaining unspecified style overrides; yazi.toml/keymap.toml are untouched.
 	return filesEditTOML(filesPath("yazi", env), func(config map[string]any) error {
+		if port.Kind == "official" && port.File == "" {
+			return filesApplyOfficialYazi(config, incoming, env)
+		}
 		filesMerge(config, incoming)
 		return nil
 	})
@@ -296,6 +355,9 @@ func filesAtuinTheme(data []byte) (string, error) {
 }
 
 func filesResolveAtuin(name string, env model.Environment) (model.Port, bool, error) {
+	if port, ok := filesOfficialAtuin(name); ok {
+		return port, true, nil
+	}
 	if filesAtuinBuiltin(name) {
 		return model.Port{Kind: "native", Name: name, Source: filesAtuinSource}, true, nil
 	}
@@ -324,7 +386,7 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 	var asset []byte
 	if port.Kind != "native" {
 		var err error
-		asset, err = filesCustom(port, env)
+		asset, err = filesPortData("atuin", port, env)
 		if err != nil {
 			return err
 		}
@@ -357,7 +419,7 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 
 func filesApplyLazy(id string) func(model.Port, model.Environment) error {
 	return func(port model.Port, env model.Environment) error {
-		data, err := filesCustom(port, env)
+		data, err := filesPortData(id, port, env)
 		if err != nil {
 			return err
 		}
@@ -366,6 +428,9 @@ func filesApplyLazy(id string) func(model.Port, model.Environment) error {
 			return err
 		}
 		gui, _ := incoming["gui"].(map[string]any)
+		if port.Kind == "official" && port.File == "" && id == "lazygit" {
+			gui = incoming
+		}
 		theme, ok := gui["theme"].(map[string]any)
 		if !ok || len(theme) == 0 {
 			return fmt.Errorf("%s custom file must contain a nonempty gui.theme mapping", id)
@@ -386,7 +451,7 @@ func filesApplyLazy(id string) func(model.Port, model.Environment) error {
 }
 
 func filesApplyEza(port model.Port, env model.Environment) error {
-	data, err := filesCustom(port, env)
+	data, err := filesPortData("eza", port, env)
 	if err != nil {
 		return err
 	}

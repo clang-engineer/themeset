@@ -1,0 +1,26 @@
+Source: https://github.com/catppuccin/yazi/blob/d62802be39210ea10e54b3e3b09735c6cb9e57c1/themes/mocha/catppuccin-mocha-mauve.toml
+License source: https://github.com/catppuccin/yazi/blob/d62802be39210ea10e54b3e3b09735c6cb9e57c1/LICENSE
+
+Bundled without changes. The catalog selects the upstream Mauve accent. Only style tables are merged at apply time; layout glyphs, icons and file rules are not imported. The preview path is redirected to the bundled official catppuccin/bat theme (see yazi-catppuccin-mocha-syntax.LICENSE). Existing flavor selectors are cleared so they cannot override this directly configured theme.
+
+MIT License
+
+Copyright (c) 2021 Catppuccin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

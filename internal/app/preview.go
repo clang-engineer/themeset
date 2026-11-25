@@ -44,6 +44,10 @@ func renderVisualPreview(theme string, config model.Config, env model.Environmen
 		if candidate.ID != "bat" || !candidate.Installed() {
 			continue
 		}
+		if _, overridden := config.Themes[theme].Custom["bat"]; overridden {
+			// Do not show a native syntax palette that apply will override.
+			continue
+		}
 		port, found, err := candidate.Resolve(theme, env)
 		if err != nil {
 			inspectionErrors = append(inspectionErrors, fmt.Errorf("inspect bat native preview: %q", err.Error()))
@@ -64,13 +68,12 @@ func renderVisualPreview(theme string, config model.Config, env model.Environmen
 		return errors.Join(append(inspectionErrors, err)...)
 	}
 
-	nativeGhosttyFound := false
-	if ghostty.Resolve != nil && ghostty.Installed() {
+	_, customGhostty := config.Themes[theme].Custom["ghostty"]
+	if !customGhostty && ghostty.Resolve != nil && ghostty.Installed() {
 		port, found, err := ghostty.Resolve(theme, env)
 		if err != nil {
 			inspectionErrors = append(inspectionErrors, fmt.Errorf("inspect Ghostty native preview: %q", err.Error()))
 		} else if found {
-			nativeGhosttyFound = true
 			path, err := previewGhosttyAsset(port.Name, env)
 			if err != nil {
 				inspectionErrors = append(inspectionErrors, err)
@@ -83,7 +86,7 @@ func renderVisualPreview(theme string, config model.Config, env model.Environmen
 			}
 		}
 	}
-	if port, found := config.Themes[theme].Custom["ghostty"]; found && !nativeGhosttyFound {
+	if port, found := config.Themes[theme].Custom["ghostty"]; found {
 		path := ""
 		var err error
 		if port.File != "" {

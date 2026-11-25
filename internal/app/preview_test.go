@@ -157,7 +157,7 @@ func TestPreviewGhosttyInspectionErrorsQuoteAssetPaths(t *testing.T) {
 	}
 }
 
-func TestVisualPreviewDoesNotSubstituteCustomForUnreadableNative(t *testing.T) {
+func TestVisualPreviewUsesCustomInsteadOfUnreadableNative(t *testing.T) {
 	home, bin := t.TempDir(), t.TempDir()
 	t.Setenv("PATH", bin)
 	ghostty := filepath.Join(bin, "ghostty")
@@ -174,7 +174,7 @@ func TestVisualPreviewDoesNotSubstituteCustomForUnreadableNative(t *testing.T) {
 	}}
 	var out bytes.Buffer
 	err := renderVisualPreview("nord", config, model.Environment{Home: home, ConfigHome: configHome, OS: "linux"}, &out)
-	if err == nil || strings.Contains(out.String(), "\x1b[") {
-		t.Fatalf("native inspection error must not preview an unapplied custom palette: err=%v output=%q", err, out.String())
+	if err != nil || !strings.Contains(out.String(), "\x1b[48;2;1;35;69m") {
+		t.Fatalf("custom override was not previewed: err=%v output=%q", err, out.String())
 	}
 }

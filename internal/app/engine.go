@@ -18,7 +18,6 @@ var builtinThemes = []string{
 }
 
 // ToolResult separates support selection from the actual application outcome.
-// Error may coexist with an applied custom fallback after a native inspection error.
 type ToolResult struct {
 	Tool     string      `json:"tool"`
 	Status   string      `json:"status"`
@@ -88,41 +87,33 @@ func plan(theme string, config model.Config, env model.Environment, adapters []m
 			result.Tools = append(result.Tools, item)
 			continue
 		}
-		port, found, err := adapter.Resolve(theme, env)
-		if err != nil {
-			item.Error = fmt.Sprintf("inspect native theme: %v", err)
-			found = false
-		}
-		if found && port.Kind != "native" && port.Kind != "official" {
-			item.Error = fmt.Sprintf("adapter returned invalid native port kind %q", port.Kind)
-			found = false
-		}
-		if found {
-			item.Status, item.Port = port.Kind, &port
-		} else {
-			item.Warnings = append(item.Warnings, "no verified native or official theme available")
-			if custom, ok := config.Themes[theme].Custom[adapter.ID]; ok {
-				custom.Kind = "custom"
-				item.Status, item.Port = "custom", &custom
-				if custom.File != "" {
-					info, fileErr := os.Stat(custom.File)
-					if fileErr == nil && !info.Mode().IsRegular() {
-						fileErr = errors.New("not a regular file")
-					}
-					if fileErr != nil {
-						message := fmt.Sprintf("inspect custom file %s: %v", custom.File, fileErr)
-						if item.Error != "" {
-							message = item.Error + "; " + message
-						}
-						item.Error = message
-						item.Status, item.Outcome, item.Port = "error", "failed", nil
-					}
+		if custom, ok := config.Themes[theme].Custom[adapter.ID]; ok {
+			custom.Kind = "custom"
+			item.Status, item.Port = "custom", &custom
+			if custom.File != "" {
+				info, err := os.Stat(custom.File)
+				if err == nil && !info.Mode().IsRegular() {
+					err = errors.New("not a regular file")
 				}
-			} else if item.Error != "" {
+				if err != nil {
+					item.Error = fmt.Sprintf("inspect custom file %s: %v", custom.File, err)
+					item.Status, item.Outcome, item.Port = "error", "failed", nil
+				}
+			}
+		} else {
+			port, found, err := adapter.Resolve(theme, env)
+			switch {
+			case err != nil:
+				item.Error = fmt.Sprintf("inspect native theme: %v", err)
 				item.Status, item.Outcome = "error", "failed"
-			} else {
+			case found && port.Kind != "native" && port.Kind != "official":
+				item.Error = fmt.Sprintf("adapter returned invalid native port kind %q", port.Kind)
+				item.Status, item.Outcome = "error", "failed"
+			case found:
+				item.Status, item.Port = port.Kind, &port
+			default:
 				item.Status, item.Outcome = "unsupported", "skipped"
-				item.Warnings = append(item.Warnings, "no registered custom port; settings unchanged")
+				item.Warnings = append(item.Warnings, "no verified native or official theme available", "no registered custom port; settings unchanged")
 			}
 		}
 		result.Tools = append(result.Tools, item)

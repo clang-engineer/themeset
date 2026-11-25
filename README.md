@@ -1,8 +1,8 @@
 # themeset
 
-Apply existing application themes together. Inspect which installed tools support
-a theme, prefer their native or official ports, use explicitly registered custom
-ports when necessary, and skip unsupported tools without changing their settings.
+Apply existing application themes together. Use explicitly registered per-tool
+overrides first, otherwise select installed native themes or bundled official
+ports, and skip unsupported tools without changing their settings.
 
 **No palette generation, approximate substitutions, plugin installation, or
 shell commands from configuration.**
@@ -107,12 +107,14 @@ In Zsh, Homebrew's completion directory must be in `fpath` before `compinit`.
 
 ## Resolution and results
 
-1. Resolve the installed app's native theme/provider or a bundled official port.
-2. If unavailable, warn and select the registered custom port for the exact
-   **theme × tool** combination.
-3. If neither exists, warn and skip that tool. Its previous settings remain.
-4. Skip missing executables. Actual inspection/apply failures remain errors;
-   other selected tools are still processed and the command returns nonzero.
+1. Skip missing executables.
+2. Use an explicitly registered custom port for the exact **theme × tool**
+   combination. Invalid overrides fail; they never silently fall back.
+3. Otherwise resolve the installed app's native theme/provider or a bundled
+   official port.
+4. If neither exists, warn and skip that tool. Its previous settings remain.
+   Actual inspection/apply failures remain errors; other selected tools are
+   still processed and the command returns nonzero.
 
 Support is reported as `native`, `official`, `custom`, `unsupported`,
 `not-installed`, or `error`. Application outcomes are separate: `planned`,
@@ -122,9 +124,8 @@ matches the last requested theme.
 
 Human-readable results include a per-tool table and a summary of applied, planned,
 skipped, and failed tools. Normal unsupported tools produce one aggregate warning
-and keep their settings unchanged; a custom fallback still reports its warning.
-Inspection/apply errors remain visible and make the command fail. An inspection
-error followed by a successful custom apply can count as both failed and applied.
+and keep their settings unchanged. Selecting a custom override is not a warning.
+Inspection/apply errors remain visible and make the command fail.
 JSON output retains each tool's structured warnings and errors.
 
 The default catalog is curated to five themes with broader native/official
@@ -138,6 +139,12 @@ A custom registration is never relabeled as official.
 
 ## Integrations
 
+For each tool's source, installation/placement, activation, reload, preservation
+rules, and current implementation gaps, see the
+[adapter lifecycle reference](theme-adapters.md).
+That reference describes the requested acquire-if-missing design; the current CLI
+still uses installed providers and bundled files, without runtime downloads.
+
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
 | Ghostty | Installed `+list-themes` names | Native Ghostty theme asset |
@@ -147,16 +154,41 @@ A custom registration is never relabeled as official.
 | delta | Installed syntax-theme list | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
 | Starship | Existing named palettes; pinned official Dracula and Moonfly | Selected palette in Starship TOML |
-| fzf | Pinned official Dracula and Moonfly options | Color-only native options file |
-| Yazi | Complete installed flavors | Native `theme.toml` fragment |
-| Atuin | Shipped or installed Atuin themes | Native theme TOML asset |
-| lazygit/lazydocker | Custom registration required | `gui.theme` YAML fragment |
+| fzf | Pinned Dracula, Moonfly, Catppuccin Mocha ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
+| Yazi | Complete installed flavors; bundled Catppuccin Mocha/Mauve styles and syntax theme | Native `theme.toml` fragment |
+| Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve | Native theme TOML asset |
+| lazygit | Bundled Dracula and Catppuccin Mocha/Mauve | `gui.theme` YAML fragment |
+| lazydocker | Bundled Dracula | `gui.theme` YAML fragment |
 | btop | Installed user/system theme files | Native `.theme` file |
-| eza | Custom registration required | Native `theme.yml` fragment |
+| eza | Bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
 honestly rather than replaced by newly synthesized colors.
+
+Bundled ports are applied by writing the application's native settings/assets;
+no separate theme installation, runtime network fetch, or installer script is
+needed. Native discovery inspects fixed app commands or local theme files.
+`native` means available through the app; it does not certify theme-author
+provenance. Bundled `official` ports record whether their source is the theme
+author or, for fzf Gruvbox/Nord, the application's author.
+
+Catppuccin Mocha fzf requires fzf 0.52.0 or newer; resolution and apply report an
+error for older versions before writing its options. Gruvbox/Nord use stable
+color option names, not the newer layout options shown in the fzf web generator.
+Catppuccin Atuin installs and selects its declared `catppuccin-mocha-mauve`
+name. Yazi imports only UI style tables and installs the official Catppuccin
+syntax theme; separators, icons, file rules, layouts, and keymaps remain intact.
+
+Dracula remains unregistered for Atuin, eza, tmux, and current Yazi through these
+adapters. No verified Atuin port was found; the currently examined theme-author
+eza port uses shell exports; tmux's full Dracula plugin executes scripts and
+changes status layouts; the Dracula-author Yazi example is incomplete/outdated.
+Application-maintained alternatives do exist: Yazi's flavor collection has a
+complete Dracula package, and eza's theme collection has native Dracula YAML.
+These are identified in the lifecycle reference but are not yet acquired or
+selected automatically. Current skips describe registry/implementation gaps,
+not proof that those applications cannot use Dracula.
 
 Changes take effect on the next application launch or prompt/invocation; running
 apps are not forcibly restarted. Neovim's generated selection runs on VimEnter.
@@ -241,6 +273,10 @@ uses the selected home. `name` may select an existing app theme for adapters
 supporting native name selection. Omit `tools` for all adapters; `"tools": []`
 means none. Canonical Neovim ID is `neovim`. Unknown JSON fields and unknown
 selected tool IDs are errors.
+
+Explicit `themes.<id>.custom.<tool>` entries override even available native or
+official ports. An invalid custom file is an error, not permission to use other
+colors. Use an empty theme object to register an extra ID without custom ports.
 
 Explicit `paths` override native destination files. macOS lazygit/lazydocker and
 eza follow their native Library paths; existing legacy lazy-tool vendor paths

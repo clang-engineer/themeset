@@ -32,7 +32,7 @@ sections = {"macos" => "darwin", "linux" => "linux"}.map do |os, platform|
 end
 formula = <<~RUBY
   class Themeset < Formula
-    desc "Apply existing app themes together with explicit custom fallbacks"
+    desc "Apply existing app themes together with explicit custom overrides"
     homepage "https://github.com/#{repository}"
     version "#{version.delete_prefix('v')}"
     license "MIT"

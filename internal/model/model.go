@@ -28,7 +28,7 @@ type Environment struct {
 	Paths              map[string]string
 }
 
-// Adapter resolves verified native/official ports before any caller-provided fallback.
+// Adapter resolves native/official ports when no caller-provided override is registered.
 // Resolve returns false for unsupported/unavailable native themes. Errors describe inspection failures.
 type Adapter struct {
 	ID      string
