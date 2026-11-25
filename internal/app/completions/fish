@@ -1,0 +1,23 @@
+function __themeset_complete
+    set -l args (commandline -opc)
+    set -e args[1]
+    set -l current (commandline -ct)
+
+    # Let Fish complete path arguments natively, including --flag=VALUE.
+    switch "$current"
+        case '--config=*' '--home=*'
+            return
+    end
+    if set -q args[-1]
+        switch "$args[-1]"
+            case --config --home
+                return
+        end
+    end
+
+    command themeset __complete $args "$current" 2>/dev/null
+end
+
+complete -c themeset -f -a '(__themeset_complete)'
+complete -c themeset -l config -r -F
+complete -c themeset -l home -r -a '(__fish_complete_directories)'

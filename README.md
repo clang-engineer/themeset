@@ -48,6 +48,29 @@ themeset current
   check that any configured destinations also point into it.
 - Flags are accepted before or after positional arguments.
 
+## Shell completion
+
+Homebrew installs Bash, Zsh, and Fish completion definitions in its standard
+completion directories. Restart your shell after installing or upgrading.
+Completion offers subcommands, flags, theme IDs (including your custom config),
+shell names, and comma-separated `--tools` values. It never applies themes.
+
+For a source build, or to load completion into an existing session:
+
+```sh
+# Bash
+source <(themeset completion bash)
+# Zsh, after compinit
+source <(themeset completion zsh)
+# Fish
+themeset completion fish | source
+```
+
+Use `themeset <Tab>` and `themeset apply <Tab>`. The executable is spelled
+`themeset`, not `themset`. Shift+Tab follows your shell's existing reverse-menu
+or picker binding; themeset does not change global key bindings. In Zsh,
+Homebrew's completion directory must be in `fpath` before `compinit`.
+
 ## Resolution and results
 
 1. Resolve the installed app's native theme/provider or a bundled official port.

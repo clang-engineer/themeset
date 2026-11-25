@@ -1,0 +1,42 @@
+#compdef themeset
+
+_themeset() {
+    local current previous
+    local -a args candidates
+    current=${words[CURRENT]}
+    previous=${words[CURRENT-1]}
+
+    case $current in
+        --config=*)
+            compset -P '--config='
+            _files
+            return
+            ;;
+        --home=*)
+            compset -P '--home='
+            _files -/
+            return
+            ;;
+    esac
+    case $previous in
+        --config)
+            _files
+            return
+            ;;
+        --home)
+            _files -/
+            return
+            ;;
+    esac
+
+    args=("${(@)words[2,CURRENT]}")
+    candidates=("${(@f)$(command themeset __complete "${args[@]}" 2>/dev/null)}")
+    [[ -n ${candidates[1]} ]] && compadd -- "${candidates[@]}"
+}
+
+# Autoload executes this file as _themeset; sourcing only registers it.
+if [[ ${funcstack[1]} == _themeset ]]; then
+    _themeset "$@"
+elif (( $+functions[compdef] )); then
+    compdef _themeset themeset
+fi

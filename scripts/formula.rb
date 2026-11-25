@@ -41,6 +41,7 @@ formula = <<~RUBY
     def install
       bin.install "themeset"
       pkgshare.install "licenses", "THIRD_PARTY_NOTICES.md"
+      generate_completions_from_executable(bin/"themeset", "completion", shells: [:bash, :zsh, :fish])
     end
 
     test do

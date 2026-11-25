@@ -1,0 +1,82 @@
+# Bash completion for themeset. Compatible with the macOS system Bash.
+_themeset() {
+  local cur prev word candidate prefix value mode i last
+  local -a args
+  COMPREPLY=()
+  cur=${COMP_WORDS[COMP_CWORD]}
+  args=()
+
+  # Bash splits '=' into separate words by default. Reassemble arguments
+  # without changing COMP_WORDBREAKS or interpreting any shell input.
+  for ((i = 1; i <= COMP_CWORD; i++)); do
+    word=${COMP_WORDS[i]}
+    last=$((${#args[@]} - 1))
+    if [[ $word == '=' && $last -ge 0 ]]; then
+      args[last]=${args[last]}=
+    elif [[ $last -ge 0 && ${args[last]} == *= ]]; then
+      args[last]=${args[last]}${word}
+    else
+      args[${#args[@]}]=$word
+    fi
+  done
+  last=$((${#args[@]} - 1))
+  [[ $last -ge 0 ]] || return 0
+  word=${args[last]}
+  prev=
+  if [[ $last -gt 0 ]]; then
+    prev=${args[last - 1]}
+  fi
+
+  # Replies replace only the current Bash word, not an earlier flag or '='.
+  prefix=
+  if [[ $cur == '=' ]]; then
+    prefix=$word
+  elif [[ -n $cur ]]; then
+    prefix=${word%"$cur"}
+  elif [[ $word == *= ]]; then
+    prefix=$word
+  fi
+
+  mode=
+  value=$word
+  case $word in
+  --config=*)
+    mode='file'
+    value=${word#*=}
+    ;;
+  --home=*)
+    mode=directory
+    value=${word#*=}
+    ;;
+  *)
+    case $prev in
+    --config) mode='file' ;;
+    --home) mode=directory ;;
+    esac
+    ;;
+  esac
+  if [[ -n $mode ]]; then
+    # -o filenames supplies Bash's native quoting and directory behavior.
+    if [[ $mode == directory ]]; then
+      while IFS= read -r candidate; do
+        if [[ $word == --home=* ]]; then
+          candidate=--home=$candidate
+        fi
+        COMPREPLY[${#COMPREPLY[@]}]=${candidate#"$prefix"}
+      done < <(compgen -d -- "$value")
+    else
+      while IFS= read -r candidate; do
+        if [[ $word == --config=* ]]; then
+          candidate=--config=$candidate
+        fi
+        COMPREPLY[${#COMPREPLY[@]}]=${candidate#"$prefix"}
+      done < <(compgen -f -- "$value")
+    fi
+    return 0
+  fi
+
+  while IFS= read -r candidate; do
+    COMPREPLY[${#COMPREPLY[@]}]=${candidate#"$prefix"}
+  done < <(command themeset __complete "${args[@]}" 2>/dev/null)
+}
+complete -o filenames -F _themeset themeset

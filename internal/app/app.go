@@ -26,6 +26,7 @@ Commands:
   check THEME   Inspect available native/official/custom support without writes
   apply THEME   Apply available themes; continue after individual tool failures
   current       Show the last apply result (including skips and failures)
+  completion SHELL  Print Bash, Zsh, or Fish completion definitions
   help          Show this help
   version       Show the build version
 
@@ -117,6 +118,15 @@ func Run(args []string, stdout, stderr io.Writer) int {
 }
 
 func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int {
+	if len(args) > 0 && args[0] == "__complete" {
+		for _, candidate := range completeWords(args[1:], adapters) {
+			if _, err := fmt.Fprintln(stdout, candidate); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
+			}
+		}
+		return 0
+	}
 	opts, err := parse(args)
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
@@ -150,6 +160,13 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			return 1
 		}
 		return 0
+	}
+	if command == "completion" {
+		if len(opts.positionals) != 2 {
+			fmt.Fprintln(stderr, "error: completion expects bash, zsh, or fish")
+			return 2
+		}
+		return printCompletion(opts.positionals[1], stdout, stderr)
 	}
 	expected := 1
 	switch command {
