@@ -108,6 +108,13 @@ Support is reported as `native`, `official`, `custom`, `unsupported`,
 result, including partial failures; it does not assert that every app currently
 matches the last requested theme.
 
+Human-readable results include a per-tool table and a summary of applied, planned,
+skipped, and failed tools. Normal unsupported tools produce one aggregate warning
+and keep their settings unchanged; a custom fallback still reports its warning.
+Inspection/apply errors remain visible and make the command fail. An inspection
+error followed by a successful custom apply can count as both failed and applied.
+JSON output retains each tool's structured warnings and errors.
+
 Theme identifiers in `list` are not a promise of support by every tool. Existing
 providers must already be installed. A custom registration is never relabeled
 as official.
@@ -118,12 +125,12 @@ as official.
 |---|---|---|
 | Ghostty | Installed `+list-themes` names | Native Ghostty theme asset |
 | Neovim | Installed colorscheme runtime files | Existing Lua/Vim theme script |
-| tmux | No general native theme registry | Trusted tmux theme config |
+| tmux | Pinned official Moonfly style commands; no general native registry | Trusted tmux theme config |
 | bat | Installed syntax-theme list | bat config containing `--theme` |
 | delta | Installed syntax-theme list | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
-| Starship | Existing named palettes; pinned official Dracula | Selected palette in Starship TOML |
-| fzf | Pinned official Dracula options | Color-only native options file |
+| Starship | Existing named palettes; pinned official Dracula and Moonfly | Selected palette in Starship TOML |
+| fzf | Pinned official Dracula and Moonfly options | Color-only native options file |
 | Yazi | Complete installed flavors | Native `theme.toml` fragment |
 | Atuin | Shipped or installed Atuin themes | Native theme TOML asset |
 | lazygit/lazydocker | Custom registration required | `gui.theme` YAML fragment |
@@ -138,6 +145,38 @@ Changes take effect on the next application launch or prompt/invocation; running
 apps are not forcibly restarted. Neovim's generated selection runs on VimEnter.
 Existing CLI flags, environment overrides, project-local profiles, and user
 startup code can still override an application's normal config.
+
+### Moonfly provenance and scope
+
+The [official Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras)
+are pinned at `2c883835f5b7b380a0a9e80695c420f7efebdfe4`:
+
+- **fzf:** the exact 14 upstream color options, with shell export syntax removed
+  and `--color VALUE` expressed as `--color=VALUE`. Ordinary picker options and
+  shell startup files are not changed.
+- **Starship:** only the selected upstream `[palettes.moonfly]` is imported and
+  selected, just as for Dracula. Prompt/module formats, symbols, truncation, and
+  other palettes remain intact. The upstream palette defines only `fern`,
+  `lavender`, `orange`, and `red`; no missing colors are invented. Existing styles
+  use this palette only when they reference those names.
+- **tmux:** only the six exact upstream style commands (message, pane borders,
+  status, window activity, and current-window styles) are imported. Upstream's
+  status-left/right, window formats, and shell conditional are deliberately
+  omitted to preserve layouts and keymaps. A dedicated
+  `$XDG_CONFIG_HOME/themeset/tmux-moonfly.conf` (default
+  `~/.config/themeset/tmux-moonfly.conf`) is included after the existing config.
+  A `paths.tmux` override can target an existing managed theme include, as in an
+  Oh my tmux! wrapper. Oh my tmux!'s own layout and embedded segment colors are
+  not remapped; inline colors can still override the imported style fields.
+
+Ghostty and Neovim continue to use installed native Moonfly providers. Other
+applications remain unsupported unless a real installed/native or explicitly
+registered custom port exists. The matching but distinct `fly16` bat theme is
+**not** treated as Moonfly. Source hashes, adaptation details, and the full
+upstream MIT license are retained in
+[`internal/adapter/assets/moonfly.LICENSE`](internal/adapter/assets/moonfly.LICENSE);
+see also [third-party notices](THIRD_PARTY_NOTICES.md).
+
 
 ### fzf activation
 

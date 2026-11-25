@@ -9,6 +9,17 @@
   `920e9f46ccc25beee15ed7fe0baddabdfeaaf92a`. Existing palette only; module
   configuration is not imported. License retained in
   `internal/adapter/assets/starship-dracula.LICENSE`.
+- Moonfly fzf, Starship, and tmux integrations:
+  https://github.com/bluz71/vim-moonfly-colors at
+  `2c883835f5b7b380a0a9e80695c420f7efebdfe4`.
+  `extras/moonfly-fzf.sh` supplies exact color options, with shell syntax removed
+  and `--color VALUE` rewritten as `--color=VALUE`.
+  `extras/moonfly-starship.toml` is retained unchanged; only its selected palette
+  is imported, never module configuration.
+  `extras/moonfly.tmux` supplies only its six exact style commands; status
+  layouts, window formats, and the shell conditional are omitted.
+  Full MIT license, source hashes, and adaptation details are retained in
+  `internal/adapter/assets/moonfly.LICENSE`.
 
 These are official port assets, not colors synthesized from another application.
 Other native themes are selected from the user's installed application/providers

@@ -115,6 +115,67 @@ func TestFilesCustomPortsPreserveNonThemeConfiguration(t *testing.T) {
 	}
 }
 
+func TestFilesOfficialMoonflyPreservesApplicationConfiguration(t *testing.T) {
+	t.Run("starship", func(t *testing.T) {
+		env := filesTestEnv(t)
+		path := filesPath("starship", env)
+		filesTestWrite(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[character]\nsuccess_symbol = 'KEEP'\n[palettes.keep]\nred = '#111111'\n")
+		port, ok, err := filesResolveStarship("moonfly", env)
+		if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly-starship.toml" {
+			t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+		}
+		if err := filesApplyStarship(port, env); err != nil {
+			t.Fatal(err)
+		}
+		config, err := filesTOML(filesTestRead(t, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		directory := config["directory"].(map[string]any)
+		character := config["character"].(map[string]any)
+		palettes := config["palettes"].(map[string]any)
+		palette := palettes["moonfly"].(map[string]any)
+		if config["palette"] != "moonfly" || config["format"] != "$directory" || config["add_newline"] != false || directory["truncation_length"] != int64(2) || character["success_symbol"] != "KEEP" || palettes["keep"] == nil {
+			t.Fatalf("unrelated Starship settings changed: %#v", config)
+		}
+		want := map[string]string{"fern": "#87d787", "lavender": "#adadf3", "orange": "#f09479", "red": "#f07496"}
+		if len(palette) != len(want) {
+			t.Fatalf("official palette contains fabricated colors: %#v", palette)
+		}
+		for key, value := range want {
+			if palette[key] != value {
+				t.Errorf("Moonfly %s = %v, want %s", key, palette[key], value)
+			}
+		}
+	})
+	t.Run("fzf", func(t *testing.T) {
+		env := filesTestEnv(t)
+		unrelated := filepath.Join(env.Home, ".fzf.zsh")
+		original := "export FZF_DEFAULT_OPTS='--height=40% --reverse'\n"
+		filesTestWrite(t, unrelated, original)
+		port, ok, err := filesResolveFZF("moonfly", env)
+		if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly-fzf.sh" {
+			t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+		}
+		if err := filesApplyFZF(port, env); err != nil {
+			t.Fatal(err)
+		}
+		first := string(filesTestRead(t, filesPath("fzf", env)))
+		if err := filesFZFOptions([]byte(first)); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(first, "--color=bg:#080808\n") || !strings.Contains(first, "--color=pointer:#ff5189\n") || len(strings.Fields(first)) != 14 {
+			t.Fatalf("official Moonfly options missing: %s", first)
+		}
+		if err := filesApplyFZF(port, env); err != nil {
+			t.Fatal(err)
+		}
+		if string(filesTestRead(t, filesPath("fzf", env))) != first || string(filesTestRead(t, unrelated)) != original {
+			t.Fatal("fzf reapply changed options or unrelated shell configuration")
+		}
+	})
+}
+
 func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"yazi", "btop", "eza", "lazygit", "lazydocker", "atuin", "starship", "fzf"} {

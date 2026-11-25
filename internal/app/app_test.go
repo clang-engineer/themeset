@@ -395,3 +395,53 @@ func TestHiddenPreviewNeverWrites(t *testing.T) {
 		t.Fatalf("preview wrote files or state: %v, %v", entries, err)
 	}
 }
+
+func TestHumanReportingPreservesHistoricalMetadata(t *testing.T) {
+	result := Result{Theme: "fixture", AppliedAt: "2026-01-01T00:00:00Z", Tools: []ToolResult{
+		{Tool: "unsupported-a", Status: "unsupported", Outcome: "skipped", Warnings: []string{
+			"no verified native or official theme available", "no registered custom port; settings unchanged",
+		}},
+		{Tool: "unsupported-b", Status: "unsupported", Outcome: "skipped", Warnings: []string{
+			"no verified native or official theme available", "no registered custom port; settings unchanged",
+		}},
+		{Tool: "fallback", Status: "custom", Outcome: "applied", Port: &model.Port{Kind: "custom"},
+			Warnings: []string{"no verified native or official theme available"}, Error: "inspection failure"},
+		{Tool: "failed", Status: "error", Outcome: "failed", Error: "application failure"},
+	}}
+	before, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := printResult(&stdout, &stderr, result); code != 0 {
+		t.Fatalf("report failed: %d", code)
+	}
+	after, err := json.Marshal(result)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("report changed historical metadata: %s -> %s (%v)", before, after, err)
+	}
+	// One aggregate skip diagnostic, one custom warning, and both real errors.
+	if strings.Count(stderr.String(), "warning:") != 2 || strings.Count(stderr.String(), "error:") != 2 {
+		t.Fatalf("diagnostics not consolidated or errors lost: %s", stderr.String())
+	}
+	for _, message := range []string{"inspection failure", "application failure"} {
+		if !strings.Contains(stderr.String(), message) {
+			t.Fatalf("lost error %q: %s", message, stderr.String())
+		}
+	}
+	for _, item := range result.Tools {
+		if !strings.Contains(stdout.String(), item.Tool+"\t"+item.Status+"\t"+item.Outcome) {
+			t.Fatalf("missing tool metadata for %s: %s", item.Tool, stdout.String())
+		}
+	}
+}
+
+func TestHistoricalCustomResultAlwaysWarns(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	result := Result{Theme: "fixture", Tools: []ToolResult{
+		{Tool: "fallback", Status: "custom", Outcome: "applied"},
+	}}
+	if printResult(&stdout, &stderr, result) != 0 || strings.Count(stderr.String(), "warning:") != 1 {
+		t.Fatalf("custom fallback warning missing: %s", stderr.String())
+	}
+}

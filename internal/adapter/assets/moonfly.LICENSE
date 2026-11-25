@@ -1,0 +1,36 @@
+Source: https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4
+
+fzf-moonfly.opts: exact color options from extras/moonfly-fzf.sh, with shell
+export/continuations removed and --color VALUE rewritten as --color=VALUE.
+starship-moonfly.toml: unchanged extras/moonfly-starship.toml; only its selected
+palette is imported by the adapter, not module settings.
+tmux-moonfly.conf: only the six exact style commands from extras/moonfly.tmux;
+status-left/right, window formats, shell conditionals and shebang are omitted.
+
+Pinned upstream SHA-256:
+extras/moonfly-fzf.sh b08102727a5ba49ec91486f816320d904cd1eb5657bfab5534351331a2f1b358
+extras/moonfly-starship.toml a49271e4345eb4db8bd98abc579a1bb4120ea38e913db32322a136bacca88f7b
+extras/moonfly.tmux 987e4cfa6eb775e6af0a0ab32500f474ed682cdb2d5c811c71657df27dc5398e
+LICENSE edd11671f979344729adb1b4beab3a2a0762a451c231d6e9179fd73c05a1a3e0
+
+MIT License
+
+Copyright (c) 2017-present vim-moonfly-colors authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

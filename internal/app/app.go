@@ -315,16 +315,9 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			stateError = true
 		}
 	}
-	for _, item := range result.Tools {
-		for _, warning := range item.Warnings {
-			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
-		}
-		if item.Error != "" {
-			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
-		}
-	}
 	code := 0
 	if opts.json {
+		printDiagnostics(stderr, result)
 		code = emitJSON(stdout, stderr, result)
 	} else {
 		code = printResult(stdout, stderr, result)
@@ -356,6 +349,24 @@ func printResult(stdout, stderr io.Writer, result Result) int {
 			return 1
 		}
 	}
+	applied, planned, skipped, failures := 0, 0, 0, 0
+	for _, item := range result.Tools {
+		switch item.Outcome {
+		case "applied":
+			applied++
+		case "planned":
+			planned++
+		case "skipped":
+			skipped++
+		}
+		if item.Outcome == "failed" || item.Error != "" {
+			failures++
+		}
+	}
+	if _, err := fmt.Fprintf(stdout, "Summary: %d applied, %d planned, %d skipped, %d failed\n", applied, planned, skipped, failures); err != nil {
+		fmt.Fprintln(stderr, "error: write output:", err)
+		return 1
+	}
 	for _, item := range result.Tools {
 		detail := ""
 		if item.Error != "" {
@@ -366,5 +377,36 @@ func printResult(stdout, stderr io.Writer, result Result) int {
 			return 1
 		}
 	}
+	printDiagnostics(stderr, result)
 	return 0
+}
+
+// Human diagnostics are derived without changing stored or JSON warning metadata.
+func printDiagnostics(stderr io.Writer, result Result) {
+	unsupported := 0
+	for _, item := range result.Tools {
+		normalSkip := item.Status == "unsupported" && item.Outcome == "skipped" && item.Error == ""
+		if normalSkip {
+			unsupported++
+		}
+		custom := item.Status == "custom" || (item.Port != nil && item.Port.Kind == "custom")
+		if custom {
+			fmt.Fprintf(stderr, "warning: %s: using a custom fallback; no verified native or official theme available\n", item.Tool)
+		}
+		for _, warning := range item.Warnings {
+			if (normalSkip || custom) && warning == "no verified native or official theme available" {
+				continue
+			}
+			if normalSkip && warning == "no registered custom port; settings unchanged" {
+				continue
+			}
+			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
+		}
+		if item.Error != "" {
+			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
+		}
+	}
+	if unsupported > 0 {
+		fmt.Fprintf(stderr, "warning: %d unsupported tools skipped (no native/official or registered custom port); settings unchanged\n", unsupported)
+	}
 }

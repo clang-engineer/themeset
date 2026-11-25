@@ -49,7 +49,7 @@ func nativeAdapters() []model.Adapter {
 	return []model.Adapter{
 		{ID: "ghostty", Binary: "ghostty", Resolve: nativeListedResolver("ghostty", "+list-themes"), Apply: nativeApplyGhostty},
 		{ID: "neovim", Binary: "nvim", Resolve: nativeResolveNeovim, Apply: nativeApplyNeovim},
-		{ID: "tmux", Binary: "tmux", Resolve: func(string, model.Environment) (model.Port, bool, error) { return model.Port{}, false, nil }, Apply: nativeApplyTmux},
+		{ID: "tmux", Binary: "tmux", Resolve: nativeResolveTmux, Apply: nativeApplyTmux},
 		{ID: "bat", Binary: "bat", Resolve: nativeListedResolver("bat", "--list-themes", "--color=never"), Apply: nativeApplyBat},
 		{ID: "delta", Binary: "delta", Resolve: nativeListedResolver("delta", "--list-syntax-themes"), Apply: nativeApplyDelta},
 		{ID: "harlequin", Binary: "harlequin", Resolve: nativeListedResolver("harlequin", "--help"), Apply: nativeApplyHarlequin},
@@ -169,40 +169,4 @@ func nativeApplyBat(port model.Port, env model.Environment) error {
 		return err
 	}
 	return nativeWrite(path, nativeReplaceLines(data, func(s string) bool { return nativeBatTheme.MatchString(s) }, "--theme="+strconv.Quote(name)))
-}
-
-func nativeApplyTmux(port model.Port, env model.Environment) error {
-	if port.File == "" {
-		return fmt.Errorf("tmux has no general native theme registry; register an existing tmux theme config file")
-	}
-	source := nativeExpand(port.File, env)
-	if !filepath.IsAbs(source) || strings.ContainsAny(source, "\r\n\x00") {
-		return fmt.Errorf("tmux theme config requires an absolute file path")
-	}
-	info, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("tmux theme config must be a regular file")
-	}
-	fallback := filepath.Join(env.Home, ".tmux.conf")
-	xdg := filepath.Join(nativeConfigHome(env), "tmux", "tmux.conf")
-	if _, err := os.Stat(fallback); os.IsNotExist(err) {
-		if _, err := os.Stat(xdg); err == nil {
-			fallback = xdg
-		}
-	}
-	path := nativePath("tmux", env, fallback)
-	if filepath.Clean(path) == filepath.Clean(source) {
-		return fmt.Errorf("tmux theme source cannot be the destination config")
-	}
-	data, err := nativeRead(path)
-	if err != nil {
-		return err
-	}
-	// The explicitly registered file is trusted tmux code. No shell or live
-	// server command is run here; tmux reads the include on its next start.
-	quoted := "\"" + strings.NewReplacer("\\", "\\\\", "\"", "\\\"", "$", "\\$", "`", "\\`").Replace(source) + "\""
-	return nativeWrite(path, nativeReplaceLines(data, func(s string) bool { return strings.HasSuffix(s, " # themeset") }, "source-file "+quoted+" # themeset"))
 }

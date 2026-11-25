@@ -142,6 +142,71 @@ func TestNativeTmuxUsesTrustedIncludeWithoutChangingLayout(t *testing.T) {
 	}
 }
 
+func TestNativeOfficialMoonflyTmuxPreservesLayoutsAndBindings(t *testing.T) {
+	for _, managed := range []bool{false, true} {
+		name := "ordinary config"
+		if managed {
+			name = "Oh my tmux wrapper"
+		}
+		t.Run(name, func(t *testing.T) {
+			env := nativeTestEnvironment(t)
+			path := filepath.Join(env.Home, ".tmux.conf")
+			layout := "set -g status-left 'KEEP LEFT'\nset -g status-right 'KEEP RIGHT'\nset -g mouse on\nbind r source-file ~/.tmux.conf\n"
+			wrapper := ""
+			if managed {
+				env.Paths["tmux"] = filepath.Join(env.ConfigHome, "themeset", "tmux.conf")
+				wrapper = "source-file ~/.tmux/.tmux.conf\nsource-file -q \"" + env.Paths["tmux"] + "\"\n" + layout
+				nativeTestPut(t, path, wrapper)
+				path = env.Paths["tmux"]
+			}
+			nativeTestPut(t, path, layout)
+			port, ok, err := nativeResolveTmux("moonfly", env)
+			if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly.tmux" {
+				t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+			}
+			if err := nativeApplyTmux(port, env); err != nil {
+				t.Fatal(err)
+			}
+			first := nativeTestGet(t, path)
+			source := filepath.Join(env.ConfigHome, "themeset", "tmux-moonfly.conf")
+			if !strings.HasPrefix(first, layout) || !strings.Contains(first, source) || strings.Count(first, "# themeset") != 1 {
+				t.Fatalf("layout/bindings changed: %s", first)
+			}
+			styles := nativeTestGet(t, source)
+			allowed := map[string]bool{
+				"set -g message-style \"bg=#1c1c1c,fg=#9c9c9c\"":                true,
+				"set -g pane-active-border-style \"bg=#080808,fg=#80a0ff\"":     true,
+				"set -g pane-border-style \"bg=#080808,fg=#303030\"":            true,
+				"set -g status-style \"bg=#1c1c1c,fg=#9c9c9c\"":                 true,
+				"setw -g window-status-activity-style none":                     true,
+				"setw -g window-status-current-style \"bg=#353946,fg=#80a0ff\"": true,
+			}
+			lines := strings.Split(strings.TrimSpace(styles), "\n")
+			if len(lines) != len(allowed) {
+				t.Fatalf("unexpected Moonfly theme commands: %s", styles)
+			}
+			for _, line := range lines {
+				if !allowed[line] {
+					t.Errorf("non-upstream style or layout command: %s", line)
+				}
+				delete(allowed, line)
+			}
+			if len(allowed) != 0 {
+				t.Errorf("missing official styles: %v", allowed)
+			}
+			if err := nativeApplyTmux(port, env); err != nil {
+				t.Fatal(err)
+			}
+			if nativeTestGet(t, path) != first {
+				t.Fatal("reapply duplicated or changed tmux include")
+			}
+			if managed && nativeTestGet(t, filepath.Join(env.Home, ".tmux.conf")) != wrapper {
+				t.Fatal("Oh my tmux wrapper was changed")
+			}
+		})
+	}
+}
+
 func TestNativeNeovimRequiresInstalledRuntimeAndOwnsOnlyDedicatedPlugin(t *testing.T) {
 	env := nativeTestEnvironment(t)
 	if _, ok, err := nativeResolveNeovim("dracula", env); err != nil || ok {

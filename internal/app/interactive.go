@@ -100,14 +100,6 @@ func chooseTheme(opts options, config model.Config, env model.Environment, selec
 	if printResult(stdout, stderr, result) != 0 {
 		return "", false, errors.New("could not display the application plan")
 	}
-	for _, item := range result.Tools {
-		for _, warning := range item.Warnings {
-			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
-		}
-		if item.Error != "" {
-			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
-		}
-	}
 	if opts.dryRun {
 		if failed(result) {
 			return "", false, errors.New("application plan contains errors")

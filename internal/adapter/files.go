@@ -21,6 +21,14 @@ var filesFZFDracula []byte
 //go:embed assets/starship-dracula.toml
 var filesStarshipDracula []byte
 
+//go:embed assets/fzf-moonfly.opts
+var filesFZFMoonfly []byte
+
+//go:embed assets/starship-moonfly.toml
+var filesStarshipMoonfly []byte
+
+const filesMoonflySource = "https://github.com/bluz71/vim-moonfly-colors/blob/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras/"
+
 const filesStarshipSource = "https://github.com/dracula/starship/blob/920e9f46ccc25beee15ed7fe0baddabdfeaaf92a/starship.toml"
 const filesFZFSource = "https://github.com/dracula/fzf/tree/f4c7758a813ca73b69e9c954c001586c33858c24"
 const filesYaziSource = "https://yazi-rs.github.io/docs/flavors/overview/"
@@ -41,8 +49,11 @@ func fileAdapters() []model.Adapter {
 }
 
 func filesResolveStarship(name string, env model.Environment) (model.Port, bool, error) {
-	if name == "dracula" {
+	switch name {
+	case "dracula":
 		return model.Port{Kind: "official", Name: name, Source: filesStarshipSource}, true, nil
+	case "moonfly":
+		return model.Port{Kind: "official", Name: name, Source: filesMoonflySource + "moonfly-starship.toml"}, true, nil
 	}
 	data, err := filesRead(filesPath("starship", env), true)
 	if err != nil {
@@ -62,15 +73,22 @@ func filesResolveStarship(name string, env model.Environment) (model.Port, bool,
 func filesApplyStarship(port model.Port, env model.Environment) error {
 	var incoming map[string]any
 	if port.File != "" || port.Kind == "official" {
-		data := filesStarshipDracula
+		var data []byte
 		if port.File != "" {
 			var err error
 			data, err = filesCustom(port, env)
 			if err != nil {
 				return err
 			}
-		} else if port.Name != "dracula" {
-			return errors.New("unknown official Starship port")
+		} else {
+			switch port.Name {
+			case "dracula":
+				data = filesStarshipDracula
+			case "moonfly":
+				data = filesStarshipMoonfly
+			default:
+				return errors.New("unknown official Starship port")
+			}
 		}
 		var err error
 		incoming, err = filesTOML(data)
@@ -107,10 +125,14 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 }
 
 func filesResolveFZF(name string, _ model.Environment) (model.Port, bool, error) {
-	if name != "dracula" {
+	switch name {
+	case "dracula":
+		return model.Port{Kind: "official", Name: name, Source: filesFZFSource}, true, nil
+	case "moonfly":
+		return model.Port{Kind: "official", Name: name, Source: filesMoonflySource + "moonfly-fzf.sh"}, true, nil
+	default:
 		return model.Port{}, false, nil
 	}
-	return model.Port{Kind: "official", Name: name, Source: filesFZFSource}, true, nil
 }
 
 // Custom fzf ports contain one --color=... option per line, not shell code or
@@ -135,14 +157,23 @@ func filesFZFOptions(data []byte) error {
 }
 
 func filesApplyFZF(port model.Port, env model.Environment) error {
-	data := filesFZFDracula
+	var data []byte
 	if port.File != "" {
 		var err error
 		data, err = filesCustom(port, env)
 		if err != nil {
 			return err
 		}
-	} else if port.Kind != "official" || port.Name != "dracula" {
+	} else if port.Kind == "official" {
+		switch port.Name {
+		case "dracula":
+			data = filesFZFDracula
+		case "moonfly":
+			data = filesFZFMoonfly
+		default:
+			return errors.New("unknown official fzf port")
+		}
+	} else {
 		return errors.New("fzf requires an official port or custom options file")
 	}
 	if err := filesFZFOptions(data); err != nil {
