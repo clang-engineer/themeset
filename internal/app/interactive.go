@@ -79,7 +79,7 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 		input.WriteString(name)
 		input.WriteByte(0)
 	}
-	command := exec.Command(fzf, "--read0", "--print0", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=Enter: "+action+" | Esc: cancel | colors represent the named source app only", "--preview="+previewCommand(executable, opts), "--preview-window=right,65%,wrap")
+	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=Enter: "+action+" | Esc: cancel | colors represent the named source app only", "--preview="+previewCommand(executable, opts), "--preview-window=right,65%,wrap")
 	command.Stdin = &input
 	command.Stderr = terminal
 	// User picker defaults may bind Enter to other actions. Keep this picker isolated;
