@@ -14,10 +14,7 @@ import (
 )
 
 var builtinThemes = []string{
-	"catppuccin-mocha", "cyberdream", "dracula", "everforest",
-	"github-dark-high-contrast", "gruvbox", "gruvbox-hard", "kanagawa",
-	"modus-vivendi", "moonfly", "nord", "onedark", "rose-pine", "sonokai",
-	"tokyonight", "vscode-dark",
+	"catppuccin-mocha", "dracula", "gruvbox", "moonfly", "nord",
 }
 
 // ToolResult separates support selection from the actual application outcome.

@@ -127,9 +127,14 @@ Inspection/apply errors remain visible and make the command fail. An inspection
 error followed by a successful custom apply can count as both failed and applied.
 JSON output retains each tool's structured warnings and errors.
 
-Theme identifiers in `list` are not a promise of support by every tool. Existing
-providers must already be installed. A custom registration is never relabeled
-as official.
+The default catalog is curated to five themes with broader native/official
+coverage: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, and `nord`.
+The same catalog feeds `list`, shell completion, and the interactive picker.
+This is a fixed shortlist, not a dynamic filter or a promise that every tool
+supports each theme; providers must already be installed.
+Other theme IDs can be explicitly registered under `themes` in the JSON config,
+including an empty entry when only installed native providers are needed.
+A custom registration is never relabeled as official.
 
 ## Integrations
 
