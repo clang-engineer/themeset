@@ -83,3 +83,21 @@ and are not redistributed by this project.
 
 Custom theme files remain the user's responsibility. Their provenance and
 licenses do not become official merely by being registered in configuration.
+
+## Registered downloaded ports
+
+These files are acquired during apply, not embedded in the executable.
+Immutable URLs and SHA-256 hashes are defined in `internal/adapter/yazi_dracula.go`
+and `internal/adapter/eza_dracula.go`; the acquisition helper verifies cache and
+downloaded bytes before use.
+
+- Application-maintained Yazi Dracula flavor:
+  https://github.com/yazi-rs/flavors/tree/38c08d8eb9ea0d28c8c911a249a08f27ba2151ac/dracula.yazi
+  Runtime assets `flavor.toml` and `tmtheme.xml` are installed with their exact
+  `LICENSE` and `LICENSE-tmtheme`. Compatible independently installed flavors
+  are reused without changing their provenance or ownership.
+- Application-maintained eza Dracula native YAML:
+  https://github.com/eza-community/eza-themes/blob/21184b55bfe34e8473c8160f9de0c03e4f76857f/themes/dracula.yml
+  The theme and upstream MIT `LICENSE` are retained in the verified cache.
+  Exact source values are preserved; active configuration is merged, not copied
+  over unrelated user rules.

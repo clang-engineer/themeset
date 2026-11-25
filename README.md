@@ -142,8 +142,8 @@ A custom registration is never relabeled as official.
 For each tool's source, installation/placement, activation, reload, preservation
 rules, and current implementation gaps, see the
 [adapter lifecycle reference](theme-adapters.md).
-That reference describes the requested acquire-if-missing design; the current CLI
-still uses installed providers and bundled files, without runtime downloads.
+Dracula for Yazi and eza implements acquire-if-missing now; other integrations
+still use installed providers, bundled files, or explicit custom ports.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
@@ -155,12 +155,12 @@ still uses installed providers and bundled files, without runtime downloads.
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
 | Starship | Existing named palettes; pinned official Dracula and Moonfly | Selected palette in Starship TOML |
 | fzf | Pinned Dracula, Moonfly, Catppuccin Mocha ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
-| Yazi | Complete installed flavors; bundled Catppuccin Mocha/Mauve styles and syntax theme | Native `theme.toml` fragment |
+| Yazi | Installed flavors; acquire missing Dracula flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
 | Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve | Native theme TOML asset |
 | lazygit | Bundled Dracula and Catppuccin Mocha/Mauve | `gui.theme` YAML fragment |
 | lazydocker | Bundled Dracula | `gui.theme` YAML fragment |
 | btop | Installed user/system theme files | Native `.theme` file |
-| eza | Bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
+| eza | Acquire/cache Dracula YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
@@ -180,15 +180,34 @@ Catppuccin Atuin installs and selects its declared `catppuccin-mocha-mauve`
 name. Yazi imports only UI style tables and installs the official Catppuccin
 syntax theme; separators, icons, file rules, layouts, and keymaps remain intact.
 
-Dracula remains unregistered for Atuin, eza, tmux, and current Yazi through these
-adapters. No verified Atuin port was found; the currently examined theme-author
-eza port uses shell exports; tmux's full Dracula plugin executes scripts and
-changes status layouts; the Dracula-author Yazi example is incomplete/outdated.
-Application-maintained alternatives do exist: Yazi's flavor collection has a
-complete Dracula package, and eza's theme collection has native Dracula YAML.
-These are identified in the lifecycle reference but are not yet acquired or
-selected automatically. Current skips describe registry/implementation gaps,
-not proof that those applications cannot use Dracula.
+### Dracula acquisition for Yazi and eza
+
+`apply dracula` downloads missing registered assets from immutable HTTPS URLs
+and checks their SHA-256 hashes. Verified assets and licenses are cached under
+`~/.cache/themeset/assets/<sha256>` (under `--home` when supplied). Later applies
+reuse the cache without downloading or updating upstream revisions. No new
+update command is introduced. Dry-run never downloads or creates this cache.
+
+- **Yazi:** installs `flavor.toml`, `tmtheme.xml`, and both licenses from the
+  application-maintained `yazi-rs/flavors` Dracula package beneath the effective
+  config directory's `flavors/dracula.yazi/`. Selects `[flavor] dark/light =
+  "dracula"` in `theme.toml`; honors `YAZI_CONFIG_HOME` or `paths.yazi`.
+  Compatible independently installed flavors are reused, not replaced.
+  Switching from the bundled Catppuccin import removes only matching old styles
+  identified by its themeset-owned syntax path, preserving user edits and layout.
+- **eza:** fetches `eza-community/eza-themes`' native Dracula YAML and MIT license,
+  validates the theme structure, and merges styles into `theme.yml`, preserving
+  unrelated filename/icon rules. Honors `EZA_CONFIG_DIR` or `paths.eza`.
+  Existing `LS_COLORS`/`EZA_COLORS` overrides can still affect rendering.
+
+Fetch/checksum/install failures remain errors and do not change the prior theme
+selection. An incomplete conflicting user flavor is not silently overwritten.
+These sources are application-maintained, not the obsolete Dracula-author Yazi
+example or the eza shell-export port. Relaunch Yazi; the next eza invocation reads
+its YAML. Source revisions/hashes are registered in the adapter code and notices.
+
+Dracula still skips Atuin (no registered verified port) and tmux (full plugin
+installation/layout integration is not implemented).
 
 Changes take effect on the next application launch or prompt/invocation; running
 apps are not forcibly restarted. Neovim's generated selection runs on VimEnter.

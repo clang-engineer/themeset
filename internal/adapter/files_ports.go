@@ -80,6 +80,9 @@ func filesResolveLazy(id string) func(string, model.Environment) (model.Port, bo
 }
 
 func filesResolveEza(name string, _ model.Environment) (model.Port, bool, error) {
+	if name == "dracula" {
+		return model.Port{Kind: "official", Name: name, Source: filesEzaDraculaSource}, true, nil
+	}
 	port, _, ok := filesOfficialPort("eza", name)
 	return port, ok, nil
 }
@@ -99,6 +102,9 @@ func filesPortData(id string, port model.Port, env model.Environment) ([]byte, e
 		return filesCustom(port, env)
 	}
 	if port.Kind == "official" {
+		if id == "eza" && port.Name == "dracula" {
+			return filesAcquireEzaDracula(env)
+		}
 		if _, data, ok := filesOfficialPort(id, port.Name); ok {
 			return data, nil
 		}

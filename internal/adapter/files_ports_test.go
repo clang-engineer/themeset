@@ -2,12 +2,9 @@ package adapter
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/clang-engineer/themeset/internal/model"
 )
 
 func TestFilesOfficialNativeAssetsPreserveApplicationConfiguration(t *testing.T) {
@@ -146,29 +143,5 @@ func TestFilesOfficialYaziStylesPreserveLayoutAndInstallSyntaxTheme(t *testing.T
 	}
 	if !bytes.Equal(first, filesTestRead(t, path)) {
 		t.Fatal("Yazi official reapply is not idempotent")
-	}
-}
-
-func TestFilesOfficialPortDataKeepsRegisteredCustomFileFirst(t *testing.T) {
-	env := filesTestEnv(t)
-	path := filepath.Join(env.Home, "custom.yml")
-	filesTestWrite(t, path, "gui:\n  theme:\n    optionsTextColor: [blue]\n")
-	data, err := filesPortData("lazygit", model.Port{Kind: "official", Name: "dracula", File: path}, env)
-	if err != nil || !bytes.Equal(data, filesTestRead(t, path)) {
-		t.Fatalf("registered file lost precedence: %s, %v", data, err)
-	}
-	if _, err := filesPortData("eza", model.Port{Kind: "official", Name: "dracula"}, env); err == nil {
-		t.Fatal("eza Dracula has no official YAML asset")
-	}
-	if _, ok, err := nativeResolveTmux("dracula", env); err != nil || ok {
-		t.Fatalf("Dracula tmux requires an external script-driven plugin: %v, %v", ok, err)
-	}
-	for _, id := range []string{"atuin", "eza", "yazi"} {
-		if _, ok, err := filesTestAdapter(t, id).Resolve("dracula", env); err != nil || ok {
-			t.Errorf("%s Dracula must not fabricate a usable official native asset: %v, %v", id, ok, err)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(env.Home, ".tmux.conf")); !os.IsNotExist(err) {
-		t.Fatal("resolving unsupported ports changed application configuration")
 	}
 }

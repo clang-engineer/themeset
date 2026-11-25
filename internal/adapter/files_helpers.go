@@ -42,6 +42,9 @@ func filesPath(id string, env model.Environment) string {
 	case "fzf":
 		return filepath.Join(root, "themeset", "fzf.opts")
 	case "yazi":
+		if directory, ok := os.LookupEnv("YAZI_CONFIG_HOME"); ok {
+			return filepath.Join(directory, "theme.toml")
+		}
 		return filepath.Join(root, id, "theme.toml")
 	case "atuin":
 		modern := filepath.Join(env.Home, ".atuin", "config.toml")
@@ -65,7 +68,10 @@ func filesPath(id string, env model.Environment) string {
 	case "btop":
 		return filepath.Join(root, id, "btop.conf")
 	case "eza":
-		if env.OS == "darwin" {
+		if directory, ok := os.LookupEnv("EZA_CONFIG_DIR"); ok {
+			return filepath.Join(directory, "theme.yml")
+		}
+		if env.OS == "darwin" && !env.ConfigHomeExplicit {
 			root = filepath.Join(env.Home, "Library", "Application Support")
 		}
 		return filepath.Join(root, id, "theme.yml")

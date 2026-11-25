@@ -2,12 +2,13 @@
 
 This is the per-tool implementation reference for themeset's requested
 **registered source → acquire if missing → activate using the tool's own mechanism**
-lifecycle. It is not a claim that automatic installation already exists.
+lifecycle. It is implemented for the registered Yazi/eza Dracula recipes;
+the remaining entries distinguish existing behavior from the target lifecycle.
 
-**Current implementation:** no runtime downloads or plugin-manager calls.
-Adapters inspect installed themes/providers, write bundled official assets, or
-apply explicitly registered native files. The **Current / target gap** in each
-entry identifies what still separates that behavior from the requested lifecycle.
+**Current implementation:** Yazi/eza Dracula acquires pinned, hash-verified assets
+when needed and reuses them offline. Other adapters inspect installed providers,
+write bundled official assets, or apply explicitly registered native files.
+No plugin manager or arbitrary installer script is invoked.
 See [current integrations](README.md#integrations) and
 [pinned bundled sources/licenses](THIRD_PARTY_NOTICES.md).
 
@@ -263,9 +264,13 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Source caveat:** `dracula/yazi`'s old `flavor.toml` and `[flavor] use` example
   are not a complete current package. `yazi-rs/flavors:dracula` is a verified
   application-maintained alternative, not the same source/provenance claim.
-- **Current / target gap:** current code detects installed flavors or imports
-  bundled Catppuccin styles/syntax. It does not run `ya`, fetch complete flavors,
-  or automatically install the available application-maintained Dracula flavor.
+- **Current / target gap:** Dracula now downloads the pinned native runtime files
+  and both licenses when missing, stages installation, and selects the flavor.
+  Existing compatible flavors are reused offline. `YAZI_CONFIG_HOME` is honored.
+  Previous bundled Catppuccin styles are removed only when ownership is established
+  by its exact managed syntax path and individual values still match. This does
+  not run `ya` or register a package-manager dependency; general flavor acquisition
+  beyond the registered Dracula recipe is not implemented.
 
 ## atuin
 
@@ -376,11 +381,11 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Precedence:** `LS_COLORS` / `EZA_COLORS` can override YAML colors;
   `EXA_COLORS` is a fallback when `EZA_COLORS` is unset. `NO_COLOR` also affects
   rendering. Report conflicts rather than silently editing shell definitions.
-- **Current / target gap:** current code merges bundled Catppuccin only. Runtime
-  source retrieval, `EZA_CONFIG_DIR` discovery, alternate `theme.yaml`, and
-  environment-precedence handling are not implemented. Dracula's older shell-export
-  port is not the only available source: the app-maintained YAML is a separate
-  viable acquisition recipe once registered.
+- **Current / target gap:** Dracula now acquires pinned native YAML and its MIT
+  license through a verified persistent cache, then merges the active config.
+  `EZA_CONFIG_DIR` and explicit paths are honored; bundled Catppuccin is unchanged.
+  Alternate `theme.yaml` discovery and environment-precedence reporting are not
+  implemented. Other sources, such as Gruvbox YAML, need their own registrations.
 
 ## Implementation anchors and verification scope
 
@@ -394,10 +399,10 @@ roots and existing package managers; do not hardcode a developer's home path.
   [current path resolution](internal/adapter/files_helpers.go),
   [custom-first selection](internal/app/engine.go).
 
-This reference is based on fetched upstream docs/source and inspected local code.
 Local read-only checks confirmed installed Ghostty/bat/delta theme-list commands,
-bat's config-directory command, and Neovim's clean data-path query. Earlier
-isolated smokes verified bundled-port application and native app consumption;
-they did **not** verify a runtime downloader, package-manager invocation, or any
-new acquisition lifecycle described here. No theme was installed, switched, or
-reloaded as part of this documentation task.
+bat's config-directory command, and Neovim's clean data-path query. Isolated
+runtime checks also verified initial Yazi/eza Dracula downloads, offline cache
+reuse, actual eza YAML consumption, actual Yazi Dracula colors and syntax preview,
+Catppuccin-to-Dracula transition, and prior-selection preservation on acquisition
+failure. Dry-run created no cache/config files. No live user theme settings were
+changed, and no plugin-manager invocation was exercised.

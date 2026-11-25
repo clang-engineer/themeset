@@ -254,6 +254,9 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 }
 
 func filesResolveYazi(name string, env model.Environment) (model.Port, bool, error) {
+	if name == "dracula" {
+		return filesResolveYaziDracula(env)
+	}
 	if port, ok := filesOfficialYazi(name); ok {
 		return port, true, nil
 	}
@@ -281,6 +284,24 @@ func filesResolveYazi(name string, env model.Environment) (model.Port, bool, err
 }
 
 func filesApplyYazi(port model.Port, env model.Environment) error {
+	if port.Name == "dracula" && (port.Kind == "native" || port.Kind == "official" && port.File == "") {
+		return filesEditTOML(filesPath("yazi", env), func(config map[string]any) error {
+			flavor, err := filesTable(config, "flavor")
+			if err != nil {
+				return err
+			}
+			if err := filesRemovePreviousYaziStyles(config, env); err != nil {
+				return err
+			}
+			if err := filesInstallYaziDracula(env); err != nil {
+				return err
+			}
+			flavor["dark"] = "dracula"
+			flavor["light"] = "dracula"
+			delete(flavor, "use")
+			return nil
+		})
+	}
 	var incoming map[string]any
 	if port.Kind == "native" {
 		if _, ok, err := filesResolveYazi(port.Name, env); err != nil {
