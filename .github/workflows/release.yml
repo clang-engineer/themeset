@@ -23,6 +23,14 @@ jobs:
       - name: Update configured Homebrew tap
         if: ${{ vars.HOMEBREW_TAP_REPOSITORY != '' }}
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_SSH_KEY: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
           HOMEBREW_TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
-        run: ruby scripts/publish-tap.rb "$HOMEBREW_TAP_REPOSITORY" dist/themeset.rb
+        run: |
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k' EXIT
+          printf '%s\n' "$HOMEBREW_TAP_SSH_KEY" | ssh-add -
+          mkdir -p ~/.ssh
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=yes'
+          ruby scripts/publish-tap.rb "$HOMEBREW_TAP_REPOSITORY" dist/themeset.rb

@@ -16,8 +16,7 @@ go build -o themeset ./cmd/themeset
 install -m 755 themeset "$HOME/.local/bin/themeset"
 ```
 
-Homebrew release tooling is included, but no public repository or formula has
-been published yet. After publication the tap installation will be:
+Install the published release through Homebrew:
 
 ```sh
 brew install clang-engineer/tap/themeset
@@ -177,9 +176,12 @@ builds archives, generates the formula, and uploads release assets. To also
 update an existing Homebrew tap, set:
 
 - Repository variable `HOMEBREW_TAP_REPOSITORY`: `OWNER/homebrew-tap`.
-- Repository secret `HOMEBREW_TAP_TOKEN`: a token with write access to that tap.
+- Repository secret `HOMEBREW_TAP_SSH_KEY`: a private SSH deploy key whose
+  matching public key has write access **only to that tap**.
 
-Do not put credentials in source. A manual tap update uses the same command:
+Do not store a personal access token or credentials in source. The workflow loads
+the deploy key into a temporary SSH agent and obtains GitHub's host keys over
+HTTPS. A manual tap update uses your existing SSH authentication:
 
 ```sh
 ruby scripts/publish-tap.rb OWNER/homebrew-tap dist/themeset.rb
