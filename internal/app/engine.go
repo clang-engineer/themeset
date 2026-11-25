@@ -70,7 +70,7 @@ func selectTools(ids []string, adapters []model.Adapter) ([]model.Adapter, error
 	for _, id := range ids {
 		adapter, ok := byID[id]
 		if !ok {
-			return nil, fmt.Errorf("unknown tool %q (use 'tools' to list IDs; Neovim's ID is neovim)", id)
+			return nil, fmt.Errorf("unknown tool %q (use 'list tools' to list IDs; Neovim's ID is neovim)", id)
 		}
 		if !seen[id] {
 			selected = append(selected, adapter)

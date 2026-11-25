@@ -20,6 +20,8 @@ and are not redistributed by this project.
   https://github.com/pelletier/go-toml/blob/v2.2.4/LICENSE.
 - `gopkg.in/yaml.v3`: MIT and Apache-2.0; see
   https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE and NOTICE.
+- `golang.org/x/term` v0.29.0 and `golang.org/x/sys` v0.30.0: BSD-3-Clause;
+  identical redistribution terms retained in `licenses/golang-x.LICENSE`.
 
 Custom theme files remain the user's responsibility. Their provenance and
 licenses do not become official merely by being registered in configuration.

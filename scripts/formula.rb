@@ -36,6 +36,7 @@ formula = <<~RUBY
     homepage "https://github.com/#{repository}"
     version "#{version.delete_prefix('v')}"
     license "MIT"
+    depends_on "fzf"
 
   #{sections.map { |s| s.lines.map { |line| "  #{line}" }.join }.join("\n")}
     def install
@@ -46,7 +47,7 @@ formula = <<~RUBY
 
     test do
       assert_match "#{version}", shell_output("\#{bin}/themeset --version")
-      assert_match "ghostty", shell_output("\#{bin}/themeset tools")
+      assert_match "ghostty", shell_output("\#{bin}/themeset list tools")
     end
   end
 RUBY

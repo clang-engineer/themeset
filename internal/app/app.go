@@ -21,11 +21,10 @@ var Version = "dev"
 const usage = `Usage: themeset [flags] COMMAND [flags] [THEME]
 
 Commands:
-  list          List built-in theme identifiers and configured theme keys
-  tools         List registered tool IDs and whether each app is installed
-  check THEME   Inspect available native/official/custom support without writes
-  apply THEME   Apply available themes; continue after individual tool failures
+  apply [THEME] Apply a theme, or preview and select interactively when omitted
   current       Show the last apply result (including skips and failures)
+  list          List built-in theme identifiers and configured theme keys
+  list tools    List registered tool IDs and whether each app is installed
   completion SHELL  Print Bash, Zsh, or Fish completion definitions
   help          Show this help
   version       Show the build version
@@ -40,6 +39,10 @@ Flags (accepted before or after the command or theme):
   --dry-run         With apply only: inspect a plan, change no files or state
   --help, -h        Show help
   --version         Show version
+
+Without THEME, apply requires interactive input and fzf. It previews themes,
+then shows the selected plan and asks for confirmation before writing.
+Use an explicit THEME with --json or from scripts.
 
 Config supports tools, paths, and themes with explicitly registered custom ports.
 Omitted tools selects all adapters; tools: [] selects none. Relative paths and
@@ -141,6 +144,10 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 	} else if opts.version {
 		command = "version"
 	}
+	if opts.dryRun && command != "apply" {
+		fmt.Fprintln(stderr, "error: --dry-run is only valid with apply")
+		return 2
+	}
 	if command == "help" {
 		_, err := io.WriteString(stdout, usage)
 		if err != nil {
@@ -168,21 +175,29 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		}
 		return printCompletion(opts.positionals[1], stdout, stderr)
 	}
-	expected := 1
 	switch command {
-	case "check", "apply":
-		expected = 2
-	case "list", "tools", "current":
+	case "apply":
+		if len(opts.positionals) > 2 {
+			fmt.Fprintln(stderr, "error: apply expects zero or one theme argument")
+			return 2
+		}
+	case "list":
+		if len(opts.positionals) != 1 && (len(opts.positionals) != 2 || opts.positionals[1] != "tools") {
+			fmt.Fprintln(stderr, "error: list expects no arguments or tools")
+			return 2
+		}
+	case "current":
+		if len(opts.positionals) != 1 {
+			fmt.Fprintln(stderr, "error: current expects no arguments")
+			return 2
+		}
+	case "__preview":
+		if len(opts.positionals) != 2 {
+			fmt.Fprintln(stderr, "error: __preview expects one theme argument")
+			return 2
+		}
 	default:
 		fmt.Fprintf(stderr, "error: unknown command %q; use help\n", command)
-		return 2
-	}
-	if len(opts.positionals) != expected {
-		fmt.Fprintf(stderr, "error: %s expects %d argument(s)\n", command, expected-1)
-		return 2
-	}
-	if opts.dryRun && command != "apply" {
-		fmt.Fprintln(stderr, "error: --dry-run is only valid with apply")
 		return 2
 	}
 	env, err := environment(opts.home)
@@ -211,7 +226,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 1
 	}
 	env.Paths = config.Paths
-	if command == "list" {
+	if command == "list" && len(opts.positionals) == 1 {
 		names := themeIDs(config)
 		if opts.json {
 			return emitJSON(stdout, stderr, names)
@@ -224,7 +239,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		}
 		return 0
 	}
-	if command == "tools" {
+	if command == "list" {
 		type tool struct {
 			ID        string `json:"id"`
 			Binary    string `json:"binary"`
@@ -263,7 +278,20 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		fmt.Fprintln(stderr, "error:", err)
 		return 2
 	}
-	theme := opts.positionals[1]
+	var theme string
+	if command == "apply" && len(opts.positionals) == 1 {
+		var proceed bool
+		theme, proceed, err = chooseTheme(opts, config, env, selected, stdout, stderr)
+		if err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 1
+		}
+		if !proceed {
+			return 0
+		}
+	} else {
+		theme = opts.positionals[1]
+	}
 	known := false
 	for _, name := range themeIDs(config) {
 		if theme == name {
@@ -275,9 +303,12 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		fmt.Fprintf(stderr, "error: unknown theme %q; use list or register it in config\n", theme)
 		return 2
 	}
+	if command == "__preview" {
+		return printPreview(theme, config, env, selected, stdout, stderr)
+	}
 	result := plan(theme, config, env, selected, opts.dryRun)
 	stateError := false
-	if command == "apply" && !opts.dryRun {
+	if !opts.dryRun {
 		apply(&result, env, selected)
 		if err := saveState(statePath(env), result); err != nil {
 			fmt.Fprintln(stderr, "error: save state:", err)

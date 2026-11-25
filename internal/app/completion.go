@@ -39,8 +39,15 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 	}
 	current := words[len(words)-1]
 	prior := words[:len(words)-1]
+	literal := false
+	for _, word := range prior {
+		if word == "--" {
+			literal = true
+			break
+		}
+	}
 	pending := ""
-	if len(prior) > 0 {
+	if !literal && len(prior) > 0 {
 		switch prior[len(prior)-1] {
 		case "--config", "--home", "--tools", "-config", "-home", "-tools":
 			pending = strings.TrimLeft(prior[len(prior)-1], "-")
@@ -48,7 +55,7 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 		}
 	}
 	prefix := ""
-	if pending == "" {
+	if !literal && pending == "" {
 		for _, flag := range []string{"--config=", "--home=", "--tools="} {
 			if strings.HasPrefix(current, flag) {
 				pending = strings.TrimSuffix(strings.TrimPrefix(flag, "--"), "=")
@@ -88,14 +95,7 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 		if len(opts.positionals) > 0 {
 			command = opts.positionals[0]
 		}
-		literal := false
-		for _, word := range prior {
-			if word == "--" {
-				literal = true
-				break
-			}
-		}
-		if !literal && (current == "" || strings.HasPrefix(current, "-")) {
+		if !literal && strings.HasPrefix(current, "-") {
 			candidates = append(candidates, "--config", "--home", "--tools", "--json", "--help", "--version")
 			if command == "apply" {
 				candidates = append(candidates, "--dry-run")
@@ -103,12 +103,17 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 		}
 		switch len(opts.positionals) {
 		case 0:
-			candidates = append(candidates, "list", "tools", "check", "apply", "current", "completion", "help", "version")
+			candidates = append(candidates, "apply", "current", "list")
+			if current != "" {
+				candidates = append(candidates, "completion", "help", "version")
+			}
 		case 1:
 			switch command {
 			case "completion":
 				candidates = append(candidates, "bash", "zsh", "fish")
-			case "apply", "check":
+			case "list":
+				candidates = append(candidates, "tools")
+			case "apply":
 				env, err := environment(opts.home)
 				if err != nil {
 					break

@@ -31,14 +31,14 @@ belongs to CI and application-specific testing.
 
 ```sh
 themeset list
-themeset tools
-themeset check dracula
+themeset list tools
+themeset apply
 themeset apply dracula --dry-run
 themeset apply dracula
 themeset current
 ```
 
-- `check` and `--dry-run` inspect without writing app configuration or result state.
+- `apply --dry-run` inspects without writing app configuration or result state.
 - `--tools ghostty,bat,fzf` restricts the selected tools.
 - `--json` emits structured output, keeping diagnostics on stderr.
 - `--home /path/to/scratch` selects that home and its `.config`, ignoring inherited
@@ -48,12 +48,34 @@ themeset current
   check that any configured destinations also point into it.
 - Flags are accepted before or after positional arguments.
 
+`apply` without a theme opens an fzf picker: themes on the left, a sourced
+visual preview and per-tool support on the right. Enter reviews the plan; a
+separate `[y/N]` confirmation is required before any configuration/state write.
+Escape or a declined confirmation changes nothing. `apply --dry-run` uses the
+picker and shows the plan without confirmation or writes. Interactive selection
+needs a terminal and fzf (Homebrew installs it); `--json` requires an explicit
+theme and remains suitable for scripts.
+
+Visuals use an installed bat syntax theme or an actual native/custom Ghostty
+asset, labeled with source app and exact variant. Ghostty swatches and ANSI
+samples are not a promise of editor syntax colors. No palette is generated and
+apps can differ. Missing source assets explicitly show **Preview unavailable**.
+Browsing only inspects support/assets; it never applies a theme.
+
+Core commands are `apply`, `list`, and `current`. `list` shows theme IDs;
+`list tools` shows registered tools and installation status. The former `check`
+and top-level `tools` commands have been removed: use `apply THEME --dry-run`
+and `list tools`, respectively.
+
 ## Shell completion
 
 Homebrew installs Bash, Zsh, and Fish completion definitions in its standard
 completion directories. Restart your shell after installing or upgrading.
-Completion offers subcommands, flags, theme IDs (including your custom config),
-shell names, and comma-separated `--tools` values. It never applies themes.
+The default completion menu shows only `apply`, `current`, and `list`. Options
+appear after `-`; auxiliary `completion`, `help`, and `version` appear when
+their names are started. Completing `apply` offers theme IDs (including custom
+config entries); `list` offers `tools`. Comma-separated `--tools` values and
+paths are also completed. Completion never applies themes.
 
 For a source build, or to load completion into an existing session:
 

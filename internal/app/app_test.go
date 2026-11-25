@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/clang-engineer/themeset/internal/adapter"
+	"github.com/clang-engineer/themeset/internal/model"
 )
 
 func fixtureFile(t *testing.T, path, contents string) {
@@ -118,29 +120,21 @@ func TestPartialFailureRecordsActualOutcomes(t *testing.T) {
 	}
 }
 
-func TestDryRunAndCheckNeverWrite(t *testing.T) {
+func TestDryRunNeverWrites(t *testing.T) {
 	installedFixtures(t, "tmux")
-	for _, command := range []string{"check", "apply"} {
-		t.Run(command, func(t *testing.T) {
-			home, directory := t.TempDir(), t.TempDir()
-			config := filepath.Join(directory, "config.json")
-			fixtureFile(t, filepath.Join(directory, "theme.conf"), "set -g status-style bg=blue\n")
-			fixtureConfig(t, config, map[string]any{"tools": []string{"tmux"}, "themes": map[string]any{
-				"fixture": map[string]any{"custom": map[string]any{"tmux": map[string]string{"file": "theme.conf"}}},
-			}})
-			args := []string{command, "fixture", "--home", home, "--config", config}
-			if command == "apply" {
-				args = append(args, "--dry-run")
-			}
-			code, result, diagnostics := invoke(t, args...)
-			if code != 0 || len(result.Tools) != 1 || result.Tools[0].Outcome != "planned" || !strings.Contains(diagnostics, "no verified native") {
-				t.Fatalf("code=%d result=%+v diagnostics=%s", code, result, diagnostics)
-			}
-			entries, err := os.ReadDir(home)
-			if err != nil || len(entries) != 0 {
-				t.Fatalf("inspection created home files: %v, %v", entries, err)
-			}
-		})
+	home, directory := t.TempDir(), t.TempDir()
+	config := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "theme.conf"), "set -g status-style bg=blue\n")
+	fixtureConfig(t, config, map[string]any{"tools": []string{"tmux"}, "themes": map[string]any{
+		"fixture": map[string]any{"custom": map[string]any{"tmux": map[string]string{"file": "theme.conf"}}},
+	}})
+	code, result, diagnostics := invoke(t, "apply", "fixture", "--dry-run", "--home", home, "--config", config)
+	if code != 0 || !result.DryRun || len(result.Tools) != 1 || result.Tools[0].Outcome != "planned" || !strings.Contains(diagnostics, "no verified native") {
+		t.Fatalf("code=%d result=%+v diagnostics=%s", code, result, diagnostics)
+	}
+	entries, err := os.ReadDir(home)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("inspection created home files: %v, %v", entries, err)
 	}
 }
 
@@ -223,5 +217,181 @@ func TestHomeIgnoresInheritedXDG(t *testing.T) {
 	env, err := environment(home)
 	if err != nil || env.ConfigHome != filepath.Join(home, ".config") || env.ConfigHomeExplicit {
 		t.Fatalf("sandbox inherited external config: %+v, %v", env, err)
+	}
+}
+
+func TestListThemes(t *testing.T) {
+	home := t.TempDir()
+	config := filepath.Join(t.TempDir(), "config.json")
+	fixtureConfig(t, config, map[string]any{"themes": map[string]any{"fixture": map[string]any{}, "dracula": map[string]any{}}})
+	want := append(append([]string(nil), builtinThemes...), "fixture")
+	sort.Strings(want)
+	for _, jsonOutput := range []bool{false, true} {
+		t.Run(map[bool]string{false: "text", true: "json"}[jsonOutput], func(t *testing.T) {
+			args := []string{"list", "--home", home, "--config", config}
+			if jsonOutput {
+				args = append(args, "--json")
+			}
+			var stdout, stderr bytes.Buffer
+			if code := Run(args, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+				t.Fatalf("code=%d diagnostics=%s", code, stderr.String())
+			}
+			if !jsonOutput {
+				if got := stdout.String(); got != strings.Join(want, "\n")+"\n" {
+					t.Fatalf("got %q; want themes %q", got, want)
+				}
+				return
+			}
+			var got []string
+			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || !reflect.DeepEqual(got, want) {
+				t.Fatalf("got %q; want %q; decode error=%v", got, want, err)
+			}
+		})
+	}
+}
+
+func TestListToolsIncludesInstalledAndMissingAdapters(t *testing.T) {
+	installedFixtures(t, "alpha-bin")
+	home := t.TempDir()
+	config := filepath.Join(t.TempDir(), "config.json")
+	fixtureConfig(t, config, map[string]any{"tools": []string{}})
+	adapters := []model.Adapter{
+		{ID: "zeta", Binary: "zeta-bin"},
+		{ID: "alpha", Binary: "alpha-bin"},
+	}
+	for _, jsonOutput := range []bool{false, true} {
+		t.Run(map[bool]string{false: "text", true: "json"}[jsonOutput], func(t *testing.T) {
+			args := []string{"--config", config, "list", "--home", home, "tools"}
+			if jsonOutput {
+				args = append(args, "--json")
+			}
+			var stdout, stderr bytes.Buffer
+			if code := run(args, &stdout, &stderr, adapters); code != 0 || stderr.Len() != 0 {
+				t.Fatalf("code=%d diagnostics=%s", code, stderr.String())
+			}
+			if !jsonOutput {
+				if got := stdout.String(); got != "alpha\tinstalled\nzeta\tnot-installed\n" {
+					t.Fatalf("unexpected tool listing: %q", got)
+				}
+				return
+			}
+			type tool struct {
+				ID        string `json:"id"`
+				Binary    string `json:"binary"`
+				Installed bool   `json:"installed"`
+			}
+			var got []tool
+			want := []tool{{"alpha", "alpha-bin", true}, {"zeta", "zeta-bin", false}}
+			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || !reflect.DeepEqual(got, want) {
+				t.Fatalf("got %+v; want %+v; decode error=%v", got, want, err)
+			}
+		})
+	}
+}
+
+func TestCommandArgumentRejections(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"removed check", []string{"check", "dracula"}, "unknown command"},
+		{"removed tools", []string{"tools"}, "unknown command"},
+		{"unknown list argument", []string{"list", "themes"}, "list expects no arguments or tools"},
+		{"extra list argument", []string{"list", "tools", "extra"}, "list expects no arguments or tools"},
+		{"extra apply theme", []string{"apply", "dracula", "nord"}, "apply expects zero or one theme argument"},
+		{"current argument", []string{"current", "dracula"}, "current expects no arguments"},
+		{"missing preview theme", []string{"__preview"}, "__preview expects one theme argument"},
+		{"extra preview theme", []string{"__preview", "dracula", "nord"}, "__preview expects one theme argument"},
+		{"missing completion shell", []string{"completion"}, "completion expects bash, zsh, or fish"},
+		{"extra completion shell", []string{"completion", "bash", "fish"}, "completion expects bash, zsh, or fish"},
+		{"invalid completion shell", []string{"completion", "sh"}, "completion expects bash, zsh, or fish"},
+		{"unknown apply theme", []string{"apply", "not-a-theme"}, "unknown theme"},
+		{"unknown preview theme", []string{"__preview", "not-a-theme"}, "unknown theme"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := t.TempDir()
+			var stdout, stderr bytes.Buffer
+			code := Run(append(append([]string(nil), test.args...), "--home", home), &stdout, &stderr)
+			if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), test.want) {
+				t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+			}
+			entries, err := os.ReadDir(home)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("invalid command wrote files: %v, %v", entries, err)
+			}
+		})
+	}
+}
+
+func TestDryRunOnlyAcceptedWithApply(t *testing.T) {
+	for _, args := range [][]string{
+		{"list"}, {"list", "tools"}, {"current"}, {"completion", "bash"},
+		{"help"}, {"version"}, {"__preview", "dracula"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := Run(append(append([]string(nil), args...), "--dry-run"), &stdout, &stderr)
+			if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "--dry-run is only valid with apply") {
+				t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
+func TestExplicitApplyDoesNotRequirePicker(t *testing.T) {
+	installedFixtures(t)
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"apply", "dracula", "--tools", "", "--home", home}, &stdout, &stderr)
+	if code != 0 || stderr.Len() != 0 || !strings.Contains(stdout.String(), "Theme: dracula") {
+		t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(home, ".config", "themeset", "state.json")); err != nil {
+		t.Fatalf("explicit apply did not record state: %v", err)
+	}
+}
+
+func TestInteractiveApplyRejectsJSONWithoutWrites(t *testing.T) {
+	installedFixtures(t)
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"apply", "--json", "--tools", "", "--home", home}, &stdout, &stderr)
+	if code == 0 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "--json") {
+		t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+	entries, err := os.ReadDir(home)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("interactive JSON rejection wrote files: %v, %v", entries, err)
+	}
+}
+
+func TestInteractiveApplyValidatesSelectionBeforePicker(t *testing.T) {
+	installedFixtures(t)
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"apply", "--json", "--tools", "not-a-tool", "--home", home}, &stdout, &stderr)
+	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "use 'list tools'") {
+		t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestHiddenPreviewNeverWrites(t *testing.T) {
+	installedFixtures(t, "tmux")
+	home, directory := t.TempDir(), t.TempDir()
+	config := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "theme.conf"), "set -g status-style bg=blue\n")
+	fixtureConfig(t, config, map[string]any{"tools": []string{"tmux"}, "themes": map[string]any{
+		"fixture": map[string]any{"custom": map[string]any{"tmux": map[string]string{"file": "theme.conf"}}},
+	}})
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"__preview", "fixture", "--home", home, "--config", config}, &stdout, &stderr)
+	if code != 0 || !strings.Contains(stdout.String(), "fixture") || !strings.Contains(stdout.String(), "tmux") {
+		t.Fatalf("code=%d stdout=%s diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+	entries, err := os.ReadDir(home)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("preview wrote files or state: %v, %v", entries, err)
 	}
 }
