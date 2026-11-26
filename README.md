@@ -62,8 +62,10 @@ theme and remains suitable for scripts.
 
 Visuals use an installed bat syntax theme or an actual native/custom Ghostty
 asset, labeled with source app and exact variant. Ghostty swatches and ANSI
-samples are not a promise of editor syntax colors. No palette is generated and
-apps can differ. Missing source assets explicitly show **Preview unavailable**.
+samples are not a promise of editor syntax colors. Missing source assets
+explicitly show **Preview unavailable**. Below the visual, the picker separates
+tools using the requested theme, tools using `default_theme`, skipped tools,
+and errors; a fallback is not presented as support for the requested theme.
 Browsing only inspects support/assets; it never applies a theme.
 
 Core commands are `apply`, `list`, and `current`. `list` shows the curated
@@ -380,9 +382,15 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
 }
 ```
 
-Custom `file` entries reference existing **app-native theme/settings files**, not
-shared palettes. Alternatively, `url` fetches an HTTPS file at each apply and
-uses the same tool-native parser; `file` and `url` cannot both be set. This works
+You can design your own colors and override a bundled theme or register a new
+theme ID. Write a separate theme/settings file in each application's native
+format, then register it under `themes.<id>.custom.<tool>`. For example, to use
+your own fzf colors for Dracula, set
+`"themes": {"dracula": {"custom": {"fzf": {"file": "ports/dracula/fzf.rc"}}}}`.
+The file must already exist; themeset does not generate app themes from a single
+shared palette. Custom `file` entries reference app-native theme/settings files.
+Alternatively, `url` fetches an HTTPS file at each apply and uses the same
+tool-native parser; `file` and `url` cannot both be set. This works
 for fzf, Starship, Yazi, Atuin, lazygit, lazydocker, btop, and eza. Yazi's remote
 styles additionally require a `syntax_url` pointing at a complete `.tmTheme`.
 Remote Lua/Vim/tmux or other executable app configs are rejected. A URL configured
@@ -394,6 +402,10 @@ set it explicitly if a Starship file declares a differently named palette.
 For local ports, `name` may select an existing app theme. Omit `tools` for all
 adapters; `"tools": []` means none. Canonical Neovim ID is `neovim`. Unknown
 JSON fields and unknown selected tool IDs are errors.
+
+Check the chosen source with `themeset apply dracula --dry-run` before applying;
+this inspects local files but does not change app settings. A missing or invalid
+custom file fails rather than falling back to the bundled theme.
 
 `listed` optionally replaces the built-in discovery list for `themeset list`,
 completion, and the picker. It is **not** a source declaration or a restriction

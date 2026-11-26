@@ -510,6 +510,32 @@ func TestPreviewMarksLightAppearanceWithoutChangingThemeID(t *testing.T) {
 	}
 }
 
+func TestPreviewShowsFallbackSeparatelyFromRequestedTheme(t *testing.T) {
+	installedFixtures(t, "tmux", "lazydocker")
+	home, directory := t.TempDir(), t.TempDir()
+	config := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "fallback.conf"), "set -g status-style bg=blue\n")
+	fixtureConfig(t, config, map[string]any{
+		"tools":         []string{"tmux", "lazydocker"},
+		"default_theme": "fallback",
+		"themes": map[string]any{
+			"requested": map[string]any{},
+			"fallback": map[string]any{"custom": map[string]any{
+				"tmux": map[string]string{"file": "fallback.conf"},
+			}},
+		},
+	})
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"__preview", "requested", "--home", home, "--config", config}, &stdout, &stderr)
+	output := stdout.String()
+	if code != 0 || !strings.Contains(output, "Support: 0 requested, 1 default fallback, 1 skipped, 0 errors") ||
+		!strings.Contains(output, "tmux: custom via default fallback (requested theme unavailable)") ||
+		!strings.Contains(output, "lazydocker: skipped (") ||
+		strings.Contains(output, "warning:") || strings.Contains(stderr.String(), "warning:") {
+		t.Fatalf("code=%d preview=%q diagnostics=%q", code, output, stderr.String())
+	}
+}
+
 func TestListOnlyFlagsRejectOtherCommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"list", "tools", "--all"},

@@ -83,7 +83,7 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 		}
 		input.WriteByte(0)
 	}
-	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--delimiter=\t", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=[light] = light theme | Enter: "+action+" | Esc: cancel | preview colors reflect source app", "--preview="+previewCommand(executable, opts), "--preview-window=right,65%,wrap")
+	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--delimiter=\t", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=[light] light | Enter: "+action+" | Esc: cancel", "--preview="+previewCommand(executable, opts), "--preview-window=right,60%,wrap")
 	command.Stdin = &input
 	command.Stderr = terminal
 	// User picker defaults may bind Enter to other actions. Keep this picker isolated;
@@ -196,7 +196,34 @@ func printPreview(theme string, config model.Config, env model.Environment, sele
 	if err := renderVisualPreview(theme, config, env, stdout); err != nil {
 		fmt.Fprintln(stderr, "preview:", err)
 	}
-	fmt.Fprintln(stdout, "\nApplication support (no settings changed):")
 	result := plan(theme, config, env, selected, true)
-	return printResult(stdout, stderr, result)
+	fmt.Fprintln(stdout, "\nApplication plan (no settings changed):")
+	fmt.Fprintf(stdout, "Theme: %s\n", theme)
+	direct, fallback, skipped, failures := 0, 0, 0, 0
+	for _, item := range result.Tools {
+		switch {
+		case item.Error != "" || item.Outcome == "failed":
+			failures++
+		case item.Outcome == "skipped":
+			skipped++
+		case item.FallbackTheme != "":
+			fallback++
+		default:
+			direct++
+		}
+	}
+	fmt.Fprintf(stdout, "Support: %d requested, %d default fallback, %d skipped, %d errors\n", direct, fallback, skipped, failures)
+	for _, item := range result.Tools {
+		switch {
+		case item.Error != "" || item.Outcome == "failed":
+			fmt.Fprintf(stdout, "  %s: ERROR: %s\n", item.Tool, item.Error)
+		case item.Outcome == "skipped":
+			fmt.Fprintf(stdout, "  %s: skipped (%s)\n", item.Tool, item.Reason)
+		case item.FallbackTheme != "":
+			fmt.Fprintf(stdout, "  %s: %s via default %s (requested theme unavailable)\n", item.Tool, item.Status, item.FallbackTheme)
+		default:
+			fmt.Fprintf(stdout, "  %s: %s\n", item.Tool, item.Status)
+		}
+	}
+	return 0
 }
