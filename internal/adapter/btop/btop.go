@@ -97,9 +97,6 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		if !catalog.Verified("btop", port) {
 			return fmt.Errorf("unregistered btop official theme %q", port.Name)
 		}
-		if port.Format != "btop-theme" {
-			return fmt.Errorf("unsupported btop official format %q", port.Format)
-		}
 		var err error
 		asset, err = shared.AcquireAsset(env, port.Source)
 		if err != nil {
@@ -107,11 +104,6 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		}
 		if err := filesBtopTheme(asset); err != nil {
 			return fmt.Errorf("invalid btop %s: %w", port.Name, err)
-		}
-		if port.LicenseURL != "" {
-			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-				return fmt.Errorf("acquire btop license: %w", err)
-			}
 		}
 	case "native":
 		if _, ok, err := filesResolveBtop(model.ThemePort{Native: []string{port.Name}}, env); err != nil {

@@ -155,17 +155,9 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		if !catalog.Verified("atuin", port) {
 			return nil, fmt.Errorf("unregistered Atuin official port %q", port.Name)
 		}
-		if port.Format != "atuin-file" {
-			return nil, fmt.Errorf("unsupported official Atuin format %q", port.Format)
-		}
 		data, err := shared.AcquireAsset(env, port.Source)
 		if err != nil {
 			return nil, err
-		}
-		if port.LicenseURL != "" {
-			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-				return nil, fmt.Errorf("acquire %s Atuin license: %w", port.Name, err)
-			}
 		}
 		return data, nil
 	}

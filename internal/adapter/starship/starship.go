@@ -58,7 +58,11 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 			}
 			switch port.Format {
 			case "starship-palette":
-				data, err = filesPaletteFamilyTOML(data, port.Variant)
+				variant := port.Variant
+				if variant == "" {
+					variant = port.Name
+				}
+				data, err = filesPaletteFamilyTOML(data, variant)
 			case "starship-preset":
 				data, err = filesPrepareOfficialStarshipPalette(data, port.Name)
 			default:
@@ -66,11 +70,6 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 			}
 			if err != nil {
 				return fmt.Errorf("invalid %s Starship palette: %w", port.Name, err)
-			}
-			if port.LicenseURL != "" {
-				if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-					return fmt.Errorf("acquire %s Starship license: %w", port.Name, err)
-				}
 			}
 		}
 		var err error

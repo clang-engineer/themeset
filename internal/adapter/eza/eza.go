@@ -303,11 +303,6 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		if err := filesValidateEzaPort(port, data); err != nil {
 			return nil, err
 		}
-		if port.LicenseURL != "" {
-			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-				return nil, fmt.Errorf("acquire eza %s license: %w", port.Name, err)
-			}
-		}
 		return data, nil
 	}
 	return nil, fmt.Errorf("eza requires an available official port or a registered native theme file")

@@ -42,14 +42,10 @@ func TestDeltaFeatureRejectsMalformedOrOtherSource(t *testing.T) {
 	}
 }
 
-func TestDeltaOfficialFormatRequiresVerifiedPort(t *testing.T) {
+func TestDeltaOfficialPortsRejectTampering(t *testing.T) {
 	port := *catalog.Port("rose-pine", "delta").Official
-	if port.Format != "delta-feature" {
-		t.Fatalf("unexpected Delta format: %q", port.Format)
-	}
 	for _, mutate := range []func(*model.Port){
 		func(p *model.Port) { p.Name = "other" },
-		func(p *model.Port) { p.Format = "other" },
 		func(p *model.Port) { p.Source = "https://example.test/other" },
 	} {
 		bad := port

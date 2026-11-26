@@ -97,9 +97,6 @@ func nativeApplyDelta(port model.Port, env model.Environment) error {
 		if !catalog.Verified("delta", port) {
 			return fmt.Errorf("unregistered official Delta port %q", port.Name)
 		}
-		if port.Format != "delta-feature" {
-			return fmt.Errorf("unsupported official Delta format %q", port.Format)
-		}
 		return nativeApplyOfficialDeltaFeature(port, env)
 	}
 	settings := map[string]string{}

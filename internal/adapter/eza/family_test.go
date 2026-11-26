@@ -43,16 +43,10 @@ func TestEzaFamilyGruvboxAcquisitionFetchesLatest(t *testing.T) {
 	requests := 0
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		requests++
-		var body []byte
-		switch r.URL.String() {
-		case shared.EzaGruvboxSource:
-			body = fixture
-		case shared.EzaFamilyLicenseSource:
-			body = []byte(testutil.EzaDraculaTestLicense)
-		default:
+		if r.URL.String() != shared.EzaGruvboxSource {
 			t.Fatalf("unexpected eza asset request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(fixture)), Header: make(http.Header)}, nil
 	})
 	port, ok, err := filesResolveEzaFamily("gruvbox", env)
 	if err != nil || !ok || port.Kind != "official" || port.Source != shared.EzaGruvboxSource || requests != 0 {
@@ -61,8 +55,8 @@ func TestEzaFamilyGruvboxAcquisitionFetchesLatest(t *testing.T) {
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if requests != 2 {
-		t.Fatalf("downloaded %d assets, want theme and license", requests)
+	if requests != 1 {
+		t.Fatalf("downloaded %d assets, want theme", requests)
 	}
 	first := testutil.Read(t, path)
 	config, err := shared.YAML(first)
@@ -76,30 +70,29 @@ func TestEzaFamilyGruvboxAcquisitionFetchesLatest(t *testing.T) {
 	// A second application fetches the current upstream branch again.
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		requests++
-		body := fixture
-		if r.URL.String() == shared.EzaFamilyLicenseSource {
-			body = []byte(testutil.EzaDraculaTestLicense)
+		if r.URL.String() != shared.EzaGruvboxSource {
+			t.Fatalf("unexpected eza asset request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(fixture)), Header: make(http.Header)}, nil
 	})
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if requests != 4 || !bytes.Equal(first, testutil.Read(t, path)) {
+	if requests != 2 || !bytes.Equal(first, testutil.Read(t, path)) {
 		t.Fatal("reapply failed to fetch current theme or changed effective theme")
 	}
 }
 
 func TestEzaFamilyInitialAcquisitionFailurePreservesTheme(t *testing.T) {
 	fixture := ezaGruvboxFixture(t)
-	for _, failure := range []string{"offline", "invalid schema", "missing license"} {
+	for _, failure := range []string{"offline", "invalid schema"} {
 		t.Run(failure, func(t *testing.T) {
 			env := testutil.Env(t)
 			path := shared.Path("eza", env)
 			const original = "filenames:\n  precious: {filename: {foreground: red}}\n"
 			testutil.Write(t, path, original)
 			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-				if failure == "offline" || failure == "missing license" && r.URL.String() == shared.EzaFamilyLicenseSource {
+				if failure == "offline" {
 					return nil, fmt.Errorf("offline")
 				}
 				body := fixture
@@ -132,11 +125,10 @@ func TestEzaFamilyOfflineReapplyPreservesTheme(t *testing.T) {
 	}
 	fixture := ezaGruvboxFixture(t)
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-		body := fixture
-		if r.URL.String() == shared.EzaFamilyLicenseSource {
-			body = []byte(testutil.EzaDraculaTestLicense)
+		if r.URL.String() != shared.EzaGruvboxSource {
+			t.Fatalf("unexpected eza asset request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(fixture)), Header: make(http.Header)}, nil
 	})
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)

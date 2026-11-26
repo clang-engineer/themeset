@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestEzaDraculaAcquiresCurrentNativeThemeAndLicense(t *testing.T) {
+func TestEzaDraculaAcquiresCurrentNativeTheme(t *testing.T) {
 	env := testutil.Env(t)
 	path := filepath.Join(env.Home, "explicit", "theme.yml")
 	env.Paths["eza"] = path
@@ -21,16 +21,10 @@ func TestEzaDraculaAcquiresCurrentNativeThemeAndLicense(t *testing.T) {
 	requests := 0
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		requests++
-		var body string
-		switch r.URL.String() {
-		case shared.EzaDraculaSource:
-			body = testutil.EzaDraculaTestTheme
-		case shared.EzaDraculaLicenseSource:
-			body = testutil.EzaDraculaTestLicense
-		default:
+		if r.URL.String() != shared.EzaDraculaSource {
 			t.Fatalf("unexpected asset request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(testutil.EzaDraculaTestTheme)), Header: make(http.Header)}, nil
 	})
 	port, ok, err := filesResolveEza(catalog.Port("dracula", "eza"), env)
 	if err != nil || !ok || port.Kind != "official" || requests != 0 {
@@ -48,26 +42,26 @@ func TestEzaDraculaAcquiresCurrentNativeThemeAndLicense(t *testing.T) {
 	if directory["foreground"] != "#8BE9FD" || directory["is_italic"] != true || config["filenames"].(map[string]any)["Makefile"].(map[string]any)["icon"].(map[string]any)["glyph"] != "KEEP" || config["extensions"].(map[string]any)["mine"] == nil {
 		t.Fatalf("native rule merge failed: %#v", config)
 	}
-	if requests != 2 {
-		t.Fatalf("requests=%d, want theme and license", requests)
+	if requests != 1 {
+		t.Fatalf("requests=%d, want theme", requests)
 	}
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if requests != 4 || !bytes.Equal(first, testutil.Read(t, path)) {
-		t.Fatal("reapply did not fetch latest theme and license or changed effective theme")
+	if requests != 2 || !bytes.Equal(first, testutil.Read(t, path)) {
+		t.Fatal("reapply did not fetch latest theme or changed effective theme")
 	}
 }
 
 func TestEzaDraculaFailureDoesNotMutateActiveTheme(t *testing.T) {
-	for _, failure := range []string{"download", "invalid schema", "license"} {
+	for _, failure := range []string{"download", "invalid schema"} {
 		t.Run(failure, func(t *testing.T) {
 			env := testutil.Env(t)
 			path := shared.Path("eza", env)
 			const original = "filenames:\n  precious: {filename: {foreground: red}}\n"
 			testutil.Write(t, path, original)
 			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-				if failure == "download" || (failure == "license" && r.URL.String() == shared.EzaDraculaLicenseSource) {
+				if failure == "download" {
 					return nil, fmt.Errorf("offline")
 				}
 				body := testutil.EzaDraculaTestTheme

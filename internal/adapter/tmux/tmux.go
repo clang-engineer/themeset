@@ -68,9 +68,6 @@ func nativeApplyTmux(port model.Port, env model.Environment) error {
 		return err
 	}
 	if official {
-		if port.Format != "tmux-styles" {
-			return fmt.Errorf("unsupported official tmux format %q", port.Format)
-		}
 		data, err := shared.AcquireAsset(env, port.Source)
 		if err != nil {
 			return fmt.Errorf("acquire tmux styles: %w", err)

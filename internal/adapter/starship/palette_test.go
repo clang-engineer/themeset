@@ -39,23 +39,13 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	license, err := os.ReadFile("../testdata/starship-catppuccin-mocha.LICENSE")
-	if err != nil {
-		t.Fatal(err)
-	}
 	requests := 0
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		requests++
-		var body []byte
-		switch r.URL.String() {
-		case shared.StarshipCatppuccinSource:
-			body = palette
-		case shared.StarshipCatppuccinLicense:
-			body = license
-		default:
+		if r.URL.String() != shared.StarshipCatppuccinSource {
 			t.Fatalf("unexpected palette request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(palette)), Header: make(http.Header)}, nil
 	})
 	path := shared.Path("starship", env)
 	testutil.Write(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[palettes.keep]\nred = '#112233'\n")
@@ -66,8 +56,8 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	if err := filesApplyStarship(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if requests != 2 {
-		t.Fatalf("acquired %d assets, want palette and license", requests)
+	if requests != 1 {
+		t.Fatalf("acquired %d assets, want palette only", requests)
 	}
 	config, err := shared.TOML(testutil.Read(t, path))
 	if err != nil {
@@ -89,20 +79,29 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if requests != 4 || config["palettes"].(map[string]any)["catppuccin_mocha"].(map[string]any)["mauve"] != "#123456" ||
+	if requests != 2 || config["palettes"].(map[string]any)["catppuccin_mocha"].(map[string]any)["mauve"] != "#123456" ||
 		config["format"] != "$directory" {
 		t.Fatalf("reapply did not import current palette or preserve prompt: %#v; requests=%d", config, requests)
 	}
-	previous := testutil.Read(t, path)
-	// Even a valid palette must not apply if its license cannot be fetched.
+}
+
+func TestPaletteFamilyOfflinePreservesConfiguration(t *testing.T) {
+	env := testutil.Env(t)
+	path := shared.Path("starship", env)
+	original := "format = '$directory'\n[palettes.keep]\nred = '#123456'\n"
+	testutil.Write(t, path, original)
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() == shared.StarshipCatppuccinLicense {
-			return nil, fmt.Errorf("offline")
+		if r.URL.String() != shared.StarshipCatppuccinSource {
+			t.Fatalf("unexpected palette request %s", r.URL)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(palette))), Header: make(http.Header)}, nil
+		return nil, fmt.Errorf("offline")
 	})
-	if err := filesApplyStarship(port, env); err == nil || !bytes.Equal(previous, testutil.Read(t, path)) {
-		t.Fatalf("license failure changed Starship settings: %v", err)
+	port, ok, err := filesResolveStarship(catalog.Port("catppuccin-mocha", "starship"), env)
+	if err != nil || !ok {
+		t.Fatalf("resolve: %#v, ok=%v err=%v", port, ok, err)
+	}
+	if err := filesApplyStarship(port, env); err == nil || string(testutil.Read(t, path)) != original {
+		t.Fatalf("offline palette changed Starship settings: %v", err)
 	}
 }
 
@@ -148,15 +147,10 @@ func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
 	requests := 0
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		requests++
-		var body string
-		switch r.URL.String() {
-		case shared.StarshipGruvboxSource:
-			body = "format = 'DO NOT IMPORT'\npalette = 'gruvbox_dark'\n[palettes.gruvbox_dark]\ncolor_blue = '" + color + "'\n"
-		case shared.StarshipGruvboxLicense:
-			body = "Official license"
-		default:
+		if r.URL.String() != shared.StarshipGruvboxSource {
 			t.Fatalf("unexpected Gruvbox download %s", r.URL)
 		}
+		body := "format = 'DO NOT IMPORT'\npalette = 'gruvbox_dark'\n[palettes.gruvbox_dark]\ncolor_blue = '" + color + "'\n"
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})
 	if err := filesApplyStarship(port, env); err != nil {
@@ -170,7 +164,7 @@ func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if requests != 4 || config["format"] != "$directory" ||
+	if requests != 2 || config["format"] != "$directory" ||
 		config["palettes"].(map[string]any)["gruvbox_dark"].(map[string]any)["color_blue"] != color {
 		t.Fatalf("did not fetch current Gruvbox palette or preserve layout: %#v; requests=%d", config, requests)
 	}

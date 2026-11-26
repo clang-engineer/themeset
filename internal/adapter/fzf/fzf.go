@@ -107,11 +107,6 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 		if err != nil {
 			return fmt.Errorf("invalid %s fzf theme: %w", port.Name, err)
 		}
-		if port.LicenseURL != "" {
-			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-				return fmt.Errorf("acquire %s fzf license: %w", port.Name, err)
-			}
-		}
 	} else {
 		return errors.New("fzf requires an official port or custom options file")
 	}

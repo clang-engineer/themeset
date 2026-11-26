@@ -29,13 +29,17 @@ Each enabled `(theme, tool)` recipe must record:
 | Preservation | Theme-owned fields versus unrelated user settings; known higher-priority overrides |
 | Verification | Asset validation plus observation that the actual application consumes the selected theme |
 
-The bundled [theme declarations](internal/catalog/defaults.json) list native
-candidate names and verified official source URLs by theme and tool. User
+The bundled [theme declarations](internal/catalog/defaults.json) group
+`tools.<tool>.<theme>` entries by adapter. `listed` separately defines the CLI
+shortlist. Native candidates and verified official sources live with each tool;
+an official port infers its kind and default name from its theme key. Explicit
+names remain only where the upstream tool uses a different native name. User
 `themes.<id>.custom.<tool>` entries replace that one bundled declaration;
-other tool declarations stay in effect. Official file adapters verify the
-catalog declaration, fetch its `source` (and `license_url` when specified), then
-validate the native file format before changing settings. Format-specific parsers
-remain in the tool adapter; source selection does not branch on theme names.
+other tool declarations stay in effect. Official file adapters fetch the
+declared source, validate its native format, and apply only the relevant data.
+Companion URLs are declared only when installed with the theme (Yazi syntax
+and bundled flavor license files). Format-specific parsers remain in the tool
+adapter; source selection does not branch on theme names.
 The `format` value names the upstream file shape or application operation,
 not a theme. When several themes share a shape, the adapter uses the same
 parser; formats with different install/ownership rules retain distinct paths.

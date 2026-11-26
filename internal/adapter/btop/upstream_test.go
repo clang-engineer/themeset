@@ -26,24 +26,14 @@ func TestBtopOfficialThemesFetchCurrentBranch(t *testing.T) {
 			if err != nil || !ok || port.Kind != "official" {
 				t.Fatalf("resolve %q: %#v, ok=%t err=%v", name, port, ok, err)
 			}
-			license := port.LicenseURL
-			expectedRequests := 1
-			if license != "" {
-				expectedRequests++
-			}
 			color := "#112233"
 			requests := 0
 			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 				requests++
-				var body string
-				switch r.URL.String() {
-				case port.Source:
-					body = "theme[main_fg]=\"" + color + "\"\n"
-				case license:
-					body = "Official theme license\n"
-				default:
+				if r.URL.String() != port.Source {
 					t.Fatalf("unexpected btop download: %s", r.URL)
 				}
+				body := "theme[main_fg]=\"" + color + "\"\n"
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 			})
 			if requests != 0 {
@@ -54,15 +44,15 @@ func TestBtopOfficialThemesFetchCurrentBranch(t *testing.T) {
 			}
 			themePath := filepath.Join(filepath.Dir(configPath), "themes", port.Name+".theme")
 			if !strings.Contains(string(testutil.Read(t, configPath)), "update_ms = 2000") ||
-				!strings.Contains(string(testutil.Read(t, themePath)), color) || requests != expectedRequests {
+				!strings.Contains(string(testutil.Read(t, themePath)), color) || requests != 1 {
 				t.Fatalf("official btop theme not applied with settings preserved: requests=%d", requests)
 			}
 			color = "#445566"
 			if err := filesApplyBtop(port, env); err != nil {
 				t.Fatal(err)
 			}
-			if requests != 2*expectedRequests || !strings.Contains(string(testutil.Read(t, themePath)), color) {
-				t.Fatal("reapply did not fetch current upstream theme and optional license")
+			if requests != 2 || !strings.Contains(string(testutil.Read(t, themePath)), color) {
+				t.Fatal("reapply did not fetch current upstream theme")
 			}
 		})
 	}
@@ -70,7 +60,7 @@ func TestBtopOfficialThemesFetchCurrentBranch(t *testing.T) {
 
 func TestBtopOfficialDownloadFailurePreservesSettings(t *testing.T) {
 	for _, name := range []string{"dracula", "catppuccin-mocha"} {
-		for _, failure := range []string{"offline", "invalid theme", "license"} {
+		for _, failure := range []string{"offline", "invalid theme"} {
 			t.Run(name+"/"+failure, func(t *testing.T) {
 				env := testutil.Env(t)
 				path := shared.Path("btop", env)
@@ -82,9 +72,8 @@ func TestBtopOfficialDownloadFailurePreservesSettings(t *testing.T) {
 				if err != nil || !ok || port.Kind != "official" {
 					t.Fatalf("resolve: %#v, ok=%t err=%v", port, ok, err)
 				}
-				license := port.LicenseURL
 				testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-					if failure == "offline" || failure == "license" && r.URL.String() == license {
+					if failure == "offline" {
 						return nil, fmt.Errorf("offline")
 					}
 					body := "theme[main_fg]=\"#112233\"\n"
@@ -114,24 +103,15 @@ func TestBtopOfficialSourcesCannotBeSubstituted(t *testing.T) {
 		requests++
 		return nil, fmt.Errorf("unregistered btop source was fetched: %s", r.URL)
 	})
-	for _, field := range []string{"source", "license"} {
-		t.Run(field, func(t *testing.T) {
-			spec := catalog.Port("dracula", "btop")
-			port := *spec.Official
-			if field == "source" {
-				port.Source = "https://example.org/theme.theme"
-			} else {
-				port.LicenseURL = "https://example.org/LICENSE"
-			}
-			if err := filesApplyBtop(port, env); err == nil {
-				t.Fatal("accepted unregistered btop source")
-			}
-			if requests != 0 {
-				t.Fatalf("fetched unregistered btop source %d times", requests)
-			}
-			if got := string(testutil.Read(t, path)); got != original {
-				t.Fatalf("unregistered source changed settings: %q", got)
-			}
-		})
+	port := *catalog.Port("dracula", "btop").Official
+	port.Source = "https://example.org/theme.theme"
+	if err := filesApplyBtop(port, env); err == nil {
+		t.Fatal("accepted unregistered btop source")
+	}
+	if requests != 0 {
+		t.Fatalf("fetched unregistered btop source %d times", requests)
+	}
+	if got := string(testutil.Read(t, path)); got != original {
+		t.Fatalf("unregistered source changed settings: %q", got)
 	}
 }
