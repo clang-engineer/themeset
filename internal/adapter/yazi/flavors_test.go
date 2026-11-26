@@ -3,6 +3,7 @@ package yazi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -512,5 +513,100 @@ func TestRosePineYaziNativeFlavorAndFailedOfficialInstall(t *testing.T) {
 	}
 	if _, ok, err := filesResolveRosePineYazi("rose-pine-dawn", env); ok || err != nil {
 		t.Fatalf("unregistered Yazi variant accepted: %v", err)
+	}
+}
+
+func TestYaziRemoteCustomImportsOnlyStylesAndManagedSyntax(t *testing.T) {
+	env := testutil.Env(t)
+	if !Adapter().Remote {
+		t.Fatal("yazi adapter does not accept remote themes")
+	}
+	path := shared.Path("yazi", env)
+	testutil.Write(t, path, "[flavor]\ndark = 'existing'\nlight = 'existing'\n[mgr]\nratio = [1, 3, 4]\ncwd = { italic = true }\n[status]\nperm_read = { bg = '#123456' }\n[plugin]\nkeep = 'yes'\n")
+	neighbor := filepath.Join(filepath.Dir(path), "yazi.toml")
+	testutil.Write(t, neighbor, "[mgr]\nshow_hidden = true\n")
+	sentinel := filepath.Join(env.Home, "executed")
+	const themeURL = "https://example.test/themes/aurora.toml"
+	const syntaxURL = "https://example.test/themes/aurora.tmTheme"
+	theme := "[mgr]\ncwd = { fg = '#abcdef' }\nsyntect_theme = '/tmp/untrusted.tmTheme'\nratio = [9, 9, 9]\n[status]\nperm_read = { fg = '#fedcba' }\n[flavor]\ndark = 'untrusted'\n[plugin]\nrun = 'touch " + sentinel + "'\n"
+	syntax := "<plist><dict/></plist>"
+	requests := map[string]int{}
+	testutil.AssetClient(t, func(req *http.Request) (*http.Response, error) {
+		requests[req.URL.String()]++
+		var data string
+		switch req.URL.String() {
+		case themeURL:
+			data = theme
+		case syntaxURL:
+			data = syntax
+		default:
+			t.Fatalf("unexpected source: %s", req.URL)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(data)), Header: make(http.Header)}, nil
+	})
+	port := model.Port{Kind: "custom", Name: "aurora", URL: themeURL, SyntaxURL: syntaxURL, Source: "author's site"}
+	if err := Adapter().Apply(port, env); err != nil {
+		t.Fatal(err)
+	}
+	config, err := shared.TOML(testutil.Read(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mgr := config["mgr"].(map[string]any)
+	cwd := mgr["cwd"].(map[string]any)
+	status := config["status"].(map[string]any)["perm_read"].(map[string]any)
+	managed := filepath.Join(filepath.Dir(path), "themeset-custom-aurora.tmTheme")
+	if mgr["syntect_theme"] != managed || cwd["fg"] != "#abcdef" || cwd["italic"] != true || fmt.Sprint(mgr["ratio"]) != "[1 3 4]" || status["fg"] != "#fedcba" || status["bg"] != "#123456" || config["flavor"].(map[string]any)["dark"] != "" || config["flavor"].(map[string]any)["light"] != "" || config["plugin"].(map[string]any)["keep"] != "yes" || requests[themeURL] != 1 || requests[syntaxURL] != 1 {
+		t.Fatalf("remote Yazi theme modified unrelated settings: %#v, requests=%v", config, requests)
+	}
+	if string(testutil.Read(t, managed)) != syntax || string(testutil.Read(t, neighbor)) != "[mgr]\nshow_hidden = true\n" {
+		t.Fatal("managed syntax or user settings changed unexpectedly")
+	}
+	if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("remote plugin code executed")
+	}
+	before := testutil.Read(t, path)
+	syntax = "<html>not a plist</html>"
+	if err := Adapter().Apply(port, env); err == nil || !bytes.Equal(testutil.Read(t, path), before) || string(testutil.Read(t, managed)) != "<plist><dict/></plist>" {
+		t.Fatal("invalid updated syntax replaced active Yazi theme or managed syntax")
+	}
+}
+
+func TestYaziRemoteCustomRejectsUnsafeAssetsWithoutChangingSettings(t *testing.T) {
+	for _, tc := range []struct {
+		name, theme, syntax, syntaxURL, portName string
+	}{
+		{name: "missing syntax", theme: "[mgr]\ncwd = { fg = '#123456' }\n", portName: "aurora"},
+		{name: "invalid XML", theme: "[mgr]\ncwd = { fg = '#123456' }\n", syntax: "<html/>", syntaxURL: "https://example.test/syntax", portName: "aurora"},
+		{name: "invalid TOML", theme: "[mgr\ncwd =", syntax: "<plist><dict/></plist>", syntaxURL: "https://example.test/syntax", portName: "aurora"},
+		{name: "invalid style", theme: "[mgr]\ncwd = { fg = '$(touch /tmp/unsafe)' }\n", syntax: "<plist><dict/></plist>", syntaxURL: "https://example.test/syntax", portName: "aurora"},
+		{name: "settings only", theme: "[plugin]\nrun = 'bad'\n[mgr]\nratio = [1, 2, 3]\n", syntax: "<plist><dict/></plist>", syntaxURL: "https://example.test/syntax", portName: "aurora"},
+		{name: "unsafe name", theme: "[mgr]\ncwd = { fg = '#123456' }\n", syntax: "<plist><dict/></plist>", syntaxURL: "https://example.test/syntax", portName: "../unsafe"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := testutil.Env(t)
+			path := shared.Path("yazi", env)
+			original := "[flavor]\ndark = 'existing'\n[mgr]\ncwd = { fg = '#aabbcc' }\n"
+			testutil.Write(t, path, original)
+			testutil.AssetClient(t, func(req *http.Request) (*http.Response, error) {
+				var data string
+				switch req.URL.String() {
+				case "https://example.test/theme":
+					data = tc.theme
+				case "https://example.test/syntax":
+					data = tc.syntax
+				default:
+					t.Fatalf("unexpected remote source %s", req.URL)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(data)), Header: make(http.Header)}, nil
+			})
+			port := model.Port{Kind: "custom", Name: tc.portName, URL: "https://example.test/theme", SyntaxURL: tc.syntaxURL}
+			if err := Adapter().Apply(port, env); err == nil || string(testutil.Read(t, path)) != original {
+				t.Fatalf("invalid remote theme changed active Yazi settings: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(filepath.Dir(path), "themeset-custom-aurora.tmTheme")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("invalid theme installed syntax")
+			}
+		})
 	}
 }

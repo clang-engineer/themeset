@@ -32,10 +32,17 @@ func AcquireAsset(env model.Environment, source string) ([]byte, error) {
 	return AcquireAssetWithClient(env, source, AssetHTTPClient)
 }
 
-func AcquireAssetWithClient(_ model.Environment, source string, client *http.Client) ([]byte, error) {
+func ValidateAssetSource(source string) error {
 	location, err := url.Parse(source)
 	if err != nil || location.Scheme != "https" || location.Host == "" || location.User != nil {
-		return nil, errors.New("theme asset source must be an absolute HTTPS URL without credentials")
+		return errors.New("theme asset source must be an absolute HTTPS URL without credentials")
+	}
+	return nil
+}
+
+func AcquireAssetWithClient(_ model.Environment, source string, client *http.Client) ([]byte, error) {
+	if err := ValidateAssetSource(source); err != nil {
+		return nil, err
 	}
 	response, err := client.Get(source)
 	if err != nil {

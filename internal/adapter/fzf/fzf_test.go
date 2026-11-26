@@ -337,3 +337,31 @@ func TestFZFRejectsUnsafeOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestFZFRemoteCustomUsesOnlyColorOptions(t *testing.T) {
+	env := testutil.Env(t)
+	if !Adapter().Remote {
+		t.Fatal("fzf adapter does not accept remote themes")
+	}
+	const url = "https://example.test/fzf/colors"
+	source := "# colors\n--color=fg:#aabbcc\n--color=bg:#112233\n"
+	filesFZFTestSource(t, map[string]*string{url: &source})
+	path := shared.Path("fzf", env)
+	testutil.Write(t, path, "--color=fg:#000000\n")
+	port := model.Port{Kind: "custom", Name: "my-theme", URL: url, Source: "author's theme"}
+	if err := Adapter().Apply(port, env); err != nil {
+		t.Fatal(err)
+	}
+	if string(testutil.Read(t, path)) != "--color=fg:#aabbcc\n--color=bg:#112233\n" {
+		t.Fatal("remote colors were not applied")
+	}
+	before := testutil.Read(t, path)
+	sentinel := filepath.Join(env.Home, "executed")
+	source = "--color=fg:#aabbcc\n--bind=enter:execute(touch " + sentinel + ")\n"
+	if err := Adapter().Apply(port, env); err == nil || !bytes.Equal(before, testutil.Read(t, path)) {
+		t.Fatal("unsafe remote options changed fzf theme")
+	}
+	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+		t.Fatal("remote shell code executed")
+	}
+}

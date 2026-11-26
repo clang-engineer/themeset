@@ -10,7 +10,7 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "starship", Binary: "starship", Resolve: filesResolveStarship, Apply: filesApplyStarship}
+	return model.Adapter{ID: "starship", Binary: "starship", Remote: true, Resolve: filesResolveStarship, Apply: filesApplyStarship}
 }
 
 func filesResolveStarship(name string, env model.Environment) (model.Port, bool, error) {
@@ -43,9 +43,9 @@ func filesResolveStarship(name string, env model.Environment) (model.Port, bool,
 
 func filesApplyStarship(port model.Port, env model.Environment) error {
 	var incoming map[string]any
-	if port.File != "" || port.Kind == "official" {
+	if port.File != "" || port.URL != "" || port.Kind == "official" {
 		var data []byte
-		if port.File != "" {
+		if port.File != "" || port.URL != "" {
 			var err error
 			data, err = shared.Custom(port, env)
 			if err != nil {

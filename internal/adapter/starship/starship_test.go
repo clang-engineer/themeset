@@ -2,12 +2,14 @@ package starship
 
 import (
 	"bytes"
-	"github.com/clang-engineer/themeset/internal/adapter/shared"
-	"github.com/clang-engineer/themeset/internal/adapter/testutil"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/model"
 )
 
 const filesStarshipTestMoonfly = `palette = "moonfly"
@@ -98,5 +100,34 @@ func TestFilesStarshipOfficialFailedDownloadPreservesConfiguration(t *testing.T)
 	}
 	if err := filesApplyStarship(port, env); err == nil || string(testutil.Read(t, path)) != original {
 		t.Fatalf("failed download changed Starship configuration: %v", err)
+	}
+}
+
+func TestStarshipRemoteCustomImportsSelectedPaletteOnly(t *testing.T) {
+	env := testutil.Env(t)
+	if !Adapter().Remote {
+		t.Fatal("starship adapter does not accept remote themes")
+	}
+	const url = "https://example.test/starship/palette.toml"
+	source := "palette = 'new'\nformat = 'SHOULD NOT IMPORT'\n[directory]\nstyle = 'SHOULD NOT IMPORT'\n[palettes.new]\nred = '#aabbcc'\n[palettes.other]\nblue = '#abcdef'\n"
+	filesStarshipTestSource(t, map[string]*string{url: &source})
+	path := shared.Path("starship", env)
+	testutil.Write(t, path, "format = '$directory'\n[directory]\nstyle = 'keep'\n[palettes.keep]\nblue = '#112233'\n")
+	port := model.Port{Kind: "custom", Name: "new", URL: url, Source: "upstream author"}
+	if err := Adapter().Apply(port, env); err != nil {
+		t.Fatal(err)
+	}
+	config, err := shared.TOML(testutil.Read(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	palettes := config["palettes"].(map[string]any)
+	if config["palette"] != "new" || config["format"] != "$directory" || config["directory"].(map[string]any)["style"] != "keep" || palettes["other"] != nil || palettes["keep"] == nil || palettes["new"].(map[string]any)["red"] != "#aabbcc" {
+		t.Fatalf("unexpected Starship settings: %#v", config)
+	}
+	before := testutil.Read(t, path)
+	source = "palette = 'new'\n[palettes.new]\nred = 'bad'\nformat = [\n"
+	if err := Adapter().Apply(port, env); err == nil || !bytes.Equal(before, testutil.Read(t, path)) {
+		t.Fatal("invalid remote palette changed Starship settings")
 	}
 }

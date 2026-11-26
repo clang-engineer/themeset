@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -102,6 +103,28 @@ func loadConfig(path string, env model.Environment) (model.Config, string, error
 	}
 	for theme, definition := range config.Themes {
 		for id, port := range definition.Custom {
+			if port.URL != "" {
+				if port.File != "" {
+					return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s: file and url are mutually exclusive", theme, id)
+				}
+				if err := shared.ValidateAssetSource(port.URL); err != nil {
+					return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s.url: %w", theme, id, err)
+				}
+			}
+			if port.URL != "" && port.Name == "" {
+				port.Name = theme
+			}
+			if id == "yazi" && port.URL != "" && port.SyntaxURL == "" {
+				return model.Config{}, path, fmt.Errorf("themes.%s.custom.yazi.syntax_url is required for remote styles", theme)
+			}
+			if port.SyntaxURL != "" {
+				if port.URL == "" || id != "yazi" {
+					return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s.syntax_url requires a Yazi url", theme, id)
+				}
+				if err := shared.ValidateAssetSource(port.SyntaxURL); err != nil {
+					return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s.syntax_url: %w", theme, id, err)
+				}
+			}
 			port.Kind = "custom"
 			port.File, err = localPath(port.File, env.Home, base)
 			if err != nil {

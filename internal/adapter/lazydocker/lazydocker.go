@@ -8,7 +8,7 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "lazydocker", Binary: "lazydocker", Resolve: resolve, Apply: apply}
+	return model.Adapter{ID: "lazydocker", Binary: "lazydocker", Remote: true, Resolve: resolve, Apply: apply}
 }
 
 func resolve(name string, _ model.Environment) (model.Port, bool, error) {
@@ -19,7 +19,7 @@ func resolve(name string, _ model.Environment) (model.Port, bool, error) {
 func apply(port model.Port, env model.Environment) error {
 	var data []byte
 	var err error
-	if port.File != "" {
+	if port.File != "" || port.URL != "" {
 		data, err = shared.Custom(port, env)
 	} else if port.Kind == "official" {
 		if registered, ok := shared.OfficialPort("lazydocker", port.Name); ok && registered.Source == port.Source {

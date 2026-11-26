@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/model"
@@ -356,14 +357,38 @@ func filesYaziManagedStylesPath(env model.Environment) string {
 // have no snapshot; compare against the current upstream source conservatively.
 func filesRemovePreviousYaziStyles(config map[string]any, env model.Environment) error {
 	mgr, ok := config["mgr"].(map[string]any)
-	if !ok || mgr["syntect_theme"] != filepath.Join(filepath.Dir(shared.Path("yazi", env)), "themeset-catppuccin-mocha.tmTheme") {
+	if !ok {
 		return nil
 	}
-	data, err := shared.Read(filesYaziManagedStylesPath(env), true)
+	syntaxPath, ok := mgr["syntect_theme"].(string)
+	if !ok {
+		return nil
+	}
+	directory := filepath.Dir(shared.Path("yazi", env))
+	catppuccin := syntaxPath == filepath.Join(directory, "themeset-catppuccin-mocha.tmTheme")
+	marker := filesYaziManagedStylesPath(env)
+	if !catppuccin {
+		if filepath.Dir(syntaxPath) != directory {
+			return nil
+		}
+		filename := filepath.Base(syntaxPath)
+		if !strings.HasPrefix(filename, "themeset-custom-") || !strings.HasSuffix(filename, ".tmTheme") {
+			return nil
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(filename, "themeset-custom-"), ".tmTheme")
+		if !shared.Name(name) {
+			return nil
+		}
+		marker = filepath.Join(directory, ".themeset-custom-"+name+"-styles.toml")
+	}
+	data, err := shared.Read(marker, true)
 	if err != nil {
 		return err
 	}
 	if data == nil {
+		if !catppuccin {
+			return nil
+		}
 		port, registered := shared.OfficialPort("yazi", "catppuccin-mocha")
 		if !registered {
 			return errors.New("Catppuccin Yazi source is not registered")
@@ -377,8 +402,10 @@ func filesRemovePreviousYaziStyles(config map[string]any, env model.Environment)
 	if err != nil {
 		return fmt.Errorf("parse previously applied Yazi styles: %w", err)
 	}
-	if err := filesValidateYaziPort(data); err != nil {
-		return fmt.Errorf("invalid previously applied Yazi styles: %w", err)
+	if catppuccin {
+		if err := filesValidateYaziPort(data); err != nil {
+			return fmt.Errorf("invalid previously applied Yazi styles: %w", err)
+		}
 	}
 	delete(mgr, "syntect_theme")
 	for _, section := range []string{"app", "mgr", "tabs", "mode", "indicator", "status", "input", "pick", "confirm", "spot", "completion", "tasks", "which", "help", "notify"} {

@@ -11,7 +11,7 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "atuin", Binary: "atuin", Resolve: filesResolveAtuin, Apply: filesApplyAtuin}
+	return model.Adapter{ID: "atuin", Binary: "atuin", Remote: true, Resolve: filesResolveAtuin, Apply: filesApplyAtuin}
 }
 
 func filesAtuinThemes(env model.Environment) string {
@@ -94,15 +94,19 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 		if err != nil {
 			return err
 		}
-		if port.Kind == "official" && port.File == "" {
+		if port.Kind == "official" && port.File == "" && port.URL == "" {
 			if err := filesValidateAtuinPort(port.Name, asset); err != nil {
 				return err
 			}
 		}
-		port.Name, err = filesAtuinTheme(asset)
+		actual, err := filesAtuinTheme(asset)
 		if err != nil {
 			return err
 		}
+		if port.URL != "" && port.Name != actual {
+			return fmt.Errorf("remote Atuin theme declares name %q, expected %q", actual, port.Name)
+		}
+		port.Name = actual
 		if filesAtuinBuiltin(port.Name) {
 			return errors.New("custom Atuin theme must not shadow a built-in theme name")
 		}
@@ -117,7 +121,11 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 			return err
 		}
 		if asset != nil {
-			if err := shared.Atomic(filepath.Join(filesAtuinThemes(env), port.Name+".toml"), asset); err != nil {
+			if port.URL != "" {
+				if err := filesWriteRemoteAtuin(port, env, asset); err != nil {
+					return err
+				}
+			} else if err := shared.Atomic(filepath.Join(filesAtuinThemes(env), port.Name+".toml"), asset); err != nil {
 				return err
 			}
 		}
@@ -141,7 +149,7 @@ func filesValidateAtuinPort(theme string, data []byte) error {
 }
 
 func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
-	if port.File != "" {
+	if port.File != "" || port.URL != "" {
 		return shared.Custom(port, env)
 	}
 	if port.Kind == "official" {

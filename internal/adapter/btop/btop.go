@@ -14,7 +14,7 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "btop", Binary: "btop", Resolve: filesResolveBtop, Apply: filesApplyBtop}
+	return model.Adapter{ID: "btop", Binary: "btop", Remote: true, Resolve: filesResolveBtop, Apply: filesApplyBtop}
 }
 
 func filesBtopDirectories(env model.Environment) []string {

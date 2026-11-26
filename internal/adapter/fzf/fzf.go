@@ -12,7 +12,7 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "fzf", Binary: "fzf", Resolve: filesResolveFZF, Apply: filesApplyFZF}
+	return model.Adapter{ID: "fzf", Binary: "fzf", Remote: true, Resolve: filesResolveFZF, Apply: filesApplyFZF}
 }
 
 func filesResolveFZF(name string, env model.Environment) (model.Port, bool, error) {
@@ -87,7 +87,7 @@ func filesFZFRequireSelectedColors(env model.Environment) error {
 
 func filesApplyFZF(port model.Port, env model.Environment) error {
 	var data []byte
-	if port.File != "" {
+	if port.File != "" || port.URL != "" {
 		var err error
 		data, err = shared.Custom(port, env)
 		if err != nil {

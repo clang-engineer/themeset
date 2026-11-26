@@ -309,21 +309,40 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
           "source": "My registered lazygit Dracula settings"
         }
       }
+    },
+    "my-mocha": {
+      "custom": {
+        "fzf": {
+          "url": "https://raw.githubusercontent.com/catppuccin/fzf/main/themes/catppuccin-fzf-mocha.rc"
+        }
+      }
     }
-  }
+}
 }
 ```
 
 Custom `file` entries reference existing **app-native theme/settings files**, not
-shared palettes. Relative paths resolve against the JSON config directory; `~/`
-uses the selected home. `name` may select an existing app theme for adapters
-supporting native name selection. Omit `tools` for all adapters; `"tools": []`
-means none. Canonical Neovim ID is `neovim`. Unknown JSON fields and unknown
-selected tool IDs are errors.
+shared palettes. Alternatively, `url` fetches an HTTPS file at each apply and
+uses the same tool-native parser; `file` and `url` cannot both be set. This works
+for fzf, Starship, Yazi, Atuin, lazygit, lazydocker, btop, and eza. Yazi's remote
+styles additionally require a `syntax_url` pointing at a complete `.tmTheme`.
+Remote Lua/Vim/tmux or other executable app configs are rejected. A URL configured
+by the user is reported as **custom**, not verified as an official theme.
+`source` remains optional human-readable provenance, not a download URL.
+Relative `file` paths resolve against the JSON config directory; `~/`
+uses the selected home. For remote ports, `name` defaults to the theme ID;
+set it explicitly if a Starship file declares a differently named palette.
+For local ports, `name` may select an existing app theme. Omit `tools` for all
+adapters; `"tools": []` means none. Canonical Neovim ID is `neovim`. Unknown
+JSON fields and unknown selected tool IDs are errors.
 
 Explicit `themes.<id>.custom.<tool>` entries override even available native or
 official ports. An invalid custom file is an error, not permission to use other
 colors. Use an empty theme object to register an extra ID without custom ports.
+Remote files must use HTTPS without URL credentials; downloads are size-bounded,
+checked as tool-native data, and never executed. Dry-run does not download.
+Malformed downloads fail without falling back to another theme. Review third-party
+URLs yourself: registering one does not make its maintainer trustworthy.
 
 Explicit `paths` override native destination files. macOS lazygit/lazydocker and
 eza follow their native Library paths; existing legacy lazy-tool vendor paths

@@ -92,6 +92,12 @@ func plan(theme string, config model.Config, env model.Environment, adapters []m
 		if custom, ok := config.Themes[theme].Custom[adapter.ID]; ok {
 			custom.Kind = "custom"
 			item.Status, item.Port = "custom", &custom
+			if custom.URL != "" && !adapter.Remote {
+				item.Error = fmt.Sprintf("%s does not accept remote theme files", adapter.ID)
+				item.Status, item.Outcome, item.Port = "error", "failed", nil
+				result.Tools = append(result.Tools, item)
+				continue
+			}
 			if custom.File != "" {
 				info, err := os.Stat(custom.File)
 				if err == nil && !info.Mode().IsRegular() {

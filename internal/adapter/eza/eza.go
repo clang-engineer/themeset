@@ -4,13 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
+	"unicode"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "eza", Binary: "eza", Resolve: filesResolveEza, Apply: filesApplyEza}
+	return model.Adapter{ID: "eza", Binary: "eza", Remote: true, Resolve: filesResolveEza, Apply: filesApplyEza}
 }
 
 func filesApplyEza(port model.Port, env model.Environment) error {
@@ -20,6 +22,11 @@ func filesApplyEza(port model.Port, env model.Environment) error {
 	}
 	if port.Kind == "official" && port.File == "" && port.Name == "catppuccin-mocha" {
 		if err := filesValidateEzaPort(port.Name, data); err != nil {
+			return err
+		}
+	}
+	if port.URL != "" {
+		if err := filesValidateEzaCustom(data); err != nil {
 			return err
 		}
 	}
@@ -34,6 +41,109 @@ func filesApplyEza(port model.Port, env model.Environment) error {
 		shared.Merge(config, incoming)
 		return nil
 	})
+}
+
+// Remote custom data must describe eza styles, not an unrelated YAML config.
+// Local custom files retain their existing permissive merge behavior.
+func filesValidateEzaCustom(data []byte) error {
+	config, err := shared.YAML(data)
+	if err != nil {
+		return err
+	}
+	styles := 0
+	for key, value := range config {
+		switch key {
+		case "colourful":
+			if _, ok := value.(bool); !ok {
+				return errors.New("eza colourful must be a boolean")
+			}
+		case "filekinds", "perms", "size", "users", "links", "git", "git_repo", "security_context", "file_type":
+			section, ok := value.(map[string]any)
+			if !ok || len(section) == 0 {
+				return fmt.Errorf("eza %s must contain native styles", key)
+			}
+			for name, style := range section {
+				if err := filesValidateEzaCustomStyle(key+"."+name, style); err != nil {
+					return err
+				}
+				styles++
+			}
+		case "punctuation", "date", "inode", "blocks", "header", "octal", "flags", "symlink_path", "control_char", "broken_symlink", "broken_path_overlay":
+			if err := filesValidateEzaCustomStyle(key, value); err != nil {
+				return err
+			}
+			styles++
+		case "filenames", "extensions":
+			section, ok := value.(map[string]any)
+			if !ok || len(section) == 0 {
+				return fmt.Errorf("eza %s must contain native styles", key)
+			}
+			for name, value := range section {
+				entry, ok := value.(map[string]any)
+				if !ok || len(entry) == 0 {
+					return fmt.Errorf("eza %s.%s must be a native style mapping", key, name)
+				}
+				for field, style := range entry {
+					switch field {
+					case "filename":
+						if err := filesValidateEzaCustomStyle(key+"."+name+".filename", style); err != nil {
+							return err
+						}
+					case "icon":
+						icon, ok := style.(map[string]any)
+						if !ok || len(icon) == 0 {
+							return fmt.Errorf("eza %s.%s.icon must be a mapping", key, name)
+						}
+						for property, value := range icon {
+							switch property {
+							case "glyph":
+								if glyph, ok := value.(string); !ok || glyph == "" || strings.ContainsFunc(glyph, unicode.IsControl) {
+									return fmt.Errorf("eza %s.%s.icon.glyph must be nonempty without control characters", key, name)
+								}
+							case "style":
+								if err := filesValidateEzaCustomStyle(key+"."+name+".icon.style", value); err != nil {
+									return err
+								}
+							default:
+								return fmt.Errorf("eza %s.%s.icon.%s is not a native property", key, name, property)
+							}
+						}
+					default:
+						return fmt.Errorf("eza %s.%s.%s is not a native style", key, name, field)
+					}
+					styles++
+				}
+			}
+		default:
+			return fmt.Errorf("eza %s is not a native theme setting", key)
+		}
+	}
+	if styles == 0 {
+		return errors.New("eza theme contains no native styles")
+	}
+	return nil
+}
+
+func filesValidateEzaCustomStyle(name string, value any) error {
+	style, ok := value.(map[string]any)
+	if !ok || len(style) == 0 {
+		return fmt.Errorf("eza %s must be a nonempty native style mapping", name)
+	}
+	for key, value := range style {
+		switch key {
+		case "foreground", "background":
+			if color, ok := value.(string); !ok || !filesEzaFamilyHexColor.MatchString(color) {
+				return fmt.Errorf("eza %s.%s must be a hexadecimal color", name, key)
+			}
+		case "is_bold", "is_dimmed", "is_italic", "is_underline", "is_blink", "is_reverse", "is_hidden", "is_strikethrough", "prefix_with_reset":
+			if _, ok := value.(bool); !ok {
+				return fmt.Errorf("eza %s.%s must be a boolean", name, key)
+			}
+		default:
+			return fmt.Errorf("eza %s.%s is not a native style property", name, key)
+		}
+	}
+	return nil
 }
 
 // The upstream Rosé Pine distribution has no \"colourful\" toggle; validate its
@@ -232,7 +342,7 @@ func filesResolveEza(name string, env model.Environment) (model.Port, bool, erro
 }
 
 func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
-	if port.File != "" {
+	if port.File != "" || port.URL != "" {
 		return shared.Custom(port, env)
 	}
 	if port.Kind == "official" {

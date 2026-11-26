@@ -2,12 +2,15 @@ package model
 
 import "os/exec"
 
-// Port references an existing app theme or a registered settings file; it never defines a palette.
+// Port references an existing app theme, an app-native file, or an explicitly
+// registered remote file. Source is provenance text; URL is the fetch location.
 type Port struct {
-	Kind   string `json:"kind,omitempty"`
-	Name   string `json:"name,omitempty"`
-	File   string `json:"file,omitempty"`
-	Source string `json:"source,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name,omitempty"`
+	File      string `json:"file,omitempty"`
+	URL       string `json:"url,omitempty"`
+	SyntaxURL string `json:"syntax_url,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 type Theme struct {
@@ -33,6 +36,7 @@ type Environment struct {
 type Adapter struct {
 	ID      string
 	Binary  string
+	Remote  bool // accepts explicit HTTPS theme files, not executable scripts
 	Resolve func(string, Environment) (Port, bool, error)
 	Apply   func(Port, Environment) error
 }

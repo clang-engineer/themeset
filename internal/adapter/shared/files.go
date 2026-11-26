@@ -237,8 +237,14 @@ func EditYAML(path string, change func(map[string]any) error) error {
 }
 
 func Custom(port model.Port, env model.Environment) ([]byte, error) {
+	if port.URL != "" {
+		if port.File != "" || port.Kind != "custom" {
+			return nil, errors.New("remote custom port requires URL only and custom kind")
+		}
+		return AcquireAsset(env, port.URL)
+	}
 	if port.File == "" {
-		return nil, errors.New("custom port requires an app-native file")
+		return nil, errors.New("custom port requires an app-native file or HTTPS URL")
 	}
 	return Read(Expand(port.File, env), false)
 }

@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/model"
+	"github.com/pelletier/go-toml/v2"
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "yazi", Binary: "yazi", Resolve: filesResolveYazi, Apply: filesApplyYazi}
+	return model.Adapter{ID: "yazi", Binary: "yazi", Remote: true, Resolve: filesResolveYazi, Apply: filesApplyYazi}
 }
 
 func filesResolveYazi(name string, env model.Environment) (model.Port, bool, error) {
@@ -55,6 +57,9 @@ func filesResolveYazi(name string, env model.Environment) (model.Port, bool, err
 }
 
 func filesApplyYazi(port model.Port, env model.Environment) error {
+	if port.URL != "" {
+		return filesApplyRemoteYazi(port, env)
+	}
 	if port.Name == "tokyo-night" && (port.Kind == "official" && port.File == "" || port.Kind == "native") {
 		return filesApplyTokyoNightYazi(port, env)
 	}
@@ -154,7 +159,7 @@ func filesValidateYaziPort(data []byte) error {
 }
 
 func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
-	if port.File != "" {
+	if port.File != "" || port.URL != "" {
 		return shared.Custom(port, env)
 	}
 	if port.Kind == "official" {
@@ -163,4 +168,108 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		}
 	}
 	return nil, fmt.Errorf("yazi requires an available official port or a registered native theme file")
+}
+
+var filesYaziColor = regexp.MustCompile(`^(#[[:xdigit:]]{3}|#[[:xdigit:]]{6}|reset|black|red|green|yellow|blue|magenta|cyan|white|darkgray|gray|lightred|lightgreen|lightyellow|lightblue|lightmagenta|lightcyan)$`)
+
+// Remote theme files are untrusted: accept UI style tables only. In particular,
+// never import flavor selectors, manager settings, plugins or supplied syntax paths.
+func filesApplyRemoteYazi(port model.Port, env model.Environment) error {
+	if port.Kind != "custom" || port.File != "" || !shared.Name(port.Name) || port.SyntaxURL == "" {
+		return errors.New("remote Yazi theme requires a safe name, theme URL and syntax_url")
+	}
+	data, err := shared.Custom(port, env)
+	if err != nil {
+		return err
+	}
+	incoming, err := shared.TOML(data)
+	if err != nil {
+		return err
+	}
+	styles := make(map[string]any)
+	for _, section := range []string{"app", "mgr", "tabs", "mode", "indicator", "status", "input", "pick", "confirm", "spot", "completion", "tasks", "which", "help", "notify"} {
+		table, ok := incoming[section].(map[string]any)
+		if !ok {
+			continue
+		}
+		selected := make(map[string]any)
+		for key, value := range table {
+			style, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+			if !filesYaziStyle(style) {
+				return fmt.Errorf("invalid Yazi %s.%s style", section, key)
+			}
+			for attribute, color := range style {
+				switch attribute {
+				case "fg", "bg":
+					value, ok := color.(string)
+					if !ok || value == "" || !filesYaziColor.MatchString(value) {
+						return fmt.Errorf("invalid Yazi %s.%s.%s color", section, key, attribute)
+					}
+				default:
+					if _, ok := color.(bool); !ok {
+						return fmt.Errorf("invalid Yazi %s.%s.%s flag", section, key, attribute)
+					}
+				}
+			}
+			selected[key] = style
+		}
+		if len(selected) > 0 {
+			styles[section] = selected
+		}
+	}
+	if len(styles) == 0 {
+		return errors.New("remote Yazi theme has no UI styles")
+	}
+	syntaxData, err := shared.AcquireAsset(env, port.SyntaxURL)
+	if err != nil {
+		return fmt.Errorf("acquire remote Yazi syntax: %w", err)
+	}
+	var syntax struct {
+		XMLName xml.Name  `xml:"plist"`
+		Dict    *struct{} `xml:"dict"`
+	}
+	if err := xml.Unmarshal(syntaxData, &syntax); err != nil || syntax.XMLName.Local != "plist" || syntax.Dict == nil {
+		return fmt.Errorf("invalid remote Yazi syntax XML: %v", err)
+	}
+	snapshot, err := toml.Marshal(styles)
+	if err != nil {
+		return fmt.Errorf("encode managed Yazi styles: %w", err)
+	}
+	directory := filepath.Dir(shared.Path("yazi", env))
+	syntaxPath := filepath.Join(directory, "themeset-custom-"+port.Name+".tmTheme")
+	err = shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
+		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
+			return err
+		}
+		flavor, err := shared.Table(config, "flavor")
+		if err != nil {
+			return err
+		}
+		flavor["dark"] = ""
+		flavor["light"] = ""
+		delete(flavor, "use")
+		for section, value := range styles {
+			target, err := shared.Table(config, section)
+			if err != nil {
+				return err
+			}
+			shared.Merge(target, value.(map[string]any))
+		}
+		mgr, err := shared.Table(config, "mgr")
+		if err != nil {
+			return err
+		}
+		if err := shared.Atomic(syntaxPath, syntaxData); err != nil {
+			return err
+		}
+		mgr["syntect_theme"] = syntaxPath
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return shared.Atomic(filepath.Join(directory, ".themeset-custom-"+port.Name+"-styles.toml"), snapshot)
 }
