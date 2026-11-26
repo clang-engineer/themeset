@@ -261,7 +261,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			if opts.json {
 				return emitJSON(stdout, stderr, details)
 			}
-			if _, err := fmt.Fprintln(stdout, "THEME\tDISCOVERY\tDECLARED TOOLS\tSUPPORT SITE"); err != nil {
+			if _, err := fmt.Fprintln(stdout, "THEME\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE"); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -270,14 +270,17 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 				if item.Listed {
 					status = "listed"
 				}
-				tools, site := strings.Join(item.Tools, ","), item.SupportSite
+				appearance, tools, site := item.Appearance, strings.Join(item.Tools, ","), item.SupportSite
+				if appearance == "" {
+					appearance = "-"
+				}
 				if tools == "" {
 					tools = "-"
 				}
 				if site == "" {
 					site = "-"
 				}
-				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", item.ID, status, tools, site); err != nil {
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\n", item.ID, status, appearance, tools, site); err != nil {
 					fmt.Fprintln(stderr, "error:", err)
 					return 1
 				}

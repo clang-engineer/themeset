@@ -83,6 +83,7 @@ type themeDetail struct {
 	Listed      bool     `json:"listed"`
 	Tools       []string `json:"tools"`
 	SupportSite string   `json:"support_site,omitempty"`
+	Appearance  string   `json:"appearance,omitempty"`
 }
 
 func themeDetails(ids []string, config model.Config) []themeDetail {
@@ -108,7 +109,11 @@ func themeDetails(ids []string, config model.Config) []themeDetail {
 		if tools == nil {
 			tools = []string{}
 		}
-		details = append(details, themeDetail{id, visible[id], tools, catalog.SupportSite(id)})
+		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id)}
+		if catalog.IsLight(id) {
+			detail.Appearance = "light"
+		}
+		details = append(details, detail)
 	}
 	return details
 }

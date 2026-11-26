@@ -69,11 +69,16 @@ Browsing only inspects support/assets; it never applies a theme.
 Core commands are `apply`, `list`, and `current`. `list` shows the curated
 theme IDs; `list --all` also shows hidden bundled and configured IDs that can
 be passed explicitly to `apply`. Neither option adds themes to the picker or
-shell completion. `list --details` adds a `listed`/`hidden` marker, declared
-tool IDs, and a known upstream support site (`-` when absent). `--json` keeps
-the existing string array without `--details`; with it, each entry has
-`id`, `listed`, `tools`, and optional `support_site` fields. Declared tools are
-catalog/config metadata, not proof that the app or theme is installed.
+shell completion. `list --details` adds a `listed`/`hidden` marker, appearance,
+declared tool IDs, and a known upstream support site (`-` when absent). Only
+explicitly identified light themes show `light`: `catppuccin-latte`,
+`rose-pine-dawn`, and the hidden `solarized-light`. `-` means unspecified, not
+necessarily dark; custom theme appearance is not guessed. The interactive
+picker preview also labels these themes as light without changing their IDs.
+`--json` keeps the existing string array without `--details`; with it, each
+entry has `id`, `listed`, `tools`, and optional `appearance` and `support_site`
+fields. Declared tools are catalog/config metadata, not proof that the app or
+theme is installed.
 `list tools` shows registered tools and installation status. The former
 `check` and top-level `tools` commands have been removed: use
 `apply THEME --dry-run` and `list tools`, respectively.
@@ -153,6 +158,7 @@ The bundled catalog in `internal/catalog/defaults.json` lists twelve themes:
 `rose-pine` (Main), `rose-pine-dawn`, `rose-pine-moon`, and
 `tokyo-night` (Night). Each bundled `listed` entry has an `id` and, where
 available, a `support_site` pointing to the theme project's port directory.
+The separate `light` metadata includes both curated and hidden bundled IDs.
 These links are reference metadata, not verified themeset ports or download
 sources. The catalog also declares each tool's installed-native candidate names
 and, where available, a verified upstream port. Listed IDs feed `list`, shell

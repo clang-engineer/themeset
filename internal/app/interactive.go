@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 	"golang.org/x/term"
 )
@@ -180,6 +181,9 @@ func chooseTheme(opts options, config model.Config, env model.Environment, selec
 }
 
 func printPreview(theme string, config model.Config, env model.Environment, selected []model.Adapter, stdout, stderr io.Writer) int {
+	if catalog.IsLight(theme) {
+		fmt.Fprintln(stdout, "Appearance: light")
+	}
 	if err := renderVisualPreview(theme, config, env, stdout); err != nil {
 		fmt.Fprintln(stderr, "preview:", err)
 	}

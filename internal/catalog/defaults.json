@@ -13,6 +13,7 @@
     {"id": "rose-pine-moon", "support_site": "https://rosepinetheme.com/themes/"},
     {"id": "tokyo-night"}
   ],
+  "light": ["catppuccin-latte", "rose-pine-dawn", "solarized-light"],
   "themes": {
     "catppuccin-mocha": {
       "atuin": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml", "variant": "catppuccin-mocha-mauve"}},

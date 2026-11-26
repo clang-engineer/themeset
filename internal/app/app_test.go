@@ -462,11 +462,43 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 		!slices.Contains(byID["kanagawa"].Tools, "eza") || !slices.Contains(byID["kanagawa"].Tools, "yazi") {
 		t.Fatalf("incorrect listed state, metadata, or declared ports: %#v", byID)
 	}
+	if byID["catppuccin-latte"].Appearance != "light" || byID["rose-pine-dawn"].Appearance != "light" ||
+		byID["solarized-light"].Appearance != "light" || byID["dracula"].Appearance != "" ||
+		byID["rose-pine"].Appearance != "" || byID["my-theme"].Appearance != "" {
+		t.Fatalf("incorrect light appearance labels: %#v", byID)
+	}
 	stdout.Reset()
 	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 ||
-		!strings.HasPrefix(stdout.String(), "THEME\tDISCOVERY\tDECLARED TOOLS\tSUPPORT SITE\n") ||
-		!strings.Contains(stdout.String(), "kanagawa\thidden\t") || !strings.Contains(stdout.String(), "dracula\tlisted\t") {
+		!strings.HasPrefix(stdout.String(), "THEME\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n") ||
+		!strings.Contains(stdout.String(), "solarized-light\thidden\tlight\t") ||
+		!strings.Contains(stdout.String(), "kanagawa\thidden\t-\t") || !strings.Contains(stdout.String(), "dracula\tlisted\t-\t") {
 		t.Fatalf("details text omitted heading or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestPreviewMarksLightAppearanceWithoutChangingThemeID(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	home := t.TempDir()
+	for _, test := range []struct {
+		theme string
+		light bool
+	}{
+		{theme: "catppuccin-latte", light: true},
+		{theme: "rose-pine-dawn", light: true},
+		{theme: "solarized-light", light: true},
+		{theme: "catppuccin-mocha"},
+	} {
+		t.Run(test.theme, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := Run([]string{"__preview", test.theme, "--home", home}, &stdout, &stderr); code != 0 {
+				t.Fatalf("preview failed: code=%d diagnostics=%q", code, stderr.String())
+			}
+			output := stdout.String()
+			if strings.Contains(output, "Appearance: light\n") != test.light ||
+				!strings.Contains(output, "Theme: "+test.theme+"\n") {
+				t.Fatalf("wrong appearance or theme in preview: %q", output)
+			}
+		})
 	}
 }
 

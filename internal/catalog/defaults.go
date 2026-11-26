@@ -19,6 +19,7 @@ type listedTheme struct {
 
 type bundledThemes struct {
 	Listed []listedTheme                         `json:"listed"`
+	Light  []string                              `json:"light"`
 	Themes map[string]map[string]model.ThemePort `json:"themes"`
 }
 
@@ -74,6 +75,17 @@ func SupportSite(theme string) string {
 		}
 	}
 	return ""
+}
+
+// IsLight reports explicitly labeled bundled light themes, including hidden ones.
+// An unlisted appearance is unknown, not necessarily dark.
+func IsLight(theme string) bool {
+	for _, id := range defaults.Light {
+		if id == theme {
+			return true
+		}
+	}
+	return false
 }
 
 // Tools lists declared tool ports, not installed or currently applicable tools.
