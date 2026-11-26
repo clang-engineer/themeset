@@ -30,10 +30,11 @@ Each enabled `(theme, tool)` recipe must record:
 | Verification | Asset validation plus observation that the actual application consumes the selected theme |
 
 The bundled [theme declarations](internal/catalog/defaults.json) group
-`tools.<tool>.<theme>` entries by adapter. `listed` separately defines the CLI
-shortlist. Native candidates and verified official sources live with each tool;
-an official port infers its kind and default name from its theme key. Explicit
-names remain only where the upstream tool uses a different native name. User
+`themes.<theme>.<tool>` entries by theme. `listed` separately defines the CLI
+shortlist. Native candidates and verified official sources live with each
+theme's supported tools; an official port infers its kind and default name
+from its theme key. Explicit names remain only where the upstream tool uses
+a different native name. User
 `themes.<id>.custom.<tool>` entries replace that one bundled declaration;
 other tool declarations stay in effect. Official file adapters fetch the
 declared source, validate its native format, and apply only the relevant data.

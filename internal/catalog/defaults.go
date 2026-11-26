@@ -13,7 +13,7 @@ var bundledThemeData []byte
 
 type bundledThemes struct {
 	Listed []string                              `json:"listed"`
-	Tools  map[string]map[string]model.ThemePort `json:"tools"`
+	Themes map[string]map[string]model.ThemePort `json:"themes"`
 }
 
 var defaults = func() bundledThemes {
@@ -21,8 +21,8 @@ var defaults = func() bundledThemes {
 	if err := json.Unmarshal(bundledThemeData, &data); err != nil {
 		panic(fmt.Sprintf("invalid bundled themes: %v", err))
 	}
-	for _, themes := range data.Tools {
-		for name, spec := range themes {
+	for name, tools := range data.Themes {
+		for _, spec := range tools {
 			if spec.Official == nil {
 				continue
 			}
@@ -39,8 +39,8 @@ func Listed() []string { return defaults.Listed }
 
 var verifiedPorts = func() map[string]map[model.Port]struct{} {
 	byTool := make(map[string]map[model.Port]struct{})
-	for tool, themes := range defaults.Tools {
-		for _, spec := range themes {
+	for _, tools := range defaults.Themes {
+		for tool, spec := range tools {
 			if spec.Official == nil {
 				continue
 			}
@@ -63,5 +63,5 @@ func Verified(tool string, port model.Port) bool {
 // Port returns the bundled defaults for a theme and tool. Do not mutate the
 // returned declaration: it is shared for the lifetime of the process.
 func Port(theme, tool string) model.ThemePort {
-	return defaults.Tools[tool][theme]
+	return defaults.Themes[theme][tool]
 }

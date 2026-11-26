@@ -150,8 +150,8 @@ empty entry when a bundled native alias is available. User custom entries
 replace the bundled declaration for that theme and tool; declarations for
 other tools remain unchanged. Custom URLs are never labeled official.
 
-Bundled entries are grouped by `tools.<tool>.<theme>` so each adapter's
-supported themes are together. `listed` remains a separate shortlist for the
+Bundled entries are grouped by `themes.<theme>.<tool>` so each theme's
+supported tools are together. `listed` remains a separate shortlist for the
 CLI. Official ports infer `kind: official` and, unless an upstream filename
 differs, their name from the theme key. Keep `native` candidates, `format`,
 `variant`, and companion URLs only where the adapter actually uses them.
