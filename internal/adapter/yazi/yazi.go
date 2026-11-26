@@ -39,9 +39,9 @@ func filesResolveYazi(spec model.ThemePort, env model.Environment) (model.Port, 
 				continue
 			}
 		}
-		source := spec.NativeSource
-		if source == "" {
-			source = shared.YaziThemesSource
+		source := shared.YaziThemesSource
+		if spec.Official != nil && spec.Official.Format == "yazi-flavor-bundle" {
+			source = spec.Official.Source
 		}
 		return model.Port{Kind: "native", Name: name, File: filepath.Join(root, "flavor.toml"), Source: source}, true, nil
 	}

@@ -190,7 +190,7 @@ func TestRosePineBatNeedsInstalledSyntaxTheme(t *testing.T) {
 	t.Setenv("PATH", bin)
 	resolve := bat.Adapter().Resolve
 	port, ok, err := resolve(app.DefaultPort("rose-pine", "bat"), env)
-	if err != nil || !ok || port.Kind != "native" || port.Name != "Rosé Pine" || port.Source != "https://github.com/rose-pine/tm-theme" {
+	if err != nil || !ok || port.Kind != "native" || port.Name != "Rosé Pine" {
 		t.Fatalf("installed Rosé Pine syntax: %#v, %v", port, err)
 	}
 	path := env.Paths["bat"]

@@ -24,9 +24,8 @@ type Port struct {
 // candidates are checked in order before the optional verified upstream port.
 // A user custom port replaces this entire declaration for that tool.
 type ThemePort struct {
-	Native       []string `json:"native,omitempty"`
-	NativeSource string   `json:"native_source,omitempty"`
-	Official     *Port    `json:"official,omitempty"`
+	Native   []string `json:"native,omitempty"`
+	Official *Port    `json:"official,omitempty"`
 }
 
 type Theme struct {

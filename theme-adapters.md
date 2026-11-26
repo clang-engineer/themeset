@@ -39,7 +39,9 @@ other tool declarations stay in effect. Official file adapters fetch the
 declared source, validate its native format, and apply only the relevant data.
 Companion URLs are declared only when installed with the theme (Yazi syntax
 and bundled flavor license files). Format-specific parsers remain in the tool
-adapter; source selection does not branch on theme names.
+adapter; source selection does not branch on theme names. Native provenance
+defaults to the tool's provider; Yazi's bundled flavor reuses its official
+source, so declarations need no separate native source URL.
 The `format` value names the upstream file shape or application operation,
 not a theme. When several themes share a shape, the adapter uses the same
 parser; formats with different install/ownership rules retain distinct paths.

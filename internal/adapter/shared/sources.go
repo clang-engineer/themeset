@@ -25,7 +25,6 @@ const BtopCatppuccinSource = BtopCatppuccinBase + "themes/catppuccin_mocha.theme
 const (
 	AtuinThemesSource        = "https://docs.atuin.sh/latest/guide/theming/"
 	BatThemesSource          = "https://github.com/sharkdp/bat/tree/master/assets/themes"
-	BatRosePineSource        = "https://github.com/rose-pine/tm-theme"
 	BtopThemesSource         = "https://github.com/aristocratos/btop#themes"
 	DeltaThemesSource        = "https://dandavison.github.io/delta/syntax-highlighting.html"
 	EzaFamilyBase            = "https://raw.githubusercontent.com/eza-community/eza-themes/main/"

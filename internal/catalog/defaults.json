@@ -16,7 +16,7 @@
       "dracula": {"native": ["Dracula"]},
       "gruvbox": {"native": ["gruvbox-dark"]},
       "nord": {"native": ["Nord"]},
-      "rose-pine": {"native": ["Rosé Pine", "Rose Pine", "rose-pine"], "native_source": "https://github.com/rose-pine/tm-theme"},
+      "rose-pine": {"native": ["Rosé Pine", "Rose Pine", "rose-pine"]},
       "tokyo-night": {"native": ["tokyonight_night"]},
       "gruvbox-dark": {"native": ["gruvbox-dark"]},
       "tokyonight": {"native": ["tokyonight_night"]}
@@ -131,7 +131,7 @@
     },
     "yazi": {
       "catppuccin-mocha": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/mocha/catppuccin-mocha-mauve.toml", "syntax_url": "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme", "format": "yazi-direct"}},
-      "dracula": {"native": ["dracula"], "native_source": "https://github.com/yazi-rs/flavors/tree/main/dracula.yazi", "official": {"source": "https://github.com/yazi-rs/flavors/tree/main/dracula.yazi", "format": "yazi-flavor-bundle", "asset_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/tmtheme.xml", "license_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE", "license_syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE-tmtheme"}},
+      "dracula": {"native": ["dracula"], "official": {"source": "https://github.com/yazi-rs/flavors/tree/main/dracula.yazi", "format": "yazi-flavor-bundle", "asset_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/tmtheme.xml", "license_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE", "license_syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE-tmtheme"}},
       "gruvbox": {"native": ["gruvbox"]},
       "moonfly": {"native": ["moonfly"]},
       "nord": {"native": ["nord"]},

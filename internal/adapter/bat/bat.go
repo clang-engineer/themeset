@@ -16,11 +16,7 @@ func Adapter() model.Adapter {
 }
 
 func nativeResolveBat(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
-	source := spec.NativeSource
-	if source == "" {
-		source = shared.BatThemesSource
-	}
-	port, ok, err := shared.ListedCandidates("bat", spec.Native, source, env, "--list-themes", "--color=never")
+	port, ok, err := shared.ListedCandidates("bat", spec.Native, shared.BatThemesSource, env, "--list-themes", "--color=never")
 	if ok || err != nil {
 		return port, ok, err
 	}
