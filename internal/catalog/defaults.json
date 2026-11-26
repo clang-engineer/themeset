@@ -180,10 +180,14 @@
       "atuin": {"native": ["default-powershell"]}
     },
     "everforest": {
+      "btop": {"native": ["everforest-dark-medium"], "official": {"name": "everforest-dark-medium", "source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/everforest-dark-medium.theme"}},
+      "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Everforest Dark"}},
       "ghostty": {"native": ["Everforest Dark Med", "everforest"]},
-      "neovim": {"native": ["everforest"]}
+      "neovim": {"native": ["everforest"]},
+      "yazi": {"native": ["everforest-medium"], "official": {"source": "https://github.com/Chromium-3-Oxide/everforest-medium.yazi", "asset_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/tmtheme.xml", "license_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/LICENSE", "license_syntax_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/LICENSE-tmtheme", "format": "yazi-flavor-bundle"}}
     },
     "github-dark": {
+      "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "GitHub Dark"}},
       "ghostty": {"native": ["GitHub Dark"]},
       "neovim": {"native": ["github_dark"]}
     },
@@ -204,20 +208,30 @@
       "ghostty": {"native": ["Gruvbox Dark Hard"]}
     },
     "kanagawa": {
-      "ghostty": {"native": ["Kanagawa Wave"]},
-      "neovim": {"native": ["kanagawa-wave"]}
+      "bat": {"native": ["Kanagawa"]},
+      "btop": {"native": ["kanagawa-wave"], "official": {"name": "kanagawa-wave", "source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/kanagawa-wave.theme"}},
+      "delta": {"native": ["Kanagawa"]},
+      "eza": {"official": {"source": "https://raw.githubusercontent.com/eza-community/eza-themes/main/themes/kanagawa-wave.yml", "format": "eza-family"}},
+      "ghostty": {"native": ["Kanagawa Wave"], "official": {"source": "https://raw.githubusercontent.com/rebelot/kanagawa.nvim/master/extras/ghostty/kanagawa-wave"}},
+      "neovim": {"native": ["kanagawa-wave"]},
+      "yazi": {"native": ["kanagawa"], "official": {"source": "https://github.com/dangooddd/kanagawa.yazi", "asset_url": "https://raw.githubusercontent.com/dangooddd/kanagawa.yazi/main/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/dangooddd/kanagawa.yazi/main/tmtheme.xml", "format": "yazi-flavor-pair"}}
     },
     "marine": {
       "atuin": {"native": ["marine"]}
     },
     "modus-vivendi": {
-      "ghostty": {"native": ["Modus Vivendi"]},
+      "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Modus Vivendi"}},
+      "ghostty": {"native": ["Modus Vivendi"], "official": {"source": "https://raw.githubusercontent.com/miikanissi/modus-themes.nvim/master/extras/ghostty/modus_vivendi"}},
       "neovim": {"native": ["modus_vivendi"]}
     },
     "monokai": {
+      "btop": {"native": ["monokai"], "official": {"source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/monokai.theme"}},
       "harlequin": {"native": ["monokai"]}
     },
     "onedark": {
+      "btop": {"native": ["onedark"], "official": {"source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/onedark.theme"}},
+      "eza": {"official": {"source": "https://raw.githubusercontent.com/eza-community/eza-themes/main/themes/one_dark.yml", "format": "eza-native"}},
+      "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "One Dark"}},
       "ghostty": {"native": ["onedark", "One Dark"]},
       "neovim": {"native": ["onedark"]}
     },
@@ -225,6 +239,10 @@
       "atuin": {"native": ["pumpkin"]}
     },
     "solarized-light": {
+      "bat": {"native": ["Solarized (light)"]},
+      "btop": {"native": ["solarized_light"], "official": {"name": "solarized_light", "source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/solarized_light.theme"}},
+      "delta": {"native": ["Solarized (light)"]},
+      "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Solarized Light"}},
       "harlequin": {"native": ["solarized-light"]}
     },
     "sonokai": {

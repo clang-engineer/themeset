@@ -51,7 +51,7 @@ func filesFZFOptions(data []byte) error {
 
 var filesFZFVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:\s|$)`)
 
-func filesFZFSelectedColors(version []byte) bool {
+func filesFZFColorsAtLeast(version []byte, minorVersion int) bool {
 	text := strings.TrimSpace(string(version))
 	if !filesFZFVersion.MatchString(text) {
 		return false
@@ -60,7 +60,11 @@ func filesFZFSelectedColors(version []byte) bool {
 	if n, err := fmt.Sscanf(text, "%d.%d.%d", &major, &minor, &patch); err != nil || n != 3 {
 		return false
 	}
-	return major > 0 || minor >= 52
+	return major > 0 || minor >= minorVersion
+}
+
+func filesFZFSelectedColors(version []byte) bool {
+	return filesFZFColorsAtLeast(version, 52)
 }
 
 func filesFZFRequireSelectedColors(env model.Environment) error {
@@ -70,6 +74,17 @@ func filesFZFRequireSelectedColors(env model.Environment) error {
 	}
 	if !filesFZFSelectedColors(version) {
 		return errors.New("fzf selected color styles require version 0.52.0 or newer")
+	}
+	return nil
+}
+
+func filesFZFRequireFooterColors(env model.Environment) error {
+	version, err := shared.Command(env, "fzf", "--version")
+	if err != nil {
+		return fmt.Errorf("fzf footer color styles require version 0.63.0 or newer: %w", err)
+	}
+	if !filesFZFColorsAtLeast(version, 63) {
+		return errors.New("fzf footer color styles require version 0.63.0 or newer")
 	}
 	return nil
 }
@@ -106,6 +121,11 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 		}
 		if err != nil {
 			return fmt.Errorf("invalid %s fzf theme: %w", port.Name, err)
+		}
+		if port.Format == "fzf-presets" && bytes.Contains(data, []byte("--color=footer:")) {
+			if err := filesFZFRequireFooterColors(env); err != nil {
+				return err
+			}
 		}
 	} else {
 		return errors.New("fzf requires an official port or custom options file")
@@ -196,8 +216,16 @@ func filesFZFOfficialColors(format string, data []byte) ([]byte, error) {
 			}
 			switch match[1] {
 			case "fg", "bg", "hl", "fg+", "bg+", "hl+", "info", "prompt", "pointer", "marker", "spinner", "header", "border", "gutter":
-			case "selected-bg", "label":
+			case "selected-bg":
 				if format != "fzf-rc" {
+					return nil, fmt.Errorf("unsupported fzf color %q", color)
+				}
+			case "label":
+				if format != "fzf-rc" && format != "fzf-presets" {
+					return nil, fmt.Errorf("unsupported fzf color %q", color)
+				}
+			case "footer":
+				if format != "fzf-presets" {
 					return nil, fmt.Errorf("unsupported fzf color %q", color)
 				}
 			default:

@@ -18,6 +18,21 @@ settings. The upstream repositories retain their own licensing terms.
   for btop, Ghostty, lazydocker, lazygit, and Yazi, with Yazi syntax from
   the upstream TextMate extra. Only theme-specific settings are imported;
   the upstream Yazi example path and unrelated application settings are ignored.
+- Kanagawa Wave: [theme-author Ghostty colors](https://github.com/rebelot/kanagawa.nvim/tree/master/extras/ghostty),
+  [application-maintained btop](https://github.com/aristocratos/btop/tree/main/themes),
+  [eza themes](https://github.com/eza-community/eza-themes/tree/main/themes),
+  and [Yazi flavor](https://github.com/dangooddd/kanagawa.yazi). Yazi
+  retrieves the flavor and its TextMate syntax companion; installed Bat/Delta
+  syntax themes are selected only if those applications list them.
+- Everforest Dark Medium: [application-maintained btop](https://github.com/aristocratos/btop/tree/main/themes)
+  and the [community Yazi flavor](https://github.com/Chromium-3-Oxide/everforest-medium.yazi)
+  linked from Yazi's flavor directory. Yazi installs the flavor, syntax theme,
+  and both upstream MIT license files.
+- One Dark: [application-maintained btop](https://github.com/aristocratos/btop/tree/main/themes)
+  and [eza native theme](https://github.com/eza-community/eza-themes/tree/main/themes).
+- Monokai and Solarized Light:
+  [application-maintained btop themes](https://github.com/aristocratos/btop/tree/main/themes).
+- Modus Vivendi: [theme-author Ghostty colors](https://github.com/miikanissi/modus-themes.nvim/tree/master/extras/ghostty).
 - Catppuccin Latte, Frappé, Macchiato, and Mocha:
   [fzf](https://github.com/catppuccin/fzf),
   [lazygit](https://github.com/catppuccin/lazygit),
@@ -39,7 +54,8 @@ settings. The upstream repositories retain their own licensing terms.
   [lazygit](https://github.com/rose-pine/lazygit),
   [Starship](https://github.com/rose-pine/starship), and
   [Yazi](https://github.com/rose-pine/yazi).
-- fzf-author Gruvbox Dark and Nord preset data:
+- fzf-author Gruvbox Dark, Nord, Everforest Dark, GitHub Dark, One Dark,
+  Modus Vivendi, and Solarized Light presets:
   [fzf color themes](https://junegunn.github.io/fzf/color-themes/).
   Only literal color values are parsed from the author's site source; JavaScript
   is never executed. The site declares no license for its presets, so this is

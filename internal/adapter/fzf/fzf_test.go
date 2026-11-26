@@ -188,6 +188,67 @@ func TestFilesFZFNewOfficialPortsPreserveShellOptions(t *testing.T) {
 	}
 }
 
+// The official fzf gallery contains separate GitHub Dark and One Dark
+// palettes. Select each exact entry rather than a similarly named neighbor.
+func TestFilesFZFGitHubDarkAndOneDarkSelectExactPresets(t *testing.T) {
+	source := `var PRESETS = {
+  'GitHub Dark': {
+    fg:'#c9d1d9', bg:'#0d1117', hl:'#79c0ff', 'current-fg':'#c9d1d9', 'current-bg':'#161b22', 'current-hl':'#a5d6ff',
+    info:'#8b949e', prompt:'#58a6ff', pointer:'#f85149', marker:'#ff7b72', spinner:'#3fb950',
+    header:'#79c0ff', footer:'#8b949e',
+    border:'#30363d', label:'#8b949e', gutter:'#161b22',
+  },
+  'GitHub Light': {
+    fg:'#1f2328', bg:'#ffffff', hl:'#0969da', 'current-fg':'#1f2328', 'current-bg':'#f6f8fa', 'current-hl':'#0550ae',
+    info:'#656d76', prompt:'#0969da', pointer:'#cf222e', marker:'#a40e26', spinner:'#1a7f37',
+    header:'#0969da', footer:'#656d76',
+    border:'#d0d7de', label:'#656d76', gutter:'#f6f8fa',
+  },
+  'One Dark': {
+    fg:'#abb2bf', bg:'#282c34', hl:'#c678dd', 'current-fg':'#ffffff', 'current-bg':'#4b5263', 'current-hl':'#e5c07b',
+    info:'#98c379', prompt:'#61afef', pointer:'#e06c75', marker:'#d87c73', spinner:'#61afef', header:'#61afef',
+    border:'#5c6370', gutter:'#4b5263',
+  },
+};`
+	filesFZFTestSource(t, map[string]*string{shared.FZFPresetsSource: &source})
+	for _, tt := range []struct {
+		theme, bg, pointer, otherBg, footer string
+	}{
+		{"github-dark", "#0d1117", "#f85149", "#282c34", "#8b949e"},
+		{"onedark", "#282c34", "#e06c75", "#0d1117", ""},
+	} {
+		t.Run(tt.theme, func(t *testing.T) {
+			env := testutil.Env(t)
+			filesFZFTestBinary(t, env, "0.63.0 (test)")
+			path := shared.Path("fzf", env)
+			testutil.Write(t, path, "--color=bg:#010203\n")
+			port, ok, err := filesResolveFZF(catalog.Port(tt.theme, "fzf"), env)
+			if err != nil || !ok {
+				t.Fatalf("resolve %s: ok=%v, err=%v", tt.theme, ok, err)
+			}
+			if err := filesApplyFZF(port, env); err != nil {
+				t.Fatal(err)
+			}
+			got := string(testutil.Read(t, path))
+			if !strings.Contains(got, "--color=bg:"+tt.bg+"\n") || !strings.Contains(got, "--color=pointer:"+tt.pointer+"\n") || strings.Contains(got, tt.otherBg) || strings.Contains(got, "--color=fg:#1f2328\n") || strings.Contains(got, "#010203") {
+				t.Fatalf("%s applied wrong fzf palette: %q", tt.theme, got)
+			}
+			hasFooter := strings.Contains(got, "--color=footer:")
+			if hasFooter != (tt.footer != "") || tt.footer != "" && !strings.Contains(got, "--color=footer:"+tt.footer+"\n") {
+				t.Fatalf("%s lost the author-defined footer color: %q", tt.theme, got)
+			}
+			filesFZFTestBinary(t, env, "0.62.9 (test)")
+			if err := filesApplyFZF(port, env); tt.footer != "" {
+				if err == nil || !strings.Contains(err.Error(), "0.63.0") || string(testutil.Read(t, path)) != got {
+					t.Fatalf("%s applied newer footer colors to old fzf: %v", tt.theme, err)
+				}
+			} else if err != nil || string(testutil.Read(t, path)) != got {
+				t.Fatalf("%s rejected an unchanged older-compatible palette: %v", tt.theme, err)
+			}
+		})
+	}
+}
+
 func TestFilesFZFPresetsRejectInvalidOrMissingColorData(t *testing.T) {
 	env := testutil.Env(t)
 	source := filesFZFTestPresets

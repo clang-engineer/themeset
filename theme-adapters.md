@@ -245,10 +245,12 @@ roots and existing package managers; do not hardcode a developer's home path.
   set up. Preserve layout, binds, previews, widget options, existing options
   files, and `NO_COLOR` policy. Do not overwrite all of `FZF_DEFAULT_OPTS` with a
   theme author's example export.
-- **Compatibility:** the current Catppuccin artifact needs fzf 0.52.0+; some
-  options on the author's web generator require 0.73.0+. Record requirements per
-  artifact. Author-site presets are not automatically licensed by the fzf
-  repository; current Gruvbox/Nord provenance limitations are in the notices.
+- **Compatibility:** the current Catppuccin artifact needs fzf 0.52.0+.
+  Presets with a `footer` color (GitHub Dark and Modus Vivendi) need fzf
+  0.63.0+; incompatible installations fail before updating color options.
+  Some options on the author's web generator require 0.73.0+ but are not
+  imported here. Author-site presets are not automatically licensed by the
+  fzf repository; provenance limitations are in the notices.
 - **Current / target gap:** current code fetches color data for the registered
   fzf themes and writes only color options; shell integration is external.
 
@@ -302,6 +304,8 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Current / target gap:** Dracula fetches current native runtime files and
   both licenses, stages installation, and selects the flavor. Independently
   installed compatible flavors remain native; themeset-owned flavors refresh.
+  Kanagawa Wave's linked community flavor installs its two required files;
+  Everforest Medium's linked flavor installs those files and both licenses.
   Independently installed complete Gruvbox, Nord and Moonfly flavors can be
   selected without network access; the application-maintained collection does
   not ship these three. Community Gruvbox/Nord flavors are not bundled as

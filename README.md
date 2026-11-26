@@ -160,6 +160,16 @@ native candidates for bat and Neovim and verified upstream ports for btop,
 Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a
 separately installed Bat syntax theme and is not registered as an automatic
 port; unregistered tools retain the documented fallback behavior.
+
+`kanagawa` selects the Wave variant with registered btop, eza, Ghostty, and
+Yazi ports; Bat and Delta use a previously installed `Kanagawa` syntax theme
+only. `everforest` selects dark-medium ports for btop, fzf, and Yazi.
+Hidden `github-dark` and `modus-vivendi` fzf presets require fzf 0.63.0 or
+newer for their footer colors; older fzf versions fail before changing options.
+The hidden `gruvbox-dark` and `tokyonight` declarations contain native selectors
+only; use the listed `gruvbox` and `tokyo-night` IDs for their wider registered
+port coverage. Atuin-only built-in names do not imply themes for other tools.
+
 Use an empty theme object to register an extra ID without custom ports.
 User custom entries replace the bundled declaration for that theme and tool;
 other tools remain unchanged. Custom URLs are never labeled official.
