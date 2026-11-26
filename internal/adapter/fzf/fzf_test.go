@@ -331,24 +331,24 @@ func TestFilesFZFIncompatibleVersionRejectsBeforeWriting(t *testing.T) {
 }
 func TestTokyoNightAuthorFZFColorsOnly(t *testing.T) {
 	const author = "export FZF_DEFAULT_OPTS=\"$FZF_DEFAULT_OPTS \\\n  --highlight-line \\\n  --ansi \\\n  --color=bg:#16161e \\\n  --color=hl+:#2ac3de \\\n  --color=query:#c0caf5:regular \\\n\"\n"
-	colors, err := filesTokyoNightFZF([]byte(author))
+	colors, err := filesExtractFZFScriptColors([]byte(author))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(colors) != "--color=bg:#16161e\n--color=hl+:#2ac3de\n--color=query:#c0caf5:regular\n" {
 		t.Fatalf("unexpected author colors: %q", colors)
 	}
-	if _, err := filesTokyoNightFZF([]byte("--layout=reverse\n")); err == nil {
+	if _, err := filesExtractFZFScriptColors([]byte("--layout=reverse\n")); err == nil {
 		t.Fatal("accepted a layout-only upstream script")
 	}
-	if _, err := filesTokyoNightFZF([]byte("--color=fg:#fff;touch /tmp/pwned\n")); err == nil {
+	if _, err := filesExtractFZFScriptColors([]byte("--color=fg:#fff;touch /tmp/pwned\n")); err == nil {
 		t.Fatal("accepted an executable shell argument")
 	}
 }
 
 func TestRosePineFZFRejectsShellCode(t *testing.T) {
 	for _, script := range []string{"--color=fg:#ffffff\n", "export FZF_DEFAULT_OPTS=\"\n --bind=execute(evil)\n\"", "export FZF_DEFAULT_OPTS=\"\n--color=fg:#ffffff\n--preview=evil\""} {
-		if _, err := rosePineFZFOptions([]byte(script)); err == nil {
+		if _, err := filesExtractFZFExportColors([]byte(script)); err == nil {
 			t.Fatalf("accepted untrusted fzf script %q", script)
 		}
 	}

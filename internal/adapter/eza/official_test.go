@@ -89,7 +89,7 @@ func TestEzaDraculaFailureDoesNotMutateActiveTheme(t *testing.T) {
 
 func TestEzaDraculaRejectsNonNativeThemeData(t *testing.T) {
 	for _, bad := range []string{"", "gui:\n  theme: {}\n", "export EZA_COLORS=blue\n", "colourful: true\nfilekinds: broken\n", strings.Replace(testutil.EzaDraculaTestTheme, "directory: {foreground: \"#8BE9FD\"}", "directory: {foreground: false}", 1)} {
-		if err := filesValidateEzaDracula([]byte(bad)); err == nil {
+		if err := filesValidateEzaNative([]byte(bad)); err == nil {
 			t.Fatalf("accepted non-native YAML: %q", bad)
 		}
 	}

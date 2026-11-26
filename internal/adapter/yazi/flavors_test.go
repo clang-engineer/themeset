@@ -17,6 +17,10 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
+func filesYaziDraculaRoot(env model.Environment) string {
+	return filesYaziFlavorRoot("dracula", env)
+}
+
 func filesTestResolveYazi(name string, env model.Environment) (model.Port, bool, error) {
 	return filesResolveYazi(catalog.Port(name, "yazi"), env)
 }
@@ -390,6 +394,47 @@ func TestYaziDraculaRemovesOnlyOwnedPreviousCatppuccinLeaves(t *testing.T) {
 	}
 }
 
+func TestYaziDirectStyleSnapshotUsesDeclaredThemeName(t *testing.T) {
+	env := testutil.Env(t)
+	path := shared.Path("yazi", env)
+	const name = "aurora"
+	const styles = "[mgr]\ncwd = { fg = '#abcdef' }\n"
+	incoming, err := shared.TOML([]byte(styles))
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.Write(t, path, "[mgr]\nratio = [1, 3, 4]\n")
+	if err := shared.EditTOML(path, func(config map[string]any) error {
+		return filesApplyOfficialYazi(config, incoming, []byte("<plist/>"), name, env)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := shared.Atomic(filesYaziManagedStylesPath(name, env), []byte(styles)); err != nil {
+		t.Fatal(err)
+	}
+	applied, err := shared.TOML(testutil.Read(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mgr := applied["mgr"].(map[string]any)
+	if mgr["syntect_theme"] != filepath.Join(filepath.Dir(path), "themeset-aurora.tmTheme") || mgr["cwd"].(map[string]any)["fg"] != "#abcdef" {
+		t.Fatalf("direct theme was not activated with its own name: %#v", mgr)
+	}
+	if err := shared.EditTOML(path, func(config map[string]any) error {
+		return filesRemovePreviousYaziStyles(config, env)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := shared.TOML(testutil.Read(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mgr = cleared["mgr"].(map[string]any)
+	if mgr["syntect_theme"] != nil || mgr["cwd"] != nil || mgr["ratio"] == nil {
+		t.Fatalf("previous direct styles were not removed without disturbing layout: %#v", mgr)
+	}
+}
+
 func TestYaziDraculaPreservesUnownedStylesAndCustomFirst(t *testing.T) {
 	for _, custom := range []bool{false, true} {
 		t.Run(map[bool]string{false: "user styles", true: "registered custom"}[custom], func(t *testing.T) {
@@ -434,7 +479,8 @@ func TestTokyoNightYaziInstallsAuthorFlavorWithoutOverwritingLayout(t *testing.T
 	testutil.Write(t, filepath.Join(filepath.Dir(path), "yazi.toml"), "# untouched\n")
 	const flavor = "[mgr]\ncwd = { fg = '#a9b1d6' }\n[filetype]\nrules = [{ name = '*', fg = '#c0caf5' }]\n"
 	const syntax = "<?xml version=\"1.0\"?><plist><dict/></plist>"
-	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte(flavor), []byte(syntax)); err != nil {
+	port := *catalog.Port("tokyo-night", "yazi").Official
+	if err := filesInstallTwoFileYazi(port, env, []byte(flavor), []byte(syntax)); err != nil {
 		t.Fatal(err)
 	}
 	root := filesYaziFlavorRoot("tokyo-night", env)
@@ -453,7 +499,7 @@ func TestTokyoNightYaziInstallsAuthorFlavorWithoutOverwritingLayout(t *testing.T
 		t.Fatalf("rewrote yazi.toml: %q", got)
 	}
 	first := testutil.Read(t, path)
-	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte(flavor), []byte(syntax)); err != nil || !bytes.Equal(first, testutil.Read(t, path)) {
+	if err := filesInstallTwoFileYazi(port, env, []byte(flavor), []byte(syntax)); err != nil || !bytes.Equal(first, testutil.Read(t, path)) {
 		t.Fatalf("flavor reapplication changed selection: %v", err)
 	}
 }
@@ -463,7 +509,7 @@ func TestTokyoNightYaziRejectsInvalidSyntaxBeforeWriting(t *testing.T) {
 	path := shared.Path("yazi", env)
 	testutil.Write(t, path, "[flavor]\ndark = 'old'\n")
 	for _, bad := range []string{"", "<not-a-plist/>", "<plist>"} {
-		if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte(bad)); err == nil {
+		if err := filesInstallTwoFileYazi(*catalog.Port("tokyo-night", "yazi").Official, env, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte(bad)); err == nil {
 			t.Fatalf("accepted invalid syntax %q", bad)
 		}
 		if string(testutil.Read(t, path)) != "[flavor]\ndark = 'old'\n" {
@@ -471,17 +517,27 @@ func TestTokyoNightYaziRejectsInvalidSyntaxBeforeWriting(t *testing.T) {
 		}
 	}
 }
-func TestTokyoNightOfficialYaziCannotReplaceExistingFlavor(t *testing.T) {
-	env := testutil.Env(t)
-	root := filesYaziFlavorRoot("tokyo-night", env)
-	testutil.Write(t, filepath.Join(root, "flavor.toml"), "[mgr]\ncwd = { fg = '#abcdef' }\n")
-	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte("<plist><dict/></plist>")); err == nil {
-		t.Fatal("replaced an independently installed partial flavor")
-	}
-	if got := string(testutil.Read(t, filepath.Join(root, "flavor.toml"))); !strings.Contains(got, "#abcdef") {
-		t.Fatalf("existing flavor changed: %q", got)
+
+func TestYaziTwoFileOfficialCannotReplaceIndependentFlavor(t *testing.T) {
+	for _, name := range []string{"rose-pine", "tokyo-night"} {
+		t.Run(name, func(t *testing.T) {
+			env := testutil.Env(t)
+			port := *catalog.Port(name, "yazi").Official
+			root := filesYaziFlavorRoot(port.Name, env)
+			testutil.Write(t, filepath.Join(root, "flavor.toml"), "[mgr]\ncwd = { fg = '#abcdef' }\n")
+			if err := filesInstallTwoFileYazi(port, env, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte("<plist><dict/></plist>")); err == nil {
+				t.Fatal("replaced an independently installed partial flavor")
+			}
+			if got := string(testutil.Read(t, filepath.Join(root, "flavor.toml"))); !strings.Contains(got, "#abcdef") {
+				t.Fatalf("existing flavor changed: %q", got)
+			}
+			if _, err := os.Stat(filepath.Join(root, filesYaziSourceMarker)); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("independent flavor was marked as official")
+			}
+		})
 	}
 }
+
 func TestRosePineYaziNativeFlavorAndFailedOfficialInstall(t *testing.T) {
 	env := testutil.Env(t)
 	port, ok, err := Adapter().Resolve(catalog.Port("rose-pine", "yazi"), env)
@@ -492,7 +548,7 @@ func TestRosePineYaziNativeFlavorAndFailedOfficialInstall(t *testing.T) {
 	original := "[flavor]\ndark = 'old'\n[mgr]\nratio = [1, 2, 3]\n"
 	testutil.Write(t, path, original)
 	testutil.AssetClient(t, func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") })
-	if err := filesApplyRosePineYazi(port, env); err == nil || string(testutil.Read(t, path)) != original {
+	if err := filesApplyTwoFileYazi(port, env); err == nil || string(testutil.Read(t, path)) != original {
 		t.Fatalf("failed Yazi install modified theme: %v", err)
 	}
 	root := filesYaziFlavorRoot("rose-pine", env)
@@ -515,6 +571,85 @@ func TestRosePineYaziNativeFlavorAndFailedOfficialInstall(t *testing.T) {
 	}
 	if _, ok, err := Adapter().Resolve(catalog.Port("rose-pine-dawn", "yazi"), env); ok || err != nil {
 		t.Fatalf("unregistered Yazi variant accepted: %v", err)
+	}
+}
+
+func TestYaziTwoFileOfficialFlavorsUseCatalogAssetsAndNames(t *testing.T) {
+	for _, name := range []string{"rose-pine", "tokyo-night"} {
+		t.Run(name, func(t *testing.T) {
+			env := testutil.Env(t)
+			port := *catalog.Port(name, "yazi").Official
+			flavorURL := port.AssetURL
+			if flavorURL == "" {
+				flavorURL = port.Source
+			}
+			const flavorData = "[mgr]\ncwd = { fg = '#aabbcc' }\n"
+			const syntaxData = "<plist><dict/></plist>"
+			requests := make(map[string]int)
+			testutil.AssetClient(t, func(req *http.Request) (*http.Response, error) {
+				requests[req.URL.String()]++
+				var data string
+				switch req.URL.String() {
+				case flavorURL:
+					data = flavorData
+				case port.SyntaxURL:
+					data = syntaxData
+				default:
+					t.Fatalf("unexpected flavor source: %s", req.URL)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(data)), Header: make(http.Header)}, nil
+			})
+			path := shared.Path("yazi", env)
+			testutil.Write(t, path, "[flavor]\nuse = 'old'\n[mgr]\nratio = [1, 3, 4]\n")
+			if err := Adapter().Apply(port, env); err != nil {
+				t.Fatal(err)
+			}
+			root := filesYaziFlavorRoot(port.Name, env)
+			config, err := shared.TOML(testutil.Read(t, path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			selection := config["flavor"].(map[string]any)
+			if selection["dark"] != port.Name || selection["light"] != port.Name || selection["use"] != nil || config["mgr"].(map[string]any)["ratio"] == nil ||
+				requests[flavorURL] != 1 || requests[port.SyntaxURL] != 1 ||
+				string(testutil.Read(t, filepath.Join(root, "flavor.toml"))) != flavorData ||
+				string(testutil.Read(t, filepath.Join(root, "tmtheme.xml"))) != syntaxData ||
+				string(testutil.Read(t, filepath.Join(root, filesYaziSourceMarker))) != port.Source+"\n" {
+				t.Fatalf("official flavor assets, selection or ownership changed: %#v, requests=%v", config, requests)
+			}
+		})
+	}
+}
+
+func TestYaziTwoFileOfficialFlavorsRejectInvalidAssetsWithoutWriting(t *testing.T) {
+	for _, name := range []string{"rose-pine", "tokyo-night"} {
+		for _, invalid := range []string{"TOML", "manager", "syntax"} {
+			t.Run(name+"/"+invalid, func(t *testing.T) {
+				env := testutil.Env(t)
+				port := *catalog.Port(name, "yazi").Official
+				flavor, syntax := "[mgr]\ncwd = { fg = '#aabbcc' }\n", "<plist><dict/></plist>"
+				switch invalid {
+				case "TOML":
+					flavor = "broken = ["
+				case "manager":
+					flavor = "[mgr]\n"
+				case "syntax":
+					syntax = "<html/>"
+				}
+				path := shared.Path("yazi", env)
+				const original = "[flavor]\ndark = 'old'\n"
+				testutil.Write(t, path, original)
+				if err := filesInstallTwoFileYazi(port, env, []byte(flavor), []byte(syntax)); err == nil {
+					t.Fatal("accepted malformed two-file flavor")
+				}
+				if string(testutil.Read(t, path)) != original {
+					t.Fatal("malformed flavor changed active selection")
+				}
+				if _, err := os.Stat(filesYaziFlavorRoot(port.Name, env)); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("malformed flavor created installation directory")
+				}
+			})
+		}
 	}
 }
 

@@ -36,6 +36,14 @@ other tool declarations stay in effect. Official file adapters verify the
 catalog declaration, fetch its `source` (and `license_url` when specified), then
 validate the native file format before changing settings. Format-specific parsers
 remain in the tool adapter; source selection does not branch on theme names.
+The `format` value names the upstream file shape or application operation,
+not a theme. When several themes share a shape, the adapter uses the same
+parser; formats with different install/ownership rules retain distinct paths.
+Yazi's two-file flavors share an installer driven by `asset_url` (or `source`)
+and `syntax_url`; its four-file bundled flavor retains staged replacement to
+protect incomplete independently installed flavors. The old Catppuccin syntax
+filename remains recognized only when cleaning up installations made before
+style snapshots were recorded.
 Documentation links below describe upstream procedures, not executable registry
 entries.
 

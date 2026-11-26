@@ -11,7 +11,7 @@ import (
 // upstream Style tables, not separators, icons, filename rules or layout, and
 // install the associated official syntax theme instead of the upstream example
 // path. No plugin, downloader or application command is executed.
-func filesApplyOfficialYazi(config, incoming map[string]any, syntaxData []byte, env model.Environment) error {
+func filesApplyOfficialYazi(config, incoming map[string]any, syntaxData []byte, name string, env model.Environment) error {
 	flavor, err := shared.Table(config, "flavor")
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func filesApplyOfficialYazi(config, incoming map[string]any, syntaxData []byte, 
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(filepath.Dir(shared.Path("yazi", env)), "themeset-catppuccin-mocha.tmTheme")
+	path := filepath.Join(filepath.Dir(shared.Path("yazi", env)), "themeset-"+name+".tmTheme")
 	if err := shared.Atomic(path, syntaxData); err != nil {
 		return err
 	}

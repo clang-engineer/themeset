@@ -15,81 +15,30 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-func filesInstallRosePineYazi(port model.Port, env model.Environment) error {
-	root := filesYaziFlavorRoot(port.Name, env)
-	content := make(map[string][]byte, 2)
-	for name, url := range map[string]string{"flavor.toml": port.AssetURL, "tmtheme.xml": port.SyntaxURL} {
-		data, err := shared.AcquireAsset(env, url)
-		if err != nil {
-			return fmt.Errorf("acquire Rosé Pine Yazi %s: %w", name, err)
-		}
-		content[name] = data
+// Two-file official flavors share one installation and activation path.
+// Source is the style URL unless the catalog provides a separate asset URL.
+func filesApplyTwoFileYazi(port model.Port, env model.Environment) error {
+	if port.Kind != "official" || port.Format != "yazi-flavor-pair" || port.File != "" || port.URL != "" || !shared.Name(port.Name) || port.Source == "" || port.SyntaxURL == "" {
+		return errors.New("unregistered two-file Yazi flavor")
 	}
-	config, err := shared.TOML(content["flavor.toml"])
+	flavorURL := port.AssetURL
+	if flavorURL == "" {
+		flavorURL = port.Source
+	}
+	flavorData, err := shared.AcquireAsset(env, flavorURL)
 	if err != nil {
-		return err
-	}
-	mgr, _ := config["mgr"].(map[string]any)
-	if len(mgr) == 0 {
-		return errors.New("Rosé Pine Yazi flavor has no [mgr] styles")
-	}
-	var syntax struct {
-		XMLName xml.Name `xml:"plist"`
-	}
-	if err := xml.Unmarshal(content["tmtheme.xml"], &syntax); err != nil || syntax.XMLName.Local != "plist" {
-		return fmt.Errorf("invalid Rosé Pine Yazi syntax: %v", err)
-	}
-	return filesInstallOfficialYaziFlavor(root, port.Source, content)
-}
-
-func filesApplyRosePineYazi(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || port.Format != "yazi-flavor-rose" || port.File != "" {
-		return errors.New("unregistered Rosé Pine Yazi flavor")
-	}
-	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
-		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
-			return err
-		}
-		if err := filesInstallRosePineYazi(port, env); err != nil {
-			return err
-		}
-		flavor, err := shared.Table(config, "flavor")
-		if err != nil {
-			return err
-		}
-		flavor["dark"] = "rose-pine"
-		flavor["light"] = "rose-pine"
-		delete(flavor, "use")
-		return nil
-	})
-}
-func filesApplyTokyoNightYazi(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || port.Format != "yazi-flavor-tokyo" {
-		return errors.New("unregistered Tokyo Night Yazi flavor")
-	}
-	if port.File != "" || port.Kind != "official" || port.Source == "" {
-		return errors.New("unregistered Tokyo Night Yazi flavor")
-	}
-	flavorData, err := shared.AcquireAsset(env, port.Source)
-	if err != nil {
-		return err
-	}
-	if err := filesValidateYaziPort(flavorData); err != nil {
-		return fmt.Errorf("invalid Tokyo Night yazi port: %w", err)
+		return fmt.Errorf("acquire %s Yazi flavor: %w", port.Name, err)
 	}
 	syntaxData, err := shared.AcquireAsset(env, port.SyntaxURL)
 	if err != nil {
-		return fmt.Errorf("acquire Tokyo Night Yazi syntax: %w", err)
+		return fmt.Errorf("acquire %s Yazi syntax: %w", port.Name, err)
 	}
-	return filesInstallTokyoNightYazi(env, port.Source, flavorData, syntaxData)
+	return filesInstallTwoFileYazi(port, env, flavorData, syntaxData)
 }
 
-func filesInstallTokyoNightYazi(env model.Environment, source string, flavorData, syntaxData []byte) error {
-	var theme struct {
-		XMLName xml.Name `xml:"plist"`
-	}
-	if err := xml.Unmarshal(syntaxData, &theme); err != nil || theme.XMLName.Local != "plist" {
-		return fmt.Errorf("invalid Tokyo Night Yazi syntax theme: %v", err)
+func filesInstallTwoFileYazi(port model.Port, env model.Environment, flavorData, syntaxData []byte) error {
+	if port.Kind != "official" || port.Format != "yazi-flavor-pair" || port.File != "" || !shared.Name(port.Name) || port.Source == "" {
+		return errors.New("unregistered two-file Yazi flavor")
 	}
 	config, err := shared.TOML(flavorData)
 	if err != nil {
@@ -97,9 +46,14 @@ func filesInstallTokyoNightYazi(env model.Environment, source string, flavorData
 	}
 	mgr, _ := config["mgr"].(map[string]any)
 	if len(mgr) == 0 {
-		return errors.New("Tokyo Night Yazi flavor has no [mgr] styles")
+		return fmt.Errorf("%s Yazi flavor has no [mgr] styles", port.Name)
 	}
-	root := filesYaziFlavorRoot("tokyo-night", env)
+	var syntax struct {
+		XMLName xml.Name `xml:"plist"`
+	}
+	if err := xml.Unmarshal(syntaxData, &syntax); err != nil || syntax.XMLName.Local != "plist" {
+		return fmt.Errorf("invalid %s Yazi syntax: %v", port.Name, err)
+	}
 	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
 		flavor, err := shared.Table(config, "flavor")
 		if err != nil {
@@ -108,14 +62,14 @@ func filesInstallTokyoNightYazi(env model.Environment, source string, flavorData
 		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
 			return err
 		}
-		if err := filesInstallOfficialYaziFlavor(root, source, map[string][]byte{
+		if err := filesInstallOfficialYaziFlavor(filesYaziFlavorRoot(port.Name, env), port.Source, map[string][]byte{
 			"flavor.toml": flavorData,
 			"tmtheme.xml": syntaxData,
 		}); err != nil {
 			return err
 		}
-		flavor["dark"] = "tokyo-night"
-		flavor["light"] = "tokyo-night"
+		flavor["dark"] = port.Name
+		flavor["light"] = port.Name
 		delete(flavor, "use")
 		return nil
 	})
@@ -130,11 +84,7 @@ func filesYaziMatchesSource(root, source string) (bool, error) {
 	return string(data) == source+"\n", err
 }
 
-func filesYaziDraculaRoot(env model.Environment) string {
-	return filesYaziFlavorRoot("dracula", env)
-}
-
-func filesInstallYaziDracula(port model.Port, env model.Environment) error {
+func filesInstallYaziBundle(port model.Port, env model.Environment) error {
 	installed, err := filesYaziFlavorInstalled(port.Name, env)
 	if err != nil || installed {
 		return err
@@ -148,7 +98,7 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 		return err
 	}
 	if exists && !info.IsDir() {
-		return fmt.Errorf("refusing to replace non-directory Dracula flavor %s", root)
+		return fmt.Errorf("refusing to replace non-directory %s flavor %s", port.Name, root)
 	}
 	owned := false
 	if exists {
@@ -157,7 +107,7 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 			return err
 		}
 		if marker != nil && string(marker) != port.Source+"\n" {
-			return fmt.Errorf("incomplete Dracula flavor has conflicting %s; refusing to overwrite it", filesYaziSourceMarker)
+			return fmt.Errorf("incomplete %s flavor has conflicting %s; refusing to overwrite it", port.Name, filesYaziSourceMarker)
 		}
 		owned = marker != nil
 	}
@@ -167,10 +117,10 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 	for i, asset := range names {
 		assets[i], err = shared.AcquireAsset(env, urls[i])
 		if err != nil {
-			return fmt.Errorf("acquire Yazi Dracula %s: %w", asset, err)
+			return fmt.Errorf("acquire Yazi %s %s: %w", port.Name, asset, err)
 		}
 		if len(assets[i]) == 0 {
-			return fmt.Errorf("Yazi Dracula %s is empty", asset)
+			return fmt.Errorf("Yazi %s %s is empty", port.Name, asset)
 		}
 		if !exists {
 			continue
@@ -180,28 +130,28 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 			return err
 		}
 		if !owned && previous != nil && !bytes.Equal(previous, assets[i]) {
-			return fmt.Errorf("incomplete Dracula flavor has conflicting %s; refusing to overwrite it", asset)
+			return fmt.Errorf("incomplete %s flavor has conflicting %s; refusing to overwrite it", port.Name, asset)
 		}
 	}
 	config, err := shared.TOML(assets[0])
 	if err != nil {
-		return fmt.Errorf("validate downloaded Dracula flavor: %w", err)
+		return fmt.Errorf("validate downloaded %s flavor: %w", port.Name, err)
 	}
 	mgr, ok := config["mgr"].(map[string]any)
 	if !ok || len(mgr) == 0 {
-		return errors.New("downloaded Dracula flavor requires a nonempty [mgr] table")
+		return errors.New("downloaded Yazi flavor requires a nonempty [mgr] table")
 	}
 	var theme struct {
 		XMLName xml.Name `xml:"plist"`
 	}
 	if err := xml.Unmarshal(assets[1], &theme); err != nil {
-		return fmt.Errorf("validate downloaded Dracula syntax theme: %w", err)
+		return fmt.Errorf("validate downloaded %s syntax theme: %w", port.Name, err)
 	}
 	parent := filepath.Dir(root)
 	if err := os.MkdirAll(parent, 0700); err != nil {
 		return err
 	}
-	stage, err := os.MkdirTemp(parent, ".themeset-dracula-*")
+	stage, err := os.MkdirTemp(parent, ".themeset-flavor-*")
 	if err != nil {
 		return err
 	}
@@ -210,7 +160,7 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 		// Preserve extra files in an incomplete preexisting flavor. CopyFS
 		// deliberately refuses symlinks rather than following or replacing them.
 		if err := os.CopyFS(stage, os.DirFS(root)); err != nil {
-			return fmt.Errorf("stage existing Dracula flavor: %w", err)
+			return fmt.Errorf("stage existing %s flavor: %w", port.Name, err)
 		}
 	}
 	for i, asset := range names {
@@ -224,7 +174,7 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 	if !exists {
 		return os.Rename(stage, root)
 	}
-	backup, err := os.MkdirTemp(parent, ".themeset-dracula-previous-*")
+	backup, err := os.MkdirTemp(parent, ".themeset-flavor-previous-*")
 	if err != nil {
 		return err
 	}
@@ -236,15 +186,15 @@ func filesInstallYaziDracula(port model.Port, env model.Environment) error {
 	}
 	if err := os.Rename(stage, root); err != nil {
 		if restoreErr := os.Rename(backup, root); restoreErr != nil {
-			return fmt.Errorf("install Dracula flavor: %w; restore prior flavor from %s: %v", err, backup, restoreErr)
+			return fmt.Errorf("install %s flavor: %w; restore prior flavor from %s: %v", port.Name, err, backup, restoreErr)
 		}
 		return err
 	}
 	return os.RemoveAll(backup)
 }
 
-func filesYaziManagedStylesPath(env model.Environment) string {
-	return filepath.Join(filepath.Dir(shared.Path("yazi", env)), ".themeset-catppuccin-mocha-styles.toml")
+func filesYaziManagedStylesPath(name string, env model.Environment) string {
+	return filepath.Join(filepath.Dir(shared.Path("yazi", env)), ".themeset-"+name+"-styles.toml")
 }
 
 // A managed-style snapshot records the bytes actually installed, so a later
@@ -260,22 +210,20 @@ func filesRemovePreviousYaziStyles(config map[string]any, env model.Environment)
 		return nil
 	}
 	directory := filepath.Dir(shared.Path("yazi", env))
-	catppuccin := syntaxPath == filepath.Join(directory, "themeset-catppuccin-mocha.tmTheme")
-	marker := filesYaziManagedStylesPath(env)
-	if !catppuccin {
-		if filepath.Dir(syntaxPath) != directory {
-			return nil
-		}
-		filename := filepath.Base(syntaxPath)
-		if !strings.HasPrefix(filename, "themeset-custom-") || !strings.HasSuffix(filename, ".tmTheme") {
-			return nil
-		}
-		name := strings.TrimSuffix(strings.TrimPrefix(filename, "themeset-custom-"), ".tmTheme")
-		if !shared.Name(name) {
-			return nil
-		}
-		marker = filepath.Join(directory, ".themeset-custom-"+name+"-styles.toml")
+	if filepath.Dir(syntaxPath) != directory {
+		return nil
 	}
+	filename := filepath.Base(syntaxPath)
+	if !strings.HasPrefix(filename, "themeset-") || !strings.HasSuffix(filename, ".tmTheme") {
+		return nil
+	}
+	name := strings.TrimSuffix(strings.TrimPrefix(filename, "themeset-"), ".tmTheme")
+	official := !strings.HasPrefix(name, "custom-")
+	if !shared.Name(name) {
+		return nil
+	}
+	catppuccin := official && name == "catppuccin-mocha"
+	marker := filesYaziManagedStylesPath(name, env)
 	data, err := shared.Read(marker, true)
 	if err != nil {
 		return err
@@ -293,7 +241,7 @@ func filesRemovePreviousYaziStyles(config map[string]any, env model.Environment)
 	if err != nil {
 		return fmt.Errorf("parse previously applied Yazi styles: %w", err)
 	}
-	if catppuccin {
+	if official {
 		if err := filesValidateYaziPort(data); err != nil {
 			return fmt.Errorf("invalid previously applied Yazi styles: %w", err)
 		}

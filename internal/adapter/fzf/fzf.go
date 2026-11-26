@@ -66,10 +66,10 @@ func filesFZFSelectedColors(version []byte) bool {
 func filesFZFRequireSelectedColors(env model.Environment) error {
 	version, err := shared.Command(env, "fzf", "--version")
 	if err != nil {
-		return fmt.Errorf("Catppuccin Mocha requires fzf 0.52.0 or newer: %w", err)
+		return fmt.Errorf("fzf selected color styles require version 0.52.0 or newer: %w", err)
 	}
 	if !filesFZFSelectedColors(version) {
-		return errors.New("Catppuccin Mocha requires fzf 0.52.0 or newer")
+		return errors.New("fzf selected color styles require version 0.52.0 or newer")
 	}
 	return nil
 }
@@ -97,10 +97,10 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 			return fmt.Errorf("acquire %s fzf theme: %w", port.Name, err)
 		}
 		switch port.Format {
-		case "fzf-tokyo":
-			data, err = filesTokyoNightFZF(data)
-		case "fzf-rose":
-			data, err = rosePineFZFOptions(data)
+		case "fzf-script-colors":
+			data, err = filesExtractFZFScriptColors(data)
+		case "fzf-export-colors":
+			data, err = filesExtractFZFExportColors(data)
 		default:
 			data, err = filesPrepareFZFOfficial(port.Format, port.Variant, data)
 		}
@@ -142,7 +142,7 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 // The author ships a shell script setting layout, preview and ANSI options.
 // Extract only its literal --color entries; executing or importing shell code
 // would overwrite the user's unrelated fzf configuration.
-func filesTokyoNightFZF(data []byte) ([]byte, error) {
+func filesExtractFZFScriptColors(data []byte) ([]byte, error) {
 	lines := strings.Split(string(data), "\n")
 	var colors strings.Builder
 	for _, line := range lines {
@@ -161,17 +161,17 @@ func filesTokyoNightFZF(data []byte) ([]byte, error) {
 }
 
 // Discard the shell export, retaining only the author's exact fzf color options.
-func rosePineFZFOptions(script []byte) ([]byte, error) {
+func filesExtractFZFExportColors(script []byte) ([]byte, error) {
 	lines := strings.Split(strings.TrimSpace(string(script)), "\n")
 	if len(lines) < 2 || lines[0] != `export FZF_DEFAULT_OPTS="` || !strings.HasSuffix(strings.TrimSpace(lines[len(lines)-1]), `"`) {
-		return nil, errors.New("unexpected Rosé Pine fzf shell wrapper")
+		return nil, errors.New("unexpected fzf color export wrapper")
 	}
 	lines[len(lines)-1] = strings.TrimSuffix(strings.TrimSpace(lines[len(lines)-1]), `"`)
 	var result strings.Builder
 	for _, line := range lines[1:] {
 		option := strings.TrimSpace(line)
 		if !strings.HasPrefix(option, "--color=") {
-			return nil, fmt.Errorf("unexpected Rosé Pine fzf option %q", option)
+			return nil, fmt.Errorf("unexpected fzf color export option %q", option)
 		}
 		result.WriteString(option)
 		result.WriteByte('\n')
@@ -219,7 +219,7 @@ func filesPrepareFZFOfficial(format, variant string, source []byte) ([]byte, err
 	case "fzf-rc":
 		return filesFZFOfficialColors(format, source)
 	case "fzf-install":
-		// Dracula publishes its fzf options inside a fenced shell recipe.
+		// Extract only options embedded in the upstream shell recipe.
 		const prefix = "export FZF_DEFAULT_OPTS='"
 		for _, line := range strings.Split(string(source), "\n") {
 			line = strings.TrimSpace(line)
@@ -229,7 +229,7 @@ func filesPrepareFZFOfficial(format, variant string, source []byte) ([]byte, err
 			options := strings.TrimSuffix(strings.TrimPrefix(line, prefix), "'")
 			return filesFZFOfficialColors(format, []byte(strings.Join(strings.Fields(options), "\n")+"\n"))
 		}
-		return nil, errors.New("Dracula fzf shell recipe missing")
+		return nil, errors.New("fzf shell recipe missing")
 	case "fzf-shell":
 		// Only literal --color pairs in the one upstream export are imported.
 		var colors strings.Builder
@@ -239,7 +239,7 @@ func filesPrepareFZFOfficial(format, variant string, source []byte) ([]byte, err
 			if !started {
 				if strings.HasPrefix(line, "export FZF_DEFAULT_OPTS=") {
 					if line != `export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS \` {
-						return nil, errors.New("unexpected Moonfly fzf export")
+						return nil, errors.New("unexpected fzf color export")
 					}
 					started = true
 				}
@@ -251,14 +251,14 @@ func filesPrepareFZFOfficial(format, variant string, source []byte) ([]byte, err
 			}
 			fields := strings.Fields(strings.TrimSpace(strings.TrimSuffix(line, `\`)))
 			if len(fields) != 2 || fields[0] != "--color" || !strings.HasSuffix(line, `\`) && !strings.HasPrefix(fields[1], "spinner:") {
-				return nil, fmt.Errorf("unexpected Moonfly fzf color %q", line)
+				return nil, fmt.Errorf("unexpected fzf export color %q", line)
 			}
 			colors.WriteString("--color=")
 			colors.WriteString(fields[1])
 			colors.WriteByte('\n')
 		}
 		if !started || !closed {
-			return nil, errors.New("incomplete Moonfly fzf export")
+			return nil, errors.New("incomplete fzf color export")
 		}
 		return filesFZFOfficialColors(format, []byte(colors.String()))
 	case "fzf-presets":

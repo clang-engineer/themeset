@@ -38,32 +38,46 @@ func nativeResolveDelta(spec model.ThemePort, env model.Environment) (model.Port
 	return model.Port{}, false, nil
 }
 
-// Import only the author's main Delta feature. The same upstream file contains
-// unrelated Moon/Dawn variants and default dark/light selectors; never import
-// those into the user's global Git configuration.
-func nativeRosePineDeltaMain(data []byte) ([]byte, error) {
+// Import only the selected Delta feature. Upstream assets can contain other
+// variants and default dark/light selectors; none belong in global Git config.
+func nativeDeltaFeature(data []byte, feature string) ([]byte, error) {
 	text := string(data)
-	const next = "\n[delta \"rose-pine-moon\"]"
-	main, _, ok := strings.Cut(text, next)
-	if !ok || !strings.HasPrefix(main, "[delta \"rose-pine\"]\n") || !strings.Contains(main, "\n\tfile-style = ") {
-		return nil, fmt.Errorf("Rosé Pine Delta feature missing from official asset")
+	header := "[delta \"" + feature + "\"]"
+	first, rest, ok := strings.Cut(text, "\n")
+	if !ok || first != header {
+		return nil, fmt.Errorf("Delta feature %q missing from official asset", feature)
 	}
-	return []byte(main + "\n"), nil
+	end := len(rest)
+	for start := 0; start < len(rest); {
+		lineEnd := strings.IndexByte(rest[start:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(rest)
+		} else {
+			lineEnd += start
+		}
+		if strings.HasPrefix(strings.TrimLeft(rest[start:lineEnd], " \t"), "[") {
+			end = start
+			break
+		}
+		start = lineEnd + 1
+	}
+	main := header + "\n" + rest[:end]
+	if !strings.Contains(main, "\n\tfile-style = ") {
+		return nil, fmt.Errorf("Delta feature %q has no file style", feature)
+	}
+	return []byte(strings.TrimRight(main, "\n") + "\n"), nil
 }
 
-func nativeApplyRosePineDelta(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || !catalog.Verified("delta", port) {
-		return fmt.Errorf("invalid Rosé Pine Delta feature")
-	}
+func nativeApplyOfficialDeltaFeature(port model.Port, env model.Environment) error {
 	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
 		return err
 	}
-	main, err := nativeRosePineDeltaMain(data)
+	main, err := nativeDeltaFeature(data, port.Name)
 	if err != nil {
 		return err
 	}
-	file, err := os.CreateTemp(env.Home, ".themeset-rose-pine-delta-*.gitconfig")
+	file, err := os.CreateTemp(env.Home, ".themeset-delta-feature-*.gitconfig")
 	if err != nil {
 		return err
 	}
@@ -75,12 +89,18 @@ func nativeApplyRosePineDelta(port model.Port, env model.Environment) error {
 	if err := file.Close(); err != nil {
 		return err
 	}
-	return nativeApplyDelta(model.Port{Kind: "feature", Name: "rose-pine", File: file.Name()}, env)
+	return nativeApplyDelta(model.Port{Kind: "feature", Name: port.Name, File: file.Name()}, env)
 }
 
 func nativeApplyDelta(port model.Port, env model.Environment) error {
-	if port.Kind == "official" && port.Name == "rose-pine" {
-		return nativeApplyRosePineDelta(port, env)
+	if port.Kind == "official" {
+		if !catalog.Verified("delta", port) {
+			return fmt.Errorf("unregistered official Delta port %q", port.Name)
+		}
+		if port.Format != "delta-feature" {
+			return fmt.Errorf("unsupported official Delta format %q", port.Format)
+		}
+		return nativeApplyOfficialDeltaFeature(port, env)
 	}
 	settings := map[string]string{}
 	if port.File != "" {

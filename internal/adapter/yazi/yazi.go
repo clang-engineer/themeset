@@ -60,12 +60,10 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 			return fmt.Errorf("unregistered Yazi official port %q", port.Name)
 		}
 		switch port.Format {
-		case "yazi-flavor-tokyo":
-			return filesApplyTokyoNightYazi(port, env)
-		case "yazi-flavor-rose":
-			return filesApplyRosePineYazi(port, env)
-		case "yazi-flavor-dracula":
-			return filesApplyDraculaYazi(port, env)
+		case "yazi-flavor-pair":
+			return filesApplyTwoFileYazi(port, env)
+		case "yazi-flavor-bundle":
+			return filesApplyYaziBundle(port, env)
 		case "yazi-direct":
 			// The direct style file is merged below.
 		default:
@@ -96,20 +94,20 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 		themeData = data
 		syntaxData, err = shared.AcquireAsset(env, port.SyntaxURL)
 		if err != nil {
-			return fmt.Errorf("acquire Catppuccin Yazi syntax: %w", err)
+			return fmt.Errorf("acquire %s Yazi syntax: %w", port.Name, err)
 		}
 		var syntax struct {
 			XMLName xml.Name `xml:"plist"`
 		}
 		if err := xml.Unmarshal(syntaxData, &syntax); err != nil || syntax.XMLName.Local != "plist" {
-			return fmt.Errorf("invalid Catppuccin Yazi syntax: %v", err)
+			return fmt.Errorf("invalid %s Yazi syntax: %v", port.Name, err)
 		}
 	}
 	// theme.toml is dedicated to styles. Recursively merge supplied sections,
 	// retaining unspecified style overrides; yazi.toml/keymap.toml are untouched.
 	err = shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
 		if port.Kind == "official" && port.File == "" {
-			return filesApplyOfficialYazi(config, incoming, syntaxData, env)
+			return filesApplyOfficialYazi(config, incoming, syntaxData, port.Name, env)
 		}
 		shared.Merge(config, incoming)
 		return nil
@@ -117,12 +115,12 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 	if err != nil || themeData == nil {
 		return err
 	}
-	return shared.Atomic(filesYaziManagedStylesPath(env), themeData)
+	return shared.Atomic(filesYaziManagedStylesPath(port.Name, env), themeData)
 }
 
-func filesApplyDraculaYazi(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || port.Format != "yazi-flavor-dracula" {
-		return errors.New("unregistered Dracula Yazi flavor")
+func filesApplyYaziBundle(port model.Port, env model.Environment) error {
+	if port.Kind != "official" || port.Format != "yazi-flavor-bundle" {
+		return errors.New("unregistered bundled Yazi flavor")
 	}
 	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
 		flavor, err := shared.Table(config, "flavor")
@@ -132,11 +130,11 @@ func filesApplyDraculaYazi(port model.Port, env model.Environment) error {
 		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
 			return err
 		}
-		if err := filesInstallYaziDracula(port, env); err != nil {
+		if err := filesInstallYaziBundle(port, env); err != nil {
 			return err
 		}
-		flavor["dark"] = "dracula"
-		flavor["light"] = "dracula"
+		flavor["dark"] = port.Name
+		flavor["light"] = port.Name
 		delete(flavor, "use")
 		return nil
 	})
@@ -149,7 +147,7 @@ func filesValidateYaziPort(data []byte) error {
 	}
 	mgr, _ := config["mgr"].(map[string]any)
 	if len(mgr) == 0 {
-		return errors.New("Tokyo Night Yazi flavor has no [mgr] styles")
+		return errors.New("Yazi direct style has no [mgr] styles")
 	}
 	return nil
 }
