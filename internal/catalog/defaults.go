@@ -48,6 +48,13 @@ func Listed() []string {
 	return ids
 }
 
+// Registered reports whether a bundled theme has any declared tool ports,
+// including themes intentionally hidden from the default picker.
+func Registered(theme string) bool {
+	_, ok := defaults.Themes[theme]
+	return ok
+}
+
 var verifiedPorts = func() map[string]map[model.Port]struct{} {
 	byTool := make(map[string]map[model.Port]struct{})
 	for _, tools := range defaults.Themes {

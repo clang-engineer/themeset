@@ -59,6 +59,9 @@ func knownTheme(theme string, config model.Config) bool {
 	if _, ok := config.Themes[theme]; ok {
 		return true
 	}
+	if catalog.Registered(theme) {
+		return true
+	}
 	for _, name := range builtinThemes {
 		if name == theme {
 			return true

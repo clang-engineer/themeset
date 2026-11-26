@@ -418,3 +418,36 @@ func TestFilesOfficialYaziLegacyCleanupUsesCurrentSourceConservatively(t *testin
 		t.Fatalf("legacy cleanup discarded user edits or kept matching imported styles: %#v, requests=%d", mgr, requests)
 	}
 }
+
+func TestCyberdreamLazyPortsImportOnlyThemeSettings(t *testing.T) {
+	for _, id := range []string{"lazygit", "lazydocker"} {
+		t.Run(id, func(t *testing.T) {
+			env := filesTestEnv(t)
+			path := shared.Path(id, env)
+			filesTestWrite(t, path, "gui:\n  border: single\n  theme:\n    custom: keep\nlogs:\n  tail: '50'\n")
+			port := *app.DefaultPort("cyberdream", id).Official
+			if !strings.HasSuffix(port.Source, "/extras/"+id+"/cyberdream.yml") {
+				t.Fatalf("wrong upstream Cyberdream %s asset: %s", id, port.Source)
+			}
+			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
+				if r.URL.String() != port.Source {
+					return nil, fmt.Errorf("unexpected source %s", r.URL)
+				}
+				body := "gui:\n  border: rounded\n  theme:\n    activeBorderColor: ['#5ef1ff']\n"
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+			})
+			if err := filesTestAdapter(t, id).Apply(port, env); err != nil {
+				t.Fatal(err)
+			}
+			config, err := shared.YAML(filesTestRead(t, path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			gui := config["gui"].(map[string]any)
+			theme := gui["theme"].(map[string]any)
+			if gui["border"] != "single" || theme["custom"] != "keep" || theme["activeBorderColor"].([]any)[0] != "#5ef1ff" || config["logs"].(map[string]any)["tail"] != "50" {
+				t.Fatalf("Cyberdream %s overwrote unrelated settings or missed theme: %#v", id, config)
+			}
+		})
+	}
+}

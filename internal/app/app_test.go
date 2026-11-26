@@ -424,6 +424,30 @@ func TestListedOverrideControlsDiscoveryWithoutRestrictingApply(t *testing.T) {
 	}
 }
 
+func TestBundledHiddenThemeAppliesExplicitlyWithoutEnteringDiscovery(t *testing.T) {
+	installedFixtures(t, "lazygit")
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"list", "--home", home, "--json"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("list: %d %s", code, stderr.String())
+	}
+	var ids []string
+	if err := json.Unmarshal(stdout.Bytes(), &ids); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range ids {
+		if id == "cyberdream" {
+			t.Fatal("hidden bundled theme appeared in discovery")
+		}
+	}
+	code, result, diagnostics := invoke(t, "apply", "cyberdream", "--tools", "lazygit", "--dry-run", "--home", home)
+	if code != 0 || result.Theme != "cyberdream" || len(result.Tools) != 1 || result.Tools[0].Status != "official" ||
+		result.Tools[0].Port == nil || result.Tools[0].Port.Name != "cyberdream" ||
+		result.Tools[0].FallbackTheme != "" {
+		t.Fatalf("bundled hidden theme cannot be selected directly: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
+	}
+}
+
 func TestEmptyListedOverrideHidesPickerEntriesWithoutDisablingDirectApply(t *testing.T) {
 	home := t.TempDir()
 	config := filepath.Join(t.TempDir(), "config.json")

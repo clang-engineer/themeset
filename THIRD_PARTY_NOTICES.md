@@ -14,6 +14,10 @@ settings. The upstream repositories retain their own licensing terms.
 - Moonfly: [official extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras)
   for fzf, Starship, and tmux. Shell commands, prompt layouts, and tmux status
   layouts are not imported.
+- Cyberdream: [theme-author extras](https://github.com/scottmckendry/cyberdream.nvim/tree/main/extras)
+  for btop, Ghostty, lazydocker, lazygit, and Yazi, with Yazi syntax from
+  the upstream TextMate extra. Only theme-specific settings are imported;
+  the upstream Yazi example path and unrelated application settings are ignored.
 - Catppuccin Latte, Frappé, Macchiato, and Mocha:
   [fzf](https://github.com/catppuccin/fzf),
   [lazygit](https://github.com/catppuccin/lazygit),

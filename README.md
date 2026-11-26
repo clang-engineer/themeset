@@ -155,6 +155,11 @@ shortlist exactly; `list` and the picker preserve its order, while completion
 sorts suggestions. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
 `default_theme`. `listed` changes discovery only, not bundled ports or sources.
+For example, `cyberdream` is hidden from the default picker but has installed
+native candidates for bat and Neovim and verified upstream ports for btop,
+Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a
+separately installed Bat syntax theme and is not registered as an automatic
+port; unregistered tools retain the documented fallback behavior.
 Use an empty theme object to register an extra ID without custom ports.
 User custom entries replace the bundled declaration for that theme and tool;
 other tools remain unchanged. Custom URLs are never labeled official.

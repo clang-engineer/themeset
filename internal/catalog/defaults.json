@@ -165,8 +165,13 @@
       "atuin": {"native": ["autumn"]}
     },
     "cyberdream": {
-      "ghostty": {"native": ["cyberdream"]},
-      "neovim": {"native": ["cyberdream"]}
+      "bat": {"native": ["cyberdream"]},
+      "btop": {"native": ["cyberdream"], "official": {"source": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/btop/cyberdream.theme"}},
+      "ghostty": {"native": ["cyberdream"], "official": {"source": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/ghostty/cyberdream"}},
+      "lazydocker": {"official": {"source": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/lazydocker/cyberdream.yml"}},
+      "lazygit": {"official": {"source": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/lazygit/cyberdream.yml"}},
+      "neovim": {"native": ["cyberdream"]},
+      "yazi": {"official": {"source": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/yazi/cyberdream.toml", "syntax_url": "https://raw.githubusercontent.com/scottmckendry/cyberdream.nvim/main/extras/textmate/cyberdream.tmTheme", "format": "yazi-direct"}}
     },
     "default": {
       "atuin": {"native": ["default"]}
