@@ -3,15 +3,17 @@ package shared_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/clang-engineer/themeset/internal/adapter/atuin"
-	"github.com/clang-engineer/themeset/internal/adapter/shared"
-	"github.com/clang-engineer/themeset/internal/adapter/testutil"
-	"github.com/clang-engineer/themeset/internal/adapter/yazi"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/clang-engineer/themeset/internal/adapter/atuin"
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/adapter/yazi"
+	"github.com/clang-engineer/themeset/internal/app"
 )
 
 const filesOfficialTestLazy = "theme:\n  activeBorderColor: ['#cba6f7', bold]\n"
@@ -66,11 +68,11 @@ func filesOfficialTestClient(t *testing.T) {
 }
 
 func filesOfficialTestSource(id, name string) string {
-	port, ok := shared.OfficialPort(id, name)
-	if !ok {
+	spec := app.DefaultPort(name, id)
+	if spec.Official == nil {
 		return ""
 	}
-	return port.Source
+	return spec.Official.Source
 }
 
 func TestFilesOfficialNativeAssetsPreserveApplicationConfiguration(t *testing.T) {
@@ -92,7 +94,7 @@ func TestFilesOfficialNativeAssetsPreserveApplicationConfiguration(t *testing.T)
 			if err != nil {
 				t.Fatal(err)
 			}
-			port, ok, err := adapter.Resolve(tc.name, env)
+			port, ok, err := adapter.Resolve(app.DefaultPort(tc.name, tc.id), env)
 			if err != nil || !ok || port.Kind != "official" || !strings.HasPrefix(port.Source, "https://raw.githubusercontent.com/") {
 				t.Fatalf("official port unavailable: %#v, %v", port, err)
 			}
@@ -146,7 +148,7 @@ func TestFilesOfficialAtuinInstallsDeclaredThemeName(t *testing.T) {
 				path = filepath.Join(env.Home, ".atuin", "config.toml")
 			}
 			filesTestWrite(t, path, "enter_accept = false\nsearch_mode = 'prefix'\n[theme]\ndebug = true\n")
-			port, ok, err := atuin.Adapter().Resolve("catppuccin-mocha", env)
+			port, ok, err := atuin.Adapter().Resolve(app.DefaultPort("catppuccin-mocha", "atuin"), env)
 			if err != nil || !ok || port.Kind != "official" {
 				t.Fatalf("official Atuin port unavailable: %#v, %v", port, err)
 			}
@@ -178,7 +180,7 @@ func TestFilesOfficialYaziStylesPreserveLayoutAndInstallSyntaxTheme(t *testing.T
 	for _, name := range []string{"yazi.toml", "keymap.toml"} {
 		filesTestWrite(t, filepath.Join(filepath.Dir(path), name), "# PRESERVE "+name+"\n")
 	}
-	port, ok, err := yazi.Adapter().Resolve("catppuccin-mocha", env)
+	port, ok, err := yazi.Adapter().Resolve(app.DefaultPort("catppuccin-mocha", "yazi"), env)
 	if err != nil || !ok || port.Kind != "official" {
 		t.Fatalf("official Yazi port unavailable: %#v, %v", port, err)
 	}
@@ -219,10 +221,11 @@ func TestFilesOfficialYaziManagedStylesPreserveEditedLeaves(t *testing.T) {
 	filesOfficialTestClient(t)
 	env := filesTestEnv(t)
 	path := shared.Path("yazi", env)
-	port, ok := shared.OfficialPort("yazi", "catppuccin-mocha")
-	if !ok {
+	spec := app.DefaultPort("catppuccin-mocha", "yazi")
+	if spec.Official == nil {
 		t.Fatal("Catppuccin Yazi source not registered")
 	}
+	port := *spec.Official
 	if err := yazi.Adapter().Apply(port, env); err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +241,7 @@ func TestFilesOfficialYaziManagedStylesPreserveEditedLeaves(t *testing.T) {
 	flavorRoot := filepath.Join(filepath.Dir(path), "flavors", "nord.yazi")
 	filesTestWrite(t, filepath.Join(flavorRoot, "flavor.toml"), "[mgr]\ncwd = { fg = 'blue' }\n")
 	filesTestWrite(t, filepath.Join(flavorRoot, "tmtheme.xml"), filesOfficialTestSyntax)
-	native, ok, err := yazi.Adapter().Resolve("nord", env)
+	native, ok, err := yazi.Adapter().Resolve(app.DefaultPort("nord", "yazi"), env)
 	if err != nil || !ok || native.Kind != "native" {
 		t.Fatalf("native flavor: %#v, %v", native, err)
 	}
@@ -292,7 +295,7 @@ func TestFilesOfficialYaziFailuresPreserveSettingsAndInstalledSyntax(t *testing.
 					return nil, fmt.Errorf("unexpected asset request %s", r.URL)
 				}
 			})
-			port, _ := shared.OfficialPort("yazi", "catppuccin-mocha")
+			port := *app.DefaultPort("catppuccin-mocha", "yazi").Official
 			if err := yazi.Adapter().Apply(port, env); err == nil {
 				t.Fatal("failed download or native validation accepted")
 			}
@@ -331,7 +334,7 @@ func TestFilesOfficialNativeDownloadFailuresLeaveSettingsUntouched(t *testing.T)
 					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(tc.invalid)), Header: make(http.Header)}, nil
 				})
 				adapter := filesTestAdapter(t, tc.id)
-				port, ok, err := adapter.Resolve(tc.name, env)
+				port, ok, err := adapter.Resolve(app.DefaultPort(tc.name, tc.id), env)
 				if err != nil || !ok {
 					t.Fatalf("official port unavailable: %#v, %v", port, err)
 				}
@@ -348,10 +351,11 @@ func TestFilesOfficialNativeDownloadFailuresLeaveSettingsUntouched(t *testing.T)
 
 func TestFilesOfficialYaziReapplyFetchesLatestThemeAndSyntax(t *testing.T) {
 	env := filesTestEnv(t)
-	port, ok := shared.OfficialPort("yazi", "catppuccin-mocha")
-	if !ok {
+	spec := app.DefaultPort("catppuccin-mocha", "yazi")
+	if spec.Official == nil {
 		t.Fatal("Catppuccin Yazi source not registered")
 	}
+	port := *spec.Official
 	theme := filesOfficialTestYazi
 	syntax := filesOfficialTestSyntax
 	requests := 0
@@ -398,7 +402,7 @@ func TestFilesOfficialYaziLegacyCleanupUsesCurrentSourceConservatively(t *testin
 		requests++
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(filesOfficialTestYazi)), Header: make(http.Header)}, nil
 	})
-	port, ok, err := yazi.Adapter().Resolve("nord", env)
+	port, ok, err := yazi.Adapter().Resolve(app.DefaultPort("nord", "yazi"), env)
 	if err != nil || !ok {
 		t.Fatalf("native flavor unavailable: %#v, %v", port, err)
 	}

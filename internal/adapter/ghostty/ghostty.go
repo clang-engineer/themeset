@@ -12,18 +12,19 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-var names = map[string][]string{
-	"dracula": {"Dracula"}, "catppuccin-mocha": {"Catppuccin Mocha"}, "nord": {"Nord"}, "gruvbox": {"Gruvbox Dark"},
-	"gruvbox-dark": {"Gruvbox Dark"}, "gruvbox-dark-hard": {"Gruvbox Dark Hard"},
-	"tokyonight": {"TokyoNight Night"}, "tokyo-night": {"TokyoNight Night"}, "rose-pine": {"Rose Pine"}, "kanagawa": {"Kanagawa Wave"},
-	"everforest": {"Everforest Dark Med", "everforest"}, "github-dark": {"GitHub Dark"}, "moonfly": {"Moonfly", "moonfly"},
-	"sonokai": {"Sonokai"}, "cyberdream": {"cyberdream"}, "onedark": {"onedark", "One Dark"},
-	"github-dark-high-contrast": {"GitHub Dark High Contrast"}, "gruvbox-hard": {"Gruvbox Dark Hard"},
-	"modus-vivendi": {"Modus Vivendi"}, "vscode-dark": {"vscode-dark"},
+func Adapter() model.Adapter {
+	return model.Adapter{ID: "ghostty", Binary: "ghostty", Resolve: nativeResolveGhostty, Apply: nativeApplyGhostty}
 }
 
-func Adapter() model.Adapter {
-	return model.Adapter{ID: "ghostty", Binary: "ghostty", Resolve: shared.ListedResolver("ghostty", names, shared.GhosttyThemesSource, "+list-themes"), Apply: nativeApplyGhostty}
+func nativeResolveGhostty(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	port, ok, err := shared.ListedCandidates("ghostty", spec.Native, shared.GhosttyThemesSource, env, "+list-themes")
+	if ok || err != nil {
+		return port, ok, err
+	}
+	if spec.Official != nil {
+		return *spec.Official, true, nil
+	}
+	return model.Port{}, false, nil
 }
 
 func nativeGhosttyPath(env model.Environment) string {

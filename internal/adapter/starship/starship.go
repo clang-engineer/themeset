@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -13,30 +14,25 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "starship", Binary: "starship", Remote: true, Resolve: filesResolveStarship, Apply: filesApplyStarship}
 }
 
-func filesResolveStarship(name string, env model.Environment) (model.Port, bool, error) {
-	switch name {
-	case "dracula":
-		return model.Port{Kind: "official", Name: name, Source: shared.StarshipDraculaSource}, true, nil
-	case "moonfly":
-		return model.Port{Kind: "official", Name: name, Source: shared.MoonflySource + "moonfly-starship.toml"}, true, nil
+func filesResolveStarship(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	if len(spec.Native) > 0 {
+		data, err := shared.Read(shared.Path("starship", env), true)
+		if err != nil {
+			return model.Port{}, false, err
+		}
+		config, err := shared.TOML(data)
+		if err != nil {
+			return model.Port{}, false, err
+		}
+		palettes, _ := config["palettes"].(map[string]any)
+		for _, name := range spec.Native {
+			if palette, ok := palettes[name].(map[string]any); ok && len(palette) > 0 {
+				return model.Port{Kind: "native", Name: name, Source: shared.StarshipPalettesSource}, true, nil
+			}
+		}
 	}
-	if port, found, err := shared.ResolveRosePinePort("starship", name, env); found || err != nil {
-		return port, found, err
-	}
-	if port, found, err := filesResolvePaletteFamily("starship", name, env); found || err != nil {
-		return port, found, err
-	}
-	data, err := shared.Read(shared.Path("starship", env), true)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	config, err := shared.TOML(data)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	palettes, _ := config["palettes"].(map[string]any)
-	if palette, ok := palettes[name].(map[string]any); ok && len(palette) > 0 {
-		return model.Port{Kind: "native", Name: name, Source: shared.StarshipPalettesSource}, true, nil
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
 	return model.Port{}, false, nil
 }
@@ -52,23 +48,19 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 				return err
 			}
 		} else {
-			switch port.Name {
-			case "rose-pine":
-				var err error
+			expected := catalog.Port(port.Name, "starship").Official
+			if expected == nil || port.Name != expected.Name || port.Source != expected.Source ||
+				port.Format != expected.Format || port.Variant != expected.Variant ||
+				port.LicenseURL != expected.LicenseURL || port.SyntaxURL != expected.SyntaxURL ||
+				port.File != "" || port.URL != "" {
+				return errors.New("unknown official Starship port")
+			}
+			var err error
+			switch port.Format {
+			case "starship-rose":
 				data, err = filesAcquireRosePinePort(port, env)
-				if err != nil {
-					return err
-				}
-			case "dracula", "moonfly":
-				source := shared.StarshipDraculaSource
-				if port.Name == "moonfly" {
-					source = shared.MoonflySource + "moonfly-starship.toml"
-				}
-				if port.Source != source {
-					return fmt.Errorf("unregistered official Starship source for %q", port.Name)
-				}
-				var err error
-				data, err = shared.AcquireAsset(env, source)
+			case "starship-preset":
+				data, err = shared.AcquireAsset(env, port.Source)
 				if err != nil {
 					return fmt.Errorf("acquire %s Starship palette: %w", port.Name, err)
 				}
@@ -76,12 +68,13 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 				if err != nil {
 					return fmt.Errorf("invalid %s Starship palette: %w", port.Name, err)
 				}
+			case "starship-palette":
+				data, err = filesAcquirePaletteFamily(port, env)
 			default:
-				var err error
-				data, err = filesAcquirePaletteFamily("starship", port.Name, env)
-				if err != nil {
-					return err
-				}
+				return fmt.Errorf("unsupported official Starship format %q", port.Format)
+			}
+			if err != nil {
+				return err
 			}
 		}
 		var err error
@@ -118,19 +111,12 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 	})
 }
 
-func filesPrepareStarshipPort(theme string, data []byte) ([]byte, error) {
-	if theme != "rose-pine" {
-		return nil, fmt.Errorf("unsupported Starship port %q", theme)
-	}
-	return filesPaletteFamilyTOML(data, theme)
-}
-
 func filesAcquireRosePinePort(port model.Port, env model.Environment) ([]byte, error) {
 	data, err := shared.AcquireRosePinePort("starship", port, env)
 	if err != nil {
 		return nil, err
 	}
-	data, err = filesPrepareStarshipPort("rose-pine", data)
+	data, err = filesPaletteFamilyTOML(data, port.Name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Rosé Pine starship theme: %w", err)
 	}

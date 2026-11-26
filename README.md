@@ -139,28 +139,29 @@ request, not that every window visually refreshed. On Linux, press
 `Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
 used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 
-The default catalog contains seven themes: `catppuccin-mocha`, `dracula`,
-`gruvbox`, `moonfly`, `nord`, `rose-pine` (Main), and `tokyo-night` (Night).
-The same catalog feeds `list`, shell completion, and the interactive picker.
-This is a fixed shortlist, not a dynamic filter or a promise that every tool
-supports each theme. Some sources are acquired automatically; otherwise the
-native provider must already be installed or an explicit custom port registered.
-Other theme IDs can be explicitly registered under `themes` in the JSON config,
-including an empty entry when only installed native providers are needed.
-A custom registration is never relabeled as official.
+The bundled catalog in `internal/catalog/defaults.json` defines seven listed
+themes: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, `nord`,
+`rose-pine` (Main), and `tokyo-night` (Night). It declares each tool's
+installed-native candidate names and, where available, a verified upstream
+port. The same listed IDs feed `list`, shell completion, and the interactive
+picker. This shortlist is not a promise that every tool supports each theme.
+Other IDs can be registered under `themes` in the JSON config, including an
+empty entry when a bundled native alias is available. User custom entries
+replace the bundled declaration for that theme and tool; declarations for
+other tools remain unchanged. Custom URLs are never labeled official.
 
 ## Integrations
 
 For each tool's source, installation/placement, activation, reload, preservation
 rules, and current implementation gaps, see the
 [adapter lifecycle reference](theme-adapters.md).
-Registered official assets are fetched over HTTPS on each apply; adapters validate
+Bundled official assets are fetched over HTTPS on each apply; adapters validate
 their native formats before changing settings. Installed native themes and custom
 ports remain local. Rosé Pine uses Main-variant sources; Tokyo Night uses Night.
-`internal/adapter/` assembles per-tool packages. Official source URLs, licenses,
-and provider provenance are registered in `internal/adapter/shared/sources.go`.
-Each tool package resolves its supported themes and validates/applies settings;
-the other `shared/` files provide common I/O and download guards.
+The bundled catalog owns theme IDs, per-tool installed names, and official
+source URLs. Each tool package checks availability and applies the declared port
+using its native format; `internal/adapter/shared/` supplies common I/O and
+download guards.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|

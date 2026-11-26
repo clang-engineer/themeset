@@ -10,12 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-var builtinThemes = []string{
-	"catppuccin-mocha", "dracula", "gruvbox", "moonfly", "nord", "rose-pine", "tokyo-night",
-}
+var builtinThemes = catalog.Listed()
 
 // ToolResult separates support selection from the actual application outcome.
 type ToolResult struct {
@@ -109,7 +108,7 @@ func plan(theme string, config model.Config, env model.Environment, adapters []m
 				}
 			}
 		} else {
-			port, found, err := adapter.Resolve(theme, env)
+			port, found, err := adapter.Resolve(DefaultPort(theme, adapter.ID), env)
 			switch {
 			case err != nil:
 				item.Error = fmt.Sprintf("inspect native theme: %v", err)

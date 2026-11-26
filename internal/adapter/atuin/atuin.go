@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -29,11 +30,8 @@ func filesAtuinThemes(env model.Environment) string {
 }
 
 func filesAtuinBuiltin(name string) bool {
-	switch name {
-	case "default", "autumn", "marine", "pumpkin", "default-powershell", "(none)":
-		return true
-	}
-	return false
+	candidates := catalog.Port(name, "atuin").Native
+	return len(candidates) == 1 && candidates[0] == name
 }
 
 func filesAtuinTheme(data []byte) (string, error) {
@@ -55,35 +53,35 @@ func filesAtuinTheme(data []byte) (string, error) {
 	return name, nil
 }
 
-func filesResolveAtuin(name string, env model.Environment) (model.Port, bool, error) {
-	if port, ok := shared.OfficialPort("atuin", name); ok {
-		return port, true, nil
+func filesResolveAtuin(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	for _, name := range spec.Native {
+		if filesAtuinBuiltin(name) {
+			return model.Port{Kind: "native", Name: name, Source: shared.AtuinThemesSource}, true, nil
+		}
+		if !shared.Name(name) {
+			continue
+		}
+		path := filepath.Join(filesAtuinThemes(env), name+".toml")
+		data, err := shared.Read(path, true)
+		if err != nil {
+			return model.Port{}, false, err
+		}
+		if len(data) == 0 {
+			continue
+		}
+		actual, err := filesAtuinTheme(data)
+		if err != nil {
+			return model.Port{}, false, err
+		}
+		if actual != name {
+			return model.Port{}, false, fmt.Errorf("Atuin theme %s declares name %q, expected %q", path, actual, name)
+		}
+		return model.Port{Kind: "native", Name: name, File: path, Source: shared.AtuinThemesSource}, true, nil
 	}
-	if port, found, err := shared.ResolveRosePinePort("atuin", name, env); found || err != nil {
-		return port, found, err
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
-	if filesAtuinBuiltin(name) {
-		return model.Port{Kind: "native", Name: name, Source: shared.AtuinThemesSource}, true, nil
-	}
-	if !shared.Name(name) {
-		return model.Port{}, false, nil
-	}
-	path := filepath.Join(filesAtuinThemes(env), name+".toml")
-	data, err := shared.Read(path, true)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if len(data) == 0 {
-		return model.Port{}, false, nil
-	}
-	actual, err := filesAtuinTheme(data)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if actual != name {
-		return model.Port{}, false, fmt.Errorf("Atuin theme %s declares name %q, expected %q", path, actual, name)
-	}
-	return model.Port{Kind: "native", Name: name, File: path, Source: shared.AtuinThemesSource}, true, nil
+	return model.Port{}, false, nil
 }
 
 func filesApplyAtuin(port model.Port, env model.Environment) error {
@@ -95,7 +93,7 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 			return err
 		}
 		if port.Kind == "official" && port.File == "" && port.URL == "" {
-			if err := filesValidateAtuinPort(port.Name, asset); err != nil {
+			if err := filesValidateAtuinPort(port, asset); err != nil {
 				return err
 			}
 		}
@@ -110,7 +108,7 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 		if filesAtuinBuiltin(port.Name) {
 			return errors.New("custom Atuin theme must not shadow a built-in theme name")
 		}
-	} else if _, ok, err := filesResolveAtuin(port.Name, env); err != nil {
+	} else if _, ok, err := filesResolveAtuin(model.ThemePort{Native: []string{port.Name}}, env); err != nil {
 		return err
 	} else if !ok {
 		return fmt.Errorf("Atuin theme %q is not available", port.Name)
@@ -134,15 +132,16 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 	})
 }
 
-func filesValidateAtuinPort(theme string, data []byte) error {
+func filesValidateAtuinPort(port model.Port, data []byte) error {
 	name, err := filesAtuinTheme(data)
 	if err != nil {
 		return err
 	}
-	if theme == "catppuccin-mocha" {
-		theme = "catppuccin-mocha-mauve"
+	expected := port.Variant
+	if expected == "" {
+		expected = port.Name
 	}
-	if name != theme {
+	if !shared.Name(expected) || name != expected {
 		return fmt.Errorf("unexpected Atuin theme name %q", name)
 	}
 	return nil
@@ -153,18 +152,23 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		return shared.Custom(port, env)
 	}
 	if port.Kind == "official" {
-		if port.Name == "rose-pine" {
+		if !catalog.Verified("atuin", port) {
+			return nil, fmt.Errorf("unregistered Atuin official port %q", port.Name)
+		}
+		switch port.Format {
+		case "atuin-rose":
 			data, err := shared.AcquireRosePinePort("atuin", port, env)
 			if err != nil {
 				return nil, err
 			}
-			if err := filesValidateAtuinPort("rose-pine", data); err != nil {
+			if err := filesValidateAtuinPort(port, data); err != nil {
 				return nil, fmt.Errorf("invalid Rosé Pine atuin theme: %w", err)
 			}
 			return data, nil
-		}
-		if registered, ok := shared.OfficialPort("atuin", port.Name); ok && port.Source == registered.Source {
+		case "atuin-file":
 			return shared.AcquireAsset(env, port.Source)
+		default:
+			return nil, fmt.Errorf("unsupported official Atuin format %q", port.Format)
 		}
 	}
 	return nil, fmt.Errorf("atuin requires an available official port or a registered native theme file")

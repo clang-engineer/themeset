@@ -29,10 +29,12 @@ Each enabled `(theme, tool)` recipe must record:
 | Preservation | Theme-owned fields versus unrelated user settings; known higher-priority overrides |
 | Verification | Asset validation plus observation that the actual application consumes the selected theme |
 
-Documentation links below describe upstream procedures, not executable registry
-entries. Automatic downloads use registered official HTTPS URLs and are validated
-as data by the tool adapter.
-No unimplemented JSON fields or new CLI commands are introduced by this document.
+The bundled [theme declarations](internal/catalog/defaults.json) list native
+candidate names and verified official source URLs by theme and tool. User
+`themes.<id>.custom.<tool>` entries replace that one bundled declaration;
+other tool declarations stay in effect. Adapters validate and apply the native
+data using tool-specific logic. Documentation links below describe upstream
+procedures, not executable registry entries.
 
 Requested application rules:
 
@@ -405,8 +407,8 @@ roots and existing package managers; do not hardcode a developer's home path.
 
 ## Implementation anchors and verification scope
 
-- [Adapter registry](internal/adapter/shared_registry.go),
-  [central official source URLs](internal/adapter/shared/sources.go),
+- [Bundled theme declarations](internal/catalog/defaults.json),
+  [adapter registry](internal/adapter/shared_registry.go),
   [shared file and native helpers](internal/adapter/shared/),
   [Ghostty](internal/adapter/ghostty/),
   [Neovim](internal/adapter/neovim/),

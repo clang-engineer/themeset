@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -63,21 +64,12 @@ func filesBtopTheme(data []byte) error {
 	return nil
 }
 
-func filesResolveBtop(name string, env model.Environment) (model.Port, bool, error) {
-	if !shared.Name(name) {
-		return model.Port{}, false, nil
-	}
-	names := []string{name}
-	switch name {
-	case "gruvbox":
-		names = []string{"gruvbox_dark", "gruvbox"}
-	case "catppuccin-mocha":
-		names = []string{"catppuccin_mocha", "catppuccin-mocha"}
-	case "tokyo-night":
-		names = []string{"tokyonight_night", "tokyo-night"}
-	}
-	for _, dir := range filesBtopDirectories(env) {
-		for _, candidate := range names {
+func filesResolveBtop(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	for _, candidate := range spec.Native {
+		if !shared.Name(candidate) {
+			continue
+		}
+		for _, dir := range filesBtopDirectories(env) {
 			path := filepath.Join(dir, candidate+".theme")
 			data, err := shared.Read(path, true)
 			if err != nil {
@@ -92,37 +84,37 @@ func filesResolveBtop(name string, env model.Environment) (model.Port, bool, err
 			return model.Port{Kind: "native", Name: candidate, File: path, Source: shared.BtopThemesSource}, true, nil
 		}
 	}
-	if port, found, err := shared.ResolveTokyoNightPort("btop", name, env); found || err != nil {
-		return port, found, err
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
-	if port, found, err := shared.ResolveRosePinePort("btop", name, env); found || err != nil {
-		return port, found, err
-	}
-	if name == "catppuccin-mocha" {
-		return filesResolveBtopCatppuccin()
-	}
-	return filesResolveBtopUpstream(name)
+	return model.Port{}, false, nil
 }
 
 func filesApplyBtop(port model.Port, env model.Environment) error {
 	var asset []byte
 	switch port.Kind {
 	case "official":
+		if !catalog.Verified("btop", port) {
+			return fmt.Errorf("unregistered btop official theme %q", port.Name)
+		}
 		var err error
-		if port.Source == shared.BtopCatppuccinSource && port.Name == "catppuccin_mocha" {
-			asset, err = filesAcquireBtopCatppuccin(env)
-		} else if source, ok := shared.TokyoNightSource("btop"); ok && port.Source == source && port.Name == "tokyonight_night" {
+		switch port.Format {
+		case "btop-cat":
+			asset, err = filesAcquireBtopCatppuccin(port, env)
+		case "btop-tokyo":
 			asset, err = filesAcquireTokyoNightPort(port, env)
-		} else if port.Name == "rose-pine" {
+		case "btop-rose":
 			asset, err = filesAcquireRosePinePort(port, env)
-		} else {
+		case "btop-upstream":
 			asset, err = filesAcquireBtopUpstream(port, env)
+		default:
+			return fmt.Errorf("unsupported btop official format %q", port.Format)
 		}
 		if err != nil {
 			return err
 		}
 	case "native":
-		if _, ok, err := filesResolveBtop(port.Name, env); err != nil {
+		if _, ok, err := filesResolveBtop(model.ThemePort{Native: []string{port.Name}}, env); err != nil {
 			return err
 		} else if !ok {
 			return fmt.Errorf("btop theme %q is not installed", port.Name)
@@ -170,20 +162,18 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 	return shared.Atomic(path, []byte(strings.Join(lines, "\n")))
 }
 
-func filesResolveBtopCatppuccin() (model.Port, bool, error) {
-	return model.Port{Kind: "official", Name: "catppuccin_mocha", Source: shared.BtopCatppuccinSource}, true, nil
-}
-
-func filesAcquireBtopCatppuccin(env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, shared.BtopCatppuccinSource)
+func filesAcquireBtopCatppuccin(port model.Port, env model.Environment) ([]byte, error) {
+	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire btop Catppuccin Mocha: %w", err)
 	}
 	if err := filesBtopTheme(data); err != nil {
 		return nil, fmt.Errorf("invalid btop Catppuccin Mocha: %w", err)
 	}
-	if _, err := shared.AcquireAsset(env, shared.BtopCatppuccinLicense); err != nil {
-		return nil, fmt.Errorf("acquire btop Catppuccin Mocha license: %w", err)
+	if port.LicenseURL != "" {
+		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+			return nil, fmt.Errorf("acquire btop Catppuccin Mocha license: %w", err)
+		}
 	}
 	return data, nil
 }

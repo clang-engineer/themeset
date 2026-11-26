@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
+	"github.com/clang-engineer/themeset/internal/model"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +14,13 @@ import (
 	"strings"
 	"testing"
 )
+
+func filesResolveEzaFamily(name string, env model.Environment) (model.Port, bool, error) {
+	if name != "gruvbox" {
+		return filesResolveEza(model.ThemePort{}, env)
+	}
+	return filesResolveEza(catalog.Port(name, "eza"), env)
+}
 
 func ezaGruvboxFixture(t *testing.T) []byte {
 	t.Helper()
@@ -157,7 +166,7 @@ func TestEzaFamilyRejectsWrongSchemaAndUnknownTheme(t *testing.T) {
 	if _, ok, err := filesResolveEzaFamily("moonfly", env); ok || err != nil {
 		t.Fatalf("unverified Moonfly unexpectedly resolved: ok=%v err=%v", ok, err)
 	}
-	if _, err := filesAcquireEzaFamily("nord", env); err == nil {
+	if _, err := filesAcquireEzaFamily(model.Port{Kind: "official", Name: "nord", Format: "eza-family"}, env); err == nil {
 		t.Fatal("unregistered eza family theme acquired")
 	}
 }

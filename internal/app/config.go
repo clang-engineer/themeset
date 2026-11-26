@@ -103,6 +103,9 @@ func loadConfig(path string, env model.Environment) (model.Config, string, error
 	}
 	for theme, definition := range config.Themes {
 		for id, port := range definition.Custom {
+			if port.Format != "" || port.Variant != "" || port.LicenseURL != "" || port.AssetURL != "" || port.LicenseSyntaxURL != "" {
+				return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s: format, variant and bundled asset URLs are reserved for bundled declarations", theme, id)
+			}
 			if port.URL != "" {
 				if port.File != "" {
 					return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s: file and url are mutually exclusive", theme, id)

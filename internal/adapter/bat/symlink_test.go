@@ -56,3 +56,22 @@ func TestNativeBatRequiresThemeSelection(t *testing.T) {
 		t.Fatal("missing theme accepted")
 	}
 }
+
+func TestResolveBatUsesDeclaredCandidatesInOrder(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "bat"), []byte("#!/bin/sh\nprintf 'Second\\nFirst\\n'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	env := model.Environment{Home: t.TempDir()}
+	spec := model.ThemePort{Native: []string{"First", "Second"}, Official: &model.Port{Kind: "official", Name: "fallback"}}
+	port, ok, err := Adapter().Resolve(spec, env)
+	if err != nil || !ok || port.Kind != "native" || port.Name != "First" {
+		t.Fatalf("candidate order ignored: %#v, %v", port, err)
+	}
+	spec.Native = nil
+	port, ok, err = Adapter().Resolve(spec, env)
+	if err != nil || !ok || port.Kind != "official" || port.Name != "fallback" {
+		t.Fatalf("declared official fallback ignored: %#v, %v", port, err)
+	}
+}

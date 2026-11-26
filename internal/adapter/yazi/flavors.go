@@ -11,39 +11,19 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-func filesResolveRosePineYazi(name string, env model.Environment) (model.Port, bool, error) {
-	if name != "rose-pine" {
-		return model.Port{}, false, nil
-	}
-	port := model.Port{Kind: "official", Name: name, Source: shared.RosePineYaziSource}
-	installed, err := filesYaziFlavorInstalled(name, env)
-	if err != nil || !installed {
-		return port, err == nil, err
-	}
-	root := filesYaziFlavorRoot(name, env)
-	owned, err := filesYaziMatchesSource(root, shared.RosePineYaziSource)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if !owned {
-		port.Kind = "native"
-		port.File = filepath.Join(root, "flavor.toml")
-	}
-	return port, true, nil
-}
-
-func filesInstallRosePineYazi(env model.Environment) error {
-	root := filesYaziFlavorRoot("rose-pine", env)
-	content := make(map[string][]byte, len(shared.RosePineYaziAssets))
-	for _, path := range shared.RosePineYaziAssets {
-		data, err := shared.AcquireAsset(env, shared.RosePineYaziBase+path)
+func filesInstallRosePineYazi(port model.Port, env model.Environment) error {
+	root := filesYaziFlavorRoot(port.Name, env)
+	content := make(map[string][]byte, 2)
+	for name, url := range map[string]string{"flavor.toml": port.AssetURL, "tmtheme.xml": port.SyntaxURL} {
+		data, err := shared.AcquireAsset(env, url)
 		if err != nil {
-			return fmt.Errorf("acquire Rosé Pine Yazi %s: %w", path, err)
+			return fmt.Errorf("acquire Rosé Pine Yazi %s: %w", name, err)
 		}
-		content[filepath.Base(path)] = data
+		content[name] = data
 	}
 	config, err := shared.TOML(content["flavor.toml"])
 	if err != nil {
@@ -59,27 +39,19 @@ func filesInstallRosePineYazi(env model.Environment) error {
 	if err := xml.Unmarshal(content["tmtheme.xml"], &syntax); err != nil || syntax.XMLName.Local != "plist" {
 		return fmt.Errorf("invalid Rosé Pine Yazi syntax: %v", err)
 	}
-	return filesInstallOfficialYaziFlavor(root, shared.RosePineYaziSource, content)
+	return filesInstallOfficialYaziFlavor(root, port.Source, content)
 }
 
 func filesApplyRosePineYazi(port model.Port, env model.Environment) error {
-	if port.Name != "rose-pine" || port.Kind != "official" && port.Kind != "native" || port.Kind == "official" && port.Source != shared.RosePineYaziSource || port.Kind == "native" && port.File != filepath.Join(filesYaziFlavorRoot("rose-pine", env), "flavor.toml") {
+	if port.Kind != "official" || port.Format != "yazi-flavor-rose" || port.File != "" {
 		return errors.New("unregistered Rosé Pine Yazi flavor")
-	}
-	if port.Kind == "native" {
-		installed, err := filesYaziFlavorInstalled("rose-pine", env)
-		if err != nil || !installed {
-			return fmt.Errorf("Rosé Pine native Yazi flavor unavailable: %v", err)
-		}
 	}
 	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
 		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
 			return err
 		}
-		if port.Kind == "official" {
-			if err := filesInstallRosePineYazi(env); err != nil {
-				return err
-			}
+		if err := filesInstallRosePineYazi(port, env); err != nil {
+			return err
 		}
 		flavor, err := shared.Table(config, "flavor")
 		if err != nil {
@@ -91,64 +63,28 @@ func filesApplyRosePineYazi(port model.Port, env model.Environment) error {
 		return nil
 	})
 }
-func filesResolveTokyoNightYazi(name string, env model.Environment) (model.Port, bool, error) {
-	port, found, err := shared.ResolveTokyoNightPort("yazi", name, env)
-	if !found || err != nil {
-		return port, found, err
-	}
-	installed, err := filesYaziFlavorInstalled(name, env)
-	if err != nil || !installed {
-		return port, err == nil, err
-	}
-	root := filesYaziFlavorRoot(name, env)
-	owned, err := filesYaziMatchesSource(root, port.Source)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if !owned {
-		port.Kind = "native"
-		port.File = filepath.Join(root, "flavor.toml")
-		port.Source = shared.YaziThemesSource
-	}
-	return port, true, nil
-}
 func filesApplyTokyoNightYazi(port model.Port, env model.Environment) error {
-	if port.Name != "tokyo-night" {
+	if port.Kind != "official" || port.Format != "yazi-flavor-tokyo" {
 		return errors.New("unregistered Tokyo Night Yazi flavor")
 	}
-	if port.Kind == "native" {
-		if port.File != filepath.Join(filesYaziFlavorRoot(port.Name, env), "flavor.toml") || port.Source != shared.YaziThemesSource {
-			return errors.New("unregistered native Tokyo Night Yazi flavor")
-		}
-		installed, err := filesYaziFlavorInstalled(port.Name, env)
-		if err != nil {
-			return err
-		}
-		if !installed {
-			return errors.New("Tokyo Night Yazi flavor is not installed completely")
-		}
-		return filesSelectTokyoNightYazi(env)
-	}
-	source, _ := shared.TokyoNightSource("yazi")
-	if port.File != "" || port.Kind != "official" || port.Source != source {
+	if port.File != "" || port.Kind != "official" || port.Source == "" {
 		return errors.New("unregistered Tokyo Night Yazi flavor")
 	}
-	flavorData, err := shared.AcquireTokyoNightPort("yazi", port, env)
+	flavorData, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
 		return err
 	}
 	if err := filesValidateYaziPort(flavorData); err != nil {
 		return fmt.Errorf("invalid Tokyo Night yazi port: %w", err)
 	}
-	syntax, _ := shared.TokyoNightSource("syntax")
-	syntaxData, err := shared.AcquireAsset(env, syntax)
+	syntaxData, err := shared.AcquireAsset(env, port.SyntaxURL)
 	if err != nil {
 		return fmt.Errorf("acquire Tokyo Night Yazi syntax: %w", err)
 	}
-	return filesInstallTokyoNightYazi(env, flavorData, syntaxData)
+	return filesInstallTokyoNightYazi(env, port.Source, flavorData, syntaxData)
 }
 
-func filesInstallTokyoNightYazi(env model.Environment, flavorData, syntaxData []byte) error {
+func filesInstallTokyoNightYazi(env model.Environment, source string, flavorData, syntaxData []byte) error {
 	var theme struct {
 		XMLName xml.Name `xml:"plist"`
 	}
@@ -164,7 +100,6 @@ func filesInstallTokyoNightYazi(env model.Environment, flavorData, syntaxData []
 		return errors.New("Tokyo Night Yazi flavor has no [mgr] styles")
 	}
 	root := filesYaziFlavorRoot("tokyo-night", env)
-	source, _ := shared.TokyoNightSource("yazi")
 	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
 		flavor, err := shared.Table(config, "flavor")
 		if err != nil {
@@ -177,22 +112,6 @@ func filesInstallTokyoNightYazi(env model.Environment, flavorData, syntaxData []
 			"flavor.toml": flavorData,
 			"tmtheme.xml": syntaxData,
 		}); err != nil {
-			return err
-		}
-		flavor["dark"] = "tokyo-night"
-		flavor["light"] = "tokyo-night"
-		delete(flavor, "use")
-		return nil
-	})
-}
-
-func filesSelectTokyoNightYazi(env model.Environment) error {
-	return shared.EditTOML(shared.Path("yazi", env), func(config map[string]any) error {
-		if err := filesRemovePreviousYaziStyles(config, env); err != nil {
-			return err
-		}
-		flavor, err := shared.Table(config, "flavor")
-		if err != nil {
 			return err
 		}
 		flavor["dark"] = "tokyo-night"
@@ -215,40 +134,14 @@ func filesYaziDraculaRoot(env model.Environment) string {
 	return filesYaziFlavorRoot("dracula", env)
 }
 
-// Independently installed compatible flavors remain native, even when their
-// bytes happen to match a previously downloaded official release.
-func filesYaziDraculaInstalled(env model.Environment) (bool, error) {
-	return filesYaziFlavorInstalled("dracula", env)
-}
-
-func filesResolveYaziDracula(env model.Environment) (model.Port, bool, error) {
-	port := model.Port{Kind: "official", Name: "dracula", Source: shared.YaziDraculaSource}
-	installed, err := filesYaziDraculaInstalled(env)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if !installed {
-		return port, true, nil
-	}
-	matches, err := filesYaziMatchesSource(filesYaziDraculaRoot(env), shared.YaziDraculaSource)
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	if !matches {
-		port.Kind = "native"
-		port.File = filepath.Join(filesYaziDraculaRoot(env), "flavor.toml")
-	}
-	return port, true, nil
-}
-
-func filesInstallYaziDracula(env model.Environment) error {
-	installed, err := filesYaziDraculaInstalled(env)
+func filesInstallYaziDracula(port model.Port, env model.Environment) error {
+	installed, err := filesYaziFlavorInstalled(port.Name, env)
 	if err != nil || installed {
 		return err
 	}
 	// Acquire and validate everything before making a flavor visible. Existing
 	// partial files must match the current upstream bytes, not a historical hash.
-	root := filesYaziDraculaRoot(env)
+	root := filesYaziFlavorRoot(port.Name, env)
 	info, err := os.Lstat(root)
 	exists := err == nil
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -263,14 +156,16 @@ func filesInstallYaziDracula(env model.Environment) error {
 		if err != nil {
 			return err
 		}
-		if marker != nil && string(marker) != shared.YaziDraculaSource+"\n" {
+		if marker != nil && string(marker) != port.Source+"\n" {
 			return fmt.Errorf("incomplete Dracula flavor has conflicting %s; refusing to overwrite it", filesYaziSourceMarker)
 		}
 		owned = marker != nil
 	}
-	assets := make([][]byte, len(shared.YaziDraculaAssets))
-	for i, asset := range shared.YaziDraculaAssets {
-		assets[i], err = shared.AcquireAsset(env, shared.YaziDraculaRaw+asset)
+	assets := make([][]byte, 4)
+	names := [...]string{"flavor.toml", "tmtheme.xml", "LICENSE", "LICENSE-tmtheme"}
+	urls := [...]string{port.AssetURL, port.SyntaxURL, port.LicenseURL, port.LicenseSyntaxURL}
+	for i, asset := range names {
+		assets[i], err = shared.AcquireAsset(env, urls[i])
 		if err != nil {
 			return fmt.Errorf("acquire Yazi Dracula %s: %w", asset, err)
 		}
@@ -318,12 +213,12 @@ func filesInstallYaziDracula(env model.Environment) error {
 			return fmt.Errorf("stage existing Dracula flavor: %w", err)
 		}
 	}
-	for i, asset := range shared.YaziDraculaAssets {
+	for i, asset := range names {
 		if err := shared.Atomic(filepath.Join(stage, asset), assets[i]); err != nil {
 			return err
 		}
 	}
-	if err := shared.Atomic(filepath.Join(stage, filesYaziSourceMarker), []byte(shared.YaziDraculaSource+"\n")); err != nil {
+	if err := shared.Atomic(filepath.Join(stage, filesYaziSourceMarker), []byte(port.Source+"\n")); err != nil {
 		return err
 	}
 	if !exists {
@@ -389,11 +284,7 @@ func filesRemovePreviousYaziStyles(config map[string]any, env model.Environment)
 		if !catppuccin {
 			return nil
 		}
-		port, registered := shared.OfficialPort("yazi", "catppuccin-mocha")
-		if !registered {
-			return errors.New("Catppuccin Yazi source is not registered")
-		}
-		data, err = filesPortData(port, env)
+		data, err = shared.AcquireAsset(env, catalog.Port("catppuccin-mocha", "yazi").Official.Source)
 		if err != nil {
 			return err
 		}

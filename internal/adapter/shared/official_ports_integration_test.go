@@ -16,6 +16,7 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/fzf"
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/app"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -40,14 +41,14 @@ func TestRosePineOfficialRecipesAreReadOnly(t *testing.T) {
 		if !ok || !strings.Contains(source, "https://raw.githubusercontent.com/rose-pine/"+id+"/main/") {
 			t.Fatalf("missing current %s source: %q", id, source)
 		}
-		port, ok, err := shared.ResolveRosePinePort(id, "rose-pine", env)
+		port, ok, err := filesTestAdapter(t, id).Resolve(app.DefaultPort("rose-pine", id), env)
 		if err != nil || !ok || port.Kind != "official" || port.Source != source {
 			t.Fatalf("resolve %s: %#v, ok=%v, err=%v", id, port, ok, err)
 		}
 		if _, err := shared.AcquireRosePinePort(id, model.Port{Kind: "official", Name: "rose-pine", Source: "https://example.org/unverified"}, env); err == nil {
 			t.Fatalf("accepted unregistered %s asset", id)
 		}
-		if _, ok, err := shared.ResolveRosePinePort(id, "rose-pine-moon", env); ok || err != nil {
+		if _, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{}, env); ok || err != nil {
 			t.Fatalf("unregistered variant available for %s: %v", id, err)
 		}
 	}
@@ -61,7 +62,7 @@ func TestRosePineOfficialRecipesAreReadOnly(t *testing.T) {
 
 func TestRosePineFZFOfficialColorsPreserveUserOptionsAndRefresh(t *testing.T) {
 	env := filesTestEnv(t)
-	port, ok, err := fzf.Adapter().Resolve("rose-pine", env)
+	port, ok, err := fzf.Adapter().Resolve(app.DefaultPort("rose-pine", "fzf"), env)
 	if err != nil || !ok {
 		t.Fatalf("resolve: %#v, %v", port, err)
 	}
@@ -110,7 +111,7 @@ func TestRosePineFailedAssetsDoNotChangeTheme(t *testing.T) {
 				}
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader([]byte("not fzf options"))), Header: make(http.Header)}, nil
 			})
-			port, _, _ := shared.ResolveRosePinePort("fzf", "rose-pine", env)
+			port, _, _ := fzf.Adapter().Resolve(app.DefaultPort("rose-pine", "fzf"), env)
 			if err := fzf.Adapter().Apply(port, env); err == nil {
 				t.Fatal("accepted unavailable or malformed official asset")
 			}
@@ -126,7 +127,7 @@ func TestRosePineDeltaFeatureImportsOnlyMainAndPreservesGitConfig(t *testing.T) 
 		t.Skip("git is required for native Git config parsing")
 	}
 	env := nativeTestEnvironment(t)
-	port, ok, err := delta.Adapter().Resolve("rose-pine", env)
+	port, ok, err := delta.Adapter().Resolve(app.DefaultPort("rose-pine", "delta"), env)
 	if err != nil || !ok || port.Kind != "official" {
 		t.Fatalf("resolve Delta feature: %#v, %v", port, err)
 	}
@@ -165,7 +166,7 @@ func TestRosePineDeltaRejectedAssetLeavesGitConfigUnchanged(t *testing.T) {
 	env := nativeTestEnvironment(t)
 	path := filepath.Join(env.Home, ".gitconfig")
 	nativeTestPut(t, path, "[user]\n name = Keep\n")
-	registered, _, _ := delta.Adapter().Resolve("rose-pine", env)
+	registered, _, _ := delta.Adapter().Resolve(app.DefaultPort("rose-pine", "delta"), env)
 	for _, port := range []model.Port{
 		{Kind: "official", Name: "rose-pine", Source: "https://example.com/unverified"},
 		{Kind: "official", Name: "rose-pine", Source: registered.Source, File: "override"},
@@ -175,7 +176,7 @@ func TestRosePineDeltaRejectedAssetLeavesGitConfigUnchanged(t *testing.T) {
 		}
 	}
 	testutil.AssetClient(t, func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") })
-	port, _, _ := delta.Adapter().Resolve("rose-pine", env)
+	port, _, _ := delta.Adapter().Resolve(app.DefaultPort("rose-pine", "delta"), env)
 	if err := delta.Adapter().Apply(port, env); err == nil || nativeTestGet(t, path) != "[user]\n name = Keep\n" {
 		t.Fatalf("failed Delta download changed Git config: %v", err)
 	}
@@ -191,7 +192,7 @@ func TestRosePineBatNeedsInstalledSyntaxTheme(t *testing.T) {
 	}
 	t.Setenv("PATH", bin)
 	resolve := bat.Adapter().Resolve
-	port, ok, err := resolve("rose-pine", env)
+	port, ok, err := resolve(app.DefaultPort("rose-pine", "bat"), env)
 	if err != nil || !ok || port.Kind != "native" || port.Name != "Rosé Pine" || port.Source != "https://github.com/rose-pine/tm-theme" {
 		t.Fatalf("installed Rosé Pine syntax: %#v, %v", port, err)
 	}
@@ -204,7 +205,7 @@ func TestRosePineBatNeedsInstalledSyntaxTheme(t *testing.T) {
 		t.Fatalf("bat options lost: %s", data)
 	}
 	nativeTestPut(t, binary, "#!/bin/sh\nprintf '%s\\n' 'Rosé Pine Moon'\n")
-	if _, ok, err := resolve("rose-pine", env); err != nil || ok {
+	if _, ok, err := resolve(app.DefaultPort("rose-pine", "bat"), env); err != nil || ok {
 		t.Fatalf("substituted Moon variant: %v", err)
 	}
 }

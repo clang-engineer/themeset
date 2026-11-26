@@ -48,7 +48,7 @@ func renderVisualPreview(theme string, config model.Config, env model.Environmen
 			// Do not show a native syntax palette that apply will override.
 			continue
 		}
-		port, found, err := candidate.Resolve(theme, env)
+		port, found, err := candidate.Resolve(DefaultPort(theme, candidate.ID), env)
 		if err != nil {
 			inspectionErrors = append(inspectionErrors, fmt.Errorf("inspect bat native preview: %q", err.Error()))
 			continue
@@ -70,7 +70,7 @@ func renderVisualPreview(theme string, config model.Config, env model.Environmen
 
 	_, customGhostty := config.Themes[theme].Custom["ghostty"]
 	if !customGhostty && ghostty.Resolve != nil && ghostty.Installed() {
-		port, found, err := ghostty.Resolve(theme, env)
+		port, found, err := ghostty.Resolve(DefaultPort(theme, ghostty.ID), env)
 		if err != nil {
 			inspectionErrors = append(inspectionErrors, fmt.Errorf("inspect Ghostty native preview: %q", err.Error()))
 		} else if found {

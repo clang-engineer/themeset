@@ -10,19 +10,6 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-// The Yazi-maintained flavors repository ships neither Gruvbox nor Nord nor
-// Moonfly. Its README links to independent community ports for the first two;
-// the Moonfly author's extras do not include a Yazi flavor. Consequently none
-// of these names has a trusted automatic acquisition recipe. An independently
-// installed complete flavor is nevertheless a native user-provided port.
-func filesYaziFamilyName(name string) bool {
-	switch name {
-	case "gruvbox", "nord", "moonfly":
-		return true
-	}
-	return false
-}
-
 func filesYaziFlavorRoot(name string, env model.Environment) string {
 	return filepath.Join(filepath.Dir(shared.Path("yazi", env)), "flavors", name+".yazi")
 }
@@ -56,26 +43,11 @@ func filesYaziFlavorInstalled(name string, env model.Environment) (bool, error) 
 	return true, nil
 }
 
-func filesResolveYaziFamily(name string, env model.Environment) (model.Port, bool, error) {
-	if !filesYaziFamilyName(name) {
-		return model.Port{}, false, nil
-	}
-	installed, err := filesYaziFlavorInstalled(name, env)
-	if err != nil || !installed {
-		return model.Port{}, false, err
-	}
-	return model.Port{
-		Kind: "native", Name: name,
-		File:   filepath.Join(filesYaziFlavorRoot(name, env), "flavor.toml"),
-		Source: shared.YaziThemesSource,
-	}, true, nil
-}
-
 // Activate only a previously detected native flavor. Explicit custom ports
 // must stay on the caller's existing custom path and never enter this function.
 func filesApplyYaziFamily(port model.Port, env model.Environment) error {
-	if !filesYaziFamilyName(port.Name) || port.Kind != "native" || port.File != filepath.Join(filesYaziFlavorRoot(port.Name, env), "flavor.toml") {
-		return errors.New("Yazi family requires a registered native flavor")
+	if !shared.Name(port.Name) || port.Kind != "native" || port.File != filepath.Join(filesYaziFlavorRoot(port.Name, env), "flavor.toml") {
+		return errors.New("Yazi native flavor must be an installed complete flavor")
 	}
 	installed, err := filesYaziFlavorInstalled(port.Name, env)
 	if err != nil {

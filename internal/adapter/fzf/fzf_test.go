@@ -11,6 +11,7 @@ import (
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -76,7 +77,7 @@ func TestFilesFZFOfficialExtractsCurrentSourceWithoutExecution(t *testing.T) {
 			env := testutil.Env(t)
 			source := tt.initial
 			filesFZFTestSource(t, map[string]*string{tt.source: &source})
-			port, ok, err := filesResolveFZF(tt.name, env)
+			port, ok, err := filesResolveFZF(catalog.Port(tt.name, "fzf"), env)
 			if !ok || err != nil || port.Source != tt.source {
 				t.Fatalf("resolve: %#v, %v", port, err)
 			}
@@ -131,7 +132,7 @@ func TestFilesFZFNewOfficialPortsPreserveShellOptions(t *testing.T) {
 			t.Setenv("FZF_DEFAULT_OPTS_FILE", ordinary)
 			path := shared.Path("fzf", env)
 			testutil.Write(t, path, "--color=fg:#010203\n")
-			port, ok, err := filesResolveFZF(name, env)
+			port, ok, err := filesResolveFZF(catalog.Port(name, "fzf"), env)
 			if err != nil || !ok || port.Kind != "official" || port.Name != name || !strings.HasPrefix(port.Source, "https://raw.githubusercontent.com/") {
 				t.Fatalf("official port unavailable: %#v, ok=%v, err=%v", port, ok, err)
 			}
@@ -191,7 +192,7 @@ func TestFilesFZFPresetsRejectInvalidOrMissingColorData(t *testing.T) {
 	env := testutil.Env(t)
 	source := filesFZFTestPresets
 	filesFZFTestSource(t, map[string]*string{shared.FZFPresetsSource: &source})
-	port, ok, err := filesResolveFZF("gruvbox", env)
+	port, ok, err := filesResolveFZF(catalog.Port("gruvbox", "fzf"), env)
 	if !ok || err != nil {
 		t.Fatalf("resolve: %#v, %v", port, err)
 	}
@@ -226,7 +227,7 @@ func TestFilesFZFCatppuccinFetchesCurrentColorsAndRejectsUnsafeOptions(t *testin
 	filesFZFTestBinary(t, env, "0.52.0")
 	source := "--color=fg:#CDD6F4,bg:#1E1E2E,selected-bg:#45475A\n"
 	filesFZFTestSource(t, map[string]*string{shared.FZFCatppuccinSource: &source})
-	port, ok, err := filesResolveFZF("catppuccin-mocha", env)
+	port, ok, err := filesResolveFZF(catalog.Port("catppuccin-mocha", "fzf"), env)
 	if !ok || err != nil {
 		t.Fatalf("resolve: %#v, %v", port, err)
 	}
@@ -242,6 +243,29 @@ func TestFilesFZFCatppuccinFetchesCurrentColorsAndRejectsUnsafeOptions(t *testin
 	source = "--color=fg:#123456\n--preview=touch-dangerous\n"
 	if err := filesApplyFZF(port, env); err == nil || !bytes.Equal(before, testutil.Read(t, path)) {
 		t.Fatal("unsafe Catppuccin source changed fzf configuration")
+	}
+}
+
+func TestFilesFZFRejectsForgedOfficialMetadataBeforeFetching(t *testing.T) {
+	env := testutil.Env(t)
+	path := shared.Path("fzf", env)
+	original := "--color=fg:#010203\n"
+	testutil.Write(t, path, original)
+	for _, tt := range []struct {
+		name   string
+		change func(*model.Port)
+	}{
+		{"source", func(p *model.Port) { p.Source = "https://example.test/unregistered.js" }},
+		{"variant", func(p *model.Port) { p.Variant = "Nord" }},
+		{"format", func(p *model.Port) { p.Format = "fzf-rc" }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			port := *catalog.Port("gruvbox", "fzf").Official
+			tt.change(&port)
+			if err := filesApplyFZF(port, env); err == nil || string(testutil.Read(t, path)) != original {
+				t.Fatalf("forged %s accepted or changed configuration: %v", tt.name, err)
+			}
+		})
 	}
 }
 
@@ -275,13 +299,13 @@ func TestFilesFZFIncompatibleVersionRejectsBeforeWriting(t *testing.T) {
 			filesFZFTestBinary(t, env, version)
 			presets := filesFZFTestPresets
 			filesFZFTestSource(t, map[string]*string{shared.FZFPresetsSource: &presets})
-			if _, ok, err := filesResolveFZF("catppuccin-mocha", env); ok || err == nil || !strings.Contains(err.Error(), "0.52.0") {
+			if _, ok, err := filesResolveFZF(catalog.Port("catppuccin-mocha", "fzf"), env); ok || err == nil || !strings.Contains(err.Error(), "0.52.0") {
 				t.Fatalf("incompatible version resolved: ok=%v, err=%v", ok, err)
 			}
 			path := shared.Path("fzf", env)
 			original := "--color=fg:#010203\n"
 			testutil.Write(t, path, original)
-			if err := filesApplyFZF(model.Port{Kind: "official", Name: "catppuccin-mocha"}, env); err == nil {
+			if err := filesApplyFZF(*catalog.Port("catppuccin-mocha", "fzf").Official, env); err == nil || !strings.Contains(err.Error(), "0.52.0") {
 				t.Fatal("incompatible version applied")
 			}
 			if string(testutil.Read(t, path)) != original {
@@ -294,7 +318,7 @@ func TestFilesFZFIncompatibleVersionRejectsBeforeWriting(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, name := range []string{"gruvbox", "nord"} {
-				port, ok, err := filesResolveFZF(name, env)
+				port, ok, err := filesResolveFZF(catalog.Port(name, "fzf"), env)
 				if !ok || err != nil {
 					t.Fatalf("stable-key preset %s requires modern fzf: %v", name, err)
 				}

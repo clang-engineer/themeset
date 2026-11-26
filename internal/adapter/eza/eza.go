@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -20,8 +21,8 @@ func filesApplyEza(port model.Port, env model.Environment) error {
 	if err != nil {
 		return err
 	}
-	if port.Kind == "official" && port.File == "" && port.Name == "catppuccin-mocha" {
-		if err := filesValidateEzaPort(port.Name, data); err != nil {
+	if port.Kind == "official" && port.File == "" && port.URL == "" {
+		if err := filesValidateEzaPort(port, data); err != nil {
 			return err
 		}
 	}
@@ -172,28 +173,34 @@ func rosePineValidateEza(data []byte) error {
 	return nil
 }
 
-func filesValidateEzaPort(theme string, data []byte) error {
-	switch theme {
-	case "catppuccin-mocha", "rose-pine":
+func filesValidateEzaPort(port model.Port, data []byte) error {
+	switch port.Format {
+	case "eza-cat", "eza-rose":
 		return rosePineValidateEza(data)
-	case "tokyo-night":
+	case "eza-tokyo":
+		return filesValidateEzaFamily(data)
+	case "eza-dracula":
+		return filesValidateEzaDracula(data)
+	case "eza-family":
 		return filesValidateEzaFamily(data)
 	default:
-		return fmt.Errorf("unsupported eza port %q", theme)
+		return fmt.Errorf("unsupported eza port format %q", port.Format)
 	}
 }
 
 // Acquisition is apply-only. Validate the upstream theme before touching settings.
-func filesAcquireEzaDracula(env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, shared.EzaDraculaSource)
+func filesAcquireEzaDracula(port model.Port, env model.Environment) ([]byte, error) {
+	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire eza Dracula: %w", err)
 	}
 	if err := filesValidateEzaDracula(data); err != nil {
 		return nil, err
 	}
-	if _, err := shared.AcquireAsset(env, shared.EzaDraculaLicenseSource); err != nil {
-		return nil, fmt.Errorf("acquire eza Dracula license: %w", err)
+	if port.LicenseURL != "" {
+		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+			return nil, fmt.Errorf("acquire eza Dracula license: %w", err)
+		}
 	}
 	return data, nil
 }
@@ -240,28 +247,23 @@ func filesValidateEzaDraculaStyle(name string, value any) error {
 	return nil
 }
 
-func filesResolveEzaFamily(name string, _ model.Environment) (model.Port, bool, error) {
-	if name != "gruvbox" {
-		return model.Port{}, false, nil
-	}
-	return model.Port{Kind: "official", Name: name, Source: shared.EzaGruvboxSource}, true, nil
-}
-
 // Called only on apply, after the resolver has registered an exact source.
 // The caller merges the validated eza styles into the effective theme.yml.
-func filesAcquireEzaFamily(name string, env model.Environment) ([]byte, error) {
-	if name != "gruvbox" {
-		return nil, fmt.Errorf("no registered eza family asset for %q", name)
+func filesAcquireEzaFamily(port model.Port, env model.Environment) ([]byte, error) {
+	if !catalog.Verified("eza", port) || port.Format != "eza-family" {
+		return nil, fmt.Errorf("unregistered eza family theme %q", port.Name)
 	}
-	data, err := shared.AcquireAsset(env, shared.EzaGruvboxSource)
+	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
-		return nil, fmt.Errorf("acquire eza Gruvbox Dark: %w", err)
+		return nil, fmt.Errorf("acquire eza %s: %w", port.Name, err)
 	}
-	if err := filesValidateEzaFamily(data); err != nil {
+	if err := filesValidateEzaPort(port, data); err != nil {
 		return nil, err
 	}
-	if _, err := shared.AcquireAsset(env, shared.EzaFamilyLicenseSource); err != nil {
-		return nil, fmt.Errorf("acquire eza Gruvbox Dark license: %w", err)
+	if port.LicenseURL != "" {
+		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+			return nil, fmt.Errorf("acquire eza %s license: %w", port.Name, err)
+		}
 	}
 	return data, nil
 }
@@ -324,21 +326,11 @@ func filesValidateEzaFamilyStyle(name string, value any) error {
 	return nil
 }
 
-func filesResolveEza(name string, env model.Environment) (model.Port, bool, error) {
-	if name == "dracula" {
-		return model.Port{Kind: "official", Name: name, Source: shared.EzaDraculaSource}, true, nil
+func filesResolveEza(spec model.ThemePort, _ model.Environment) (model.Port, bool, error) {
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
-	if port, found, err := shared.ResolveTokyoNightPort("eza", name, env); found || err != nil {
-		return port, found, err
-	}
-	if port, found, err := shared.ResolveRosePinePort("eza", name, env); found || err != nil {
-		return port, found, err
-	}
-	if port, found, err := filesResolveEzaFamily(name, env); found || err != nil {
-		return port, found, err
-	}
-	port, ok := shared.OfficialPort("eza", name)
-	return port, ok, nil
+	return model.Port{}, false, nil
 }
 
 func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
@@ -346,37 +338,22 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		return shared.Custom(port, env)
 	}
 	if port.Kind == "official" {
-		switch port.Name {
-		case "tokyo-night":
-			data, err := shared.AcquireTokyoNightPort("eza", port, env)
-			if err != nil {
-				return nil, err
-			}
-			if err := filesValidateEzaPort("tokyo-night", data); err != nil {
-				return nil, fmt.Errorf("invalid Tokyo Night eza port: %w", err)
-			}
-			return data, nil
-		case "rose-pine":
-			data, err := shared.AcquireRosePinePort("eza", port, env)
-			if err != nil {
-				return nil, err
-			}
-			if err := filesValidateEzaPort("rose-pine", data); err != nil {
-				return nil, fmt.Errorf("invalid Rosé Pine eza theme: %w", err)
-			}
-			return data, nil
-		case "dracula":
-			if port.Source == shared.EzaDraculaSource {
-				return filesAcquireEzaDracula(env)
-			}
-		case "gruvbox":
-			if port.Source == shared.EzaGruvboxSource {
-				return filesAcquireEzaFamily(port.Name, env)
-			}
+		if !catalog.Verified("eza", port) {
+			return nil, fmt.Errorf("unregistered eza official port %q", port.Name)
+		}
+		switch port.Format {
+		case "eza-tokyo":
+			return shared.AcquireTokyoNightPort("eza", port, env)
+		case "eza-rose":
+			return shared.AcquireRosePinePort("eza", port, env)
+		case "eza-dracula":
+			return filesAcquireEzaDracula(port, env)
+		case "eza-family":
+			return filesAcquireEzaFamily(port, env)
+		case "eza-cat":
+			return shared.AcquireAsset(env, port.Source)
 		default:
-			if registered, ok := shared.OfficialPort("eza", port.Name); ok && port.Source == registered.Source {
-				return shared.AcquireAsset(env, port.Source)
-			}
+			return nil, fmt.Errorf("unsupported eza official format %q", port.Format)
 		}
 	}
 	return nil, fmt.Errorf("eza requires an available official port or a registered native theme file")

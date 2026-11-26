@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -31,7 +32,7 @@ func TestEzaDraculaAcquiresCurrentNativeThemeAndLicense(t *testing.T) {
 		}
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})
-	port, ok, err := filesResolveEza("dracula", env)
+	port, ok, err := filesResolveEza(catalog.Port("dracula", "eza"), env)
 	if err != nil || !ok || port.Kind != "official" || requests != 0 {
 		t.Fatalf("resolver: %#v, %v; requests=%d", port, err, requests)
 	}
@@ -75,7 +76,7 @@ func TestEzaDraculaFailureDoesNotMutateActiveTheme(t *testing.T) {
 				}
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 			})
-			port, _, _ := filesResolveEza("dracula", env)
+			port, _, _ := filesResolveEza(catalog.Port("dracula", "eza"), env)
 			if err := filesApplyEza(port, env); err == nil {
 				t.Fatal("expected acquisition failure")
 			}

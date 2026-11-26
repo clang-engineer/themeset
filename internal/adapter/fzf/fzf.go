@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -15,28 +16,16 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "fzf", Binary: "fzf", Remote: true, Resolve: filesResolveFZF, Apply: filesApplyFZF}
 }
 
-func filesResolveFZF(name string, env model.Environment) (model.Port, bool, error) {
-	if port, found, err := shared.ResolveTokyoNightPort("fzf", name, env); found || err != nil {
-		return port, found, err
-	}
-	if port, found, err := shared.ResolveRosePinePort("fzf", name, env); found || err != nil {
-		return port, found, err
-	}
-	switch name {
-	case "catppuccin-mocha":
-		if err := filesFZFRequireSelectedColors(env); err != nil {
-			return model.Port{}, false, err
+func filesResolveFZF(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	if spec.Official != nil {
+		if spec.Official.Format == "fzf-rc" {
+			if err := filesFZFRequireSelectedColors(env); err != nil {
+				return model.Port{}, false, err
+			}
 		}
-		return model.Port{Kind: "official", Name: name, Source: shared.FZFCatppuccinSource}, true, nil
-	case "gruvbox", "nord":
-		return model.Port{Kind: "official", Name: name, Source: shared.FZFPresetsSource}, true, nil
-	case "dracula":
-		return model.Port{Kind: "official", Name: name, Source: shared.FZFDraculaSource}, true, nil
-	case "moonfly":
-		return model.Port{Kind: "official", Name: name, Source: shared.MoonflySource + "moonfly-fzf.sh"}, true, nil
-	default:
-		return model.Port{}, false, nil
+		return *spec.Official, true, nil
 	}
+	return model.Port{}, false, nil
 }
 
 // Custom fzf ports contain one --color=... option per line, not shell code or
@@ -94,40 +83,38 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 			return err
 		}
 	} else if port.Kind == "official" {
-		switch port.Name {
-		case "catppuccin-mocha":
-			if err := filesFZFRequireSelectedColors(env); err != nil {
-				return err
+		expected := catalog.Port(port.Name, "fzf").Official
+		if expected == nil || port.Name != expected.Name || port.Source != expected.Source ||
+			port.Format != expected.Format || port.Variant != expected.Variant ||
+			port.LicenseURL != expected.LicenseURL || port.SyntaxURL != expected.SyntaxURL ||
+			port.File != "" || port.URL != "" {
+			return errors.New("unknown official fzf port")
+		}
+		var err error
+		switch port.Format {
+		case "fzf-rc", "fzf-presets", "fzf-install", "fzf-shell":
+			if port.Format == "fzf-rc" {
+				if err := filesFZFRequireSelectedColors(env); err != nil {
+					return err
+				}
 			}
-			fallthrough
-		case "gruvbox", "nord", "dracula", "moonfly":
-			source := filesFZFOfficialSource(port.Name)
-			if port.Source != source {
-				return fmt.Errorf("unregistered official fzf source for %q", port.Name)
-			}
-			var err error
-			data, err = shared.AcquireAsset(env, source)
+			data, err = shared.AcquireAsset(env, port.Source)
 			if err != nil {
 				return fmt.Errorf("acquire %s fzf theme: %w", port.Name, err)
 			}
-			data, err = filesPrepareFZFOfficial(port.Name, data)
+			data, err = filesPrepareFZFOfficial(port.Format, port.Variant, data)
 			if err != nil {
 				return fmt.Errorf("invalid %s fzf theme: %w", port.Name, err)
 			}
-		case "tokyo-night":
-			var err error
+		case "fzf-tokyo":
 			data, err = filesAcquireTokyoNightPort(port, env)
-			if err != nil {
-				return err
-			}
-		case "rose-pine":
-			var err error
+		case "fzf-rose":
 			data, err = filesAcquireRosePinePort(port, env)
-			if err != nil {
-				return err
-			}
 		default:
-			return errors.New("unknown official fzf port")
+			return fmt.Errorf("unsupported official fzf format %q", port.Format)
+		}
+		if err != nil {
+			return err
 		}
 	} else {
 		return errors.New("fzf requires an official port or custom options file")
@@ -200,14 +187,14 @@ func rosePineFZFOptions(script []byte) ([]byte, error) {
 	return data, nil
 }
 
-func filesPrepareFZFPort(theme string, data []byte) ([]byte, error) {
-	switch theme {
-	case "rose-pine":
+func filesPrepareFZFPort(format string, data []byte) ([]byte, error) {
+	switch format {
+	case "fzf-rose":
 		return rosePineFZFOptions(data)
-	case "tokyo-night":
+	case "fzf-tokyo":
 		return filesTokyoNightFZF(data)
 	default:
-		return nil, fmt.Errorf("unsupported fzf port %q", theme)
+		return nil, fmt.Errorf("unsupported fzf format %q", format)
 	}
 }
 
@@ -216,7 +203,7 @@ func filesAcquireRosePinePort(port model.Port, env model.Environment) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	data, err = filesPrepareFZFPort("rose-pine", data)
+	data, err = filesPrepareFZFPort(port.Format, data)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Rosé Pine fzf theme: %w", err)
 	}
@@ -228,25 +215,11 @@ func filesAcquireTokyoNightPort(port model.Port, env model.Environment) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	data, err = filesPrepareFZFPort("tokyo-night", data)
+	data, err = filesPrepareFZFPort(port.Format, data)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Tokyo Night fzf port: %w", err)
 	}
 	return data, nil
-}
-
-func filesFZFOfficialSource(name string) string {
-	switch name {
-	case "catppuccin-mocha":
-		return shared.FZFCatppuccinSource
-	case "gruvbox", "nord":
-		return shared.FZFPresetsSource
-	case "dracula":
-		return shared.FZFDraculaSource
-	case "moonfly":
-		return shared.MoonflySource + "moonfly-fzf.sh"
-	}
-	return ""
 }
 
 var filesFZFColor = regexp.MustCompile(`^([a-z][a-z+-]*):#[[:xdigit:]]{6}$`)
@@ -254,7 +227,7 @@ var filesFZFPresetEntry = regexp.MustCompile(`^\s*('?[-a-z]+'?):'(#[[:xdigit:]]{
 
 // Validate the extracted official colors, not just their fzf option syntax:
 // an upstream page or shell script must not smuggle extra options or commands.
-func filesFZFOfficialColors(theme string, data []byte) ([]byte, error) {
+func filesFZFOfficialColors(format string, data []byte) ([]byte, error) {
 	if err := filesFZFOptions(data); err != nil {
 		return nil, err
 	}
@@ -268,7 +241,7 @@ func filesFZFOfficialColors(theme string, data []byte) ([]byte, error) {
 			switch match[1] {
 			case "fg", "bg", "hl", "fg+", "bg+", "hl+", "info", "prompt", "pointer", "marker", "spinner", "header", "border", "gutter":
 			case "selected-bg", "label":
-				if theme != "catppuccin-mocha" {
+				if format != "fzf-rc" {
 					return nil, fmt.Errorf("unsupported fzf color %q", color)
 				}
 			default:
@@ -280,11 +253,11 @@ func filesFZFOfficialColors(theme string, data []byte) ([]byte, error) {
 	return data, nil
 }
 
-func filesPrepareFZFOfficial(theme string, source []byte) ([]byte, error) {
-	switch theme {
-	case "catppuccin-mocha":
-		return filesFZFOfficialColors(theme, source)
-	case "dracula":
+func filesPrepareFZFOfficial(format, variant string, source []byte) ([]byte, error) {
+	switch format {
+	case "fzf-rc":
+		return filesFZFOfficialColors(format, source)
+	case "fzf-install":
 		// Dracula publishes its fzf options inside a fenced shell recipe.
 		const prefix = "export FZF_DEFAULT_OPTS='"
 		for _, line := range strings.Split(string(source), "\n") {
@@ -293,10 +266,10 @@ func filesPrepareFZFOfficial(theme string, source []byte) ([]byte, error) {
 				continue
 			}
 			options := strings.TrimSuffix(strings.TrimPrefix(line, prefix), "'")
-			return filesFZFOfficialColors(theme, []byte(strings.Join(strings.Fields(options), "\n")+"\n"))
+			return filesFZFOfficialColors(format, []byte(strings.Join(strings.Fields(options), "\n")+"\n"))
 		}
 		return nil, errors.New("Dracula fzf shell recipe missing")
-	case "moonfly":
+	case "fzf-shell":
 		// Only literal --color pairs in the one upstream export are imported.
 		var colors strings.Builder
 		started, closed := false, false
@@ -326,22 +299,18 @@ func filesPrepareFZFOfficial(theme string, source []byte) ([]byte, error) {
 		if !started || !closed {
 			return nil, errors.New("incomplete Moonfly fzf export")
 		}
-		return filesFZFOfficialColors(theme, []byte(colors.String()))
-	case "gruvbox", "nord":
-		preset := "Gruvbox Dark"
-		if theme == "nord" {
-			preset = "Nord"
-		}
+		return filesFZFOfficialColors(format, []byte(colors.String()))
+	case "fzf-presets":
 		// Parse only the literal palette object; never execute upstream JS.
-		marker := []byte("  '" + preset + "': {")
+		marker := []byte("  '" + variant + "': {")
 		start := bytes.Index(source, marker)
 		if start < 0 || start > 0 && source[start-1] != '\n' {
-			return nil, fmt.Errorf("fzf preset %q missing", preset)
+			return nil, fmt.Errorf("fzf preset %q missing", variant)
 		}
 		body := source[start+len(marker):]
 		end := bytes.Index(body, []byte("\n  },"))
 		if end < 0 {
-			return nil, fmt.Errorf("fzf preset %q not terminated", preset)
+			return nil, fmt.Errorf("fzf preset %q not terminated", variant)
 		}
 		var colors strings.Builder
 		for _, line := range strings.Split(string(body[:end]), "\n") {
@@ -373,17 +342,17 @@ func filesPrepareFZFOfficial(theme string, source []byte) ([]byte, error) {
 				colors.WriteByte('\n')
 			}
 		}
-		data, err := filesFZFOfficialColors(theme, []byte(colors.String()))
+		data, err := filesFZFOfficialColors(format, []byte(colors.String()))
 		if err != nil {
 			return nil, err
 		}
 		for _, key := range []string{"fg", "bg", "hl", "fg+", "bg+", "hl+", "prompt", "marker", "border"} {
 			if !strings.Contains(string(data), "--color="+key+":") {
-				return nil, fmt.Errorf("fzf preset %q missing %s", preset, key)
+				return nil, fmt.Errorf("fzf preset %q missing %s", variant, key)
 			}
 		}
 		return data, nil
 	default:
-		return nil, fmt.Errorf("unsupported official fzf port %q", theme)
+		return nil, fmt.Errorf("unsupported official fzf format %q", format)
 	}
 }

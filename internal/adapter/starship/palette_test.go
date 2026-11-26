@@ -12,25 +12,20 @@ import (
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
 func TestPaletteFamilyResolveWithoutDownload(t *testing.T) {
 	env := testutil.Env(t)
-	for _, tt := range []struct {
-		id, name, source string
-		ok               bool
-	}{
-		{"starship", "catppuccin-mocha", shared.StarshipCatppuccinSource, true},
-		{"starship", "gruvbox", shared.StarshipGruvboxSource, true},
-		{"starship", "nord", "", false},
-		{"lazygit", "gruvbox", "", false},
-		{"lazygit", "nord", "", false},
-		{"lazygit", "moonfly", "", false},
+	for _, tt := range []struct{ name, source string }{
+		{"catppuccin-mocha", shared.StarshipCatppuccinSource},
+		{"gruvbox", shared.StarshipGruvboxSource},
 	} {
-		port, ok, err := filesResolvePaletteFamily(tt.id, tt.name, env)
-		if err != nil || ok != tt.ok || (ok && (port.Kind != "official" || port.Name != tt.name || port.Source != tt.source)) {
-			t.Fatalf("resolve %s/%s: %#v, %v, %v", tt.id, tt.name, port, ok, err)
+		spec := catalog.Port(tt.name, "starship")
+		port, ok, err := filesResolveStarship(spec, env)
+		if err != nil || !ok || port.Kind != "official" || port.Name != tt.name || port.Source != tt.source {
+			t.Fatalf("resolve %s: %#v, %v, %v", tt.name, port, ok, err)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(env.Home, ".cache")); !os.IsNotExist(err) {
@@ -64,7 +59,7 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	})
 	path := shared.Path("starship", env)
 	testutil.Write(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[palettes.keep]\nred = '#112233'\n")
-	port, ok, err := filesResolveStarship("catppuccin-mocha", env)
+	port, ok, err := filesResolveStarship(catalog.Port("catppuccin-mocha", "starship"), env)
 	if err != nil || !ok || port.Source != shared.StarshipCatppuccinSource || requests != 0 {
 		t.Fatalf("resolve: %#v, ok=%v err=%v requests=%d", port, ok, err, requests)
 	}
@@ -145,7 +140,7 @@ func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
 	env := testutil.Env(t)
 	path := shared.Path("starship", env)
 	testutil.Write(t, path, "format = '$directory'\n[directory]\ntruncation_length = 2\n")
-	port, ok, err := filesResolveStarship("gruvbox", env)
+	port, ok, err := filesResolveStarship(catalog.Port("gruvbox", "starship"), env)
 	if err != nil || !ok || port.Source != shared.StarshipGruvboxSource {
 		t.Fatalf("Gruvbox official port: %#v, %v", port, err)
 	}
@@ -192,10 +187,32 @@ func TestPaletteFamilyRejectsMissingAndMismatchedPalettes(t *testing.T) {
 			t.Fatalf("invalid palette accepted: %q", source)
 		}
 	}
-	if _, err := filesAcquirePaletteFamily("lazygit", "gruvbox", testutil.Env(t)); err == nil {
-		t.Fatal("unregistered lazygit theme acquired")
+}
+
+func TestStarshipRejectsForgedOfficialMetadataBeforeFetching(t *testing.T) {
+	env := testutil.Env(t)
+	path := shared.Path("starship", env)
+	original := "palette = 'keep'\n[palettes.keep]\nred = '#123456'\n"
+	testutil.Write(t, path, original)
+	for _, tt := range []struct {
+		name   string
+		change func(*model.Port)
+	}{
+		{"source", func(p *model.Port) { p.Source = "https://example.test/unregistered.toml" }},
+		{"variant", func(p *model.Port) { p.Variant = "wrong" }},
+		{"license", func(p *model.Port) { p.LicenseURL = "https://example.test/unregistered-license" }},
+		{"format", func(p *model.Port) { p.Format = "starship-preset" }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			port := *catalog.Port("gruvbox", "starship").Official
+			tt.change(&port)
+			if err := filesApplyStarship(port, env); err == nil || string(testutil.Read(t, path)) != original {
+				t.Fatalf("forged %s accepted or changed configuration: %v", tt.name, err)
+			}
+		})
 	}
 }
+
 func TestRosePineStarshipImportsPaletteNotUpstreamPrompt(t *testing.T) {
 	upstream := []byte("palette = 'rose-pine'\nformat = '$directory'\n[palettes.rose-pine]\npine = '#31748f'\nrose = '#ebbcba'\n[directory]\nformat = 'UPSTREAM PROMPT'\n")
 	colors, err := filesPaletteFamilyTOML(upstream, "rose-pine")

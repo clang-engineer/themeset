@@ -15,6 +15,7 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/starship"
 	"github.com/clang-engineer/themeset/internal/adapter/yazi"
+	"github.com/clang-engineer/themeset/internal/app"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -131,29 +132,29 @@ func TestFilesCustomPortsPreserveNonThemeConfiguration(t *testing.T) {
 func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"yazi", "btop", "eza", "lazygit", "lazydocker", "atuin", "starship", "fzf"} {
-		if _, ok, err := filesTestAdapter(t, id).Resolve("not-an-installed-theme-183997", env); ok || err != nil {
+		if _, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{Native: []string{"not-an-installed-theme-183997"}}, env); ok || err != nil {
 			t.Errorf("%s fabricated support: ok=%v err=%v", id, ok, err)
 		}
 	}
 	for _, name := range []string{"dracula", "nord", "gruvbox", "tokyo-night", "atom-one-dark"} {
-		if _, ok, err := atuin.Adapter().Resolve(name, env); ok || err != nil {
+		if _, ok, err := atuin.Adapter().Resolve(model.ThemePort{Native: []string{name}}, env); ok || err != nil {
 			t.Errorf("Atuin must not conflate Harlequin built-ins: %s, %v, %v", name, ok, err)
 		}
 	}
-	rosePine, ok, err := atuin.Adapter().Resolve("rose-pine", env)
+	rosePine, ok, err := atuin.Adapter().Resolve(app.DefaultPort("rose-pine", "atuin"), env)
 	source, _ := shared.RosePineSource("atuin")
 	if err != nil || !ok || rosePine.Kind != "official" || rosePine.Source != source {
 		t.Fatalf("missing registered Rosé Pine Atuin theme: %#v, %v", rosePine, err)
 	}
 	for _, name := range []string{"default", "autumn", "marine", "pumpkin", "default-powershell", "(none)"} {
-		port, ok, err := atuin.Adapter().Resolve(name, env)
+		port, ok, err := atuin.Adapter().Resolve(app.DefaultPort(name, "atuin"), env)
 		if !ok || err != nil || port.Source == "" {
 			t.Fatalf("missing actual Atuin builtin %s: %v", name, err)
 		}
 	}
 
 	filesTestWrite(t, shared.Path("starship", env), "format = '$directory'\n[palettes.nord]\nblue = '#81a1c1'\n")
-	port, ok, err := starship.Adapter().Resolve("nord", env)
+	port, ok, err := starship.Adapter().Resolve(app.DefaultPort("nord", "starship"), env)
 	if !ok || err != nil {
 		t.Fatalf("existing Starship palette unavailable: %v", err)
 	}
@@ -163,12 +164,12 @@ func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 
 	flavor := filepath.Join(filepath.Dir(shared.Path("yazi", env)), "flavors", "nord.yazi")
 	filesTestWrite(t, filepath.Join(flavor, "flavor.toml"), "[mgr]\ncwd = { fg = 'blue' }\n")
-	if _, ok, err := yazi.Adapter().Resolve("nord", env); ok || err != nil {
+	if _, ok, err := yazi.Adapter().Resolve(app.DefaultPort("nord", "yazi"), env); ok || err != nil {
 		t.Fatalf("incomplete Yazi flavor accepted: %v", err)
 	}
 	filesTestWrite(t, filepath.Join(flavor, "tmtheme.xml"), "<?xml version=\"1.0\"?><plist/>")
 	filesTestWrite(t, shared.Path("yazi", env), "[mgr]\nborder_style = { fg = 'green' }\n")
-	port, ok, err = yazi.Adapter().Resolve("nord", env)
+	port, ok, err = yazi.Adapter().Resolve(app.DefaultPort("nord", "yazi"), env)
 	if !ok || err != nil {
 		t.Fatalf("installed Yazi flavor unavailable: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 
 	btopTheme := filepath.Join(filepath.Dir(shared.Path("btop", env)), "themes", "gruvbox_dark.theme")
 	filesTestWrite(t, btopTheme, "theme[main_fg]=\"#eeeeee\"\n")
-	port, ok, err = btop.Adapter().Resolve("gruvbox", env)
+	port, ok, err = btop.Adapter().Resolve(app.DefaultPort("gruvbox", "btop"), env)
 	if !ok || err != nil || port.Name != "gruvbox_dark" || port.File != btopTheme {
 		t.Fatalf("installed btop alias not resolved: %#v, %v", port, err)
 	}

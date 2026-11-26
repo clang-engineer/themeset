@@ -3,17 +3,18 @@ package shared
 import (
 	"fmt"
 
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
 // AcquireRosePinePort checks the registered recipe before fetching untrusted bytes.
 // The caller validates its tool-native format before applying it.
 func AcquireRosePinePort(id string, port model.Port, env model.Environment) ([]byte, error) {
-	source, ok := RosePineSource(id)
-	if !ok || port.Kind != "official" || port.Name != "rose-pine" || port.Source != source || port.File != "" {
+	expected := catalog.Port("rose-pine", id).Official
+	if expected == nil || port.Kind != "official" || port.Name != expected.Name || port.Source != expected.Source || port.File != "" || port.URL != "" {
 		return nil, fmt.Errorf("unregistered Rosé Pine %s port", id)
 	}
-	data, err := AcquireAsset(env, source)
+	data, err := AcquireAsset(env, expected.Source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire Rosé Pine %s theme: %w", id, err)
 	}
@@ -22,11 +23,11 @@ func AcquireRosePinePort(id string, port model.Port, env model.Environment) ([]b
 
 // AcquireTokyoNightPort checks the registered recipe before fetching untrusted bytes.
 func AcquireTokyoNightPort(id string, port model.Port, env model.Environment) ([]byte, error) {
-	source, ok := TokyoNightSource(id)
-	if !ok || id == "syntax" || id == "tmux" || port.Kind != "official" || port.File != "" || port.Source != source || id == "btop" && port.Name != "tokyonight_night" || id != "btop" && port.Name != "tokyo-night" {
+	expected := catalog.Port("tokyo-night", id).Official
+	if expected == nil || id == "syntax" || id == "tmux" || port.Kind != "official" || port.File != "" || port.URL != "" || port.Source != expected.Source || port.Name != expected.Name {
 		return nil, fmt.Errorf("unregistered Tokyo Night %s port", id)
 	}
-	data, err := AcquireAsset(env, source)
+	data, err := AcquireAsset(env, expected.Source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire Tokyo Night %s: %w", id, err)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/neovim"
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/tmux"
+	"github.com/clang-engineer/themeset/internal/app"
 	"github.com/clang-engineer/themeset/internal/model"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -62,7 +63,7 @@ func nativeAssetClient(t *testing.T, transport nativeTransport) {
 	t.Cleanup(func() { shared.AssetHTTPClient = previous })
 }
 
-func TestNativeListedResolverRequiresExactInstalledTheme(t *testing.T) {
+func TestNativeListedCandidatesRequireExactInstalledTheme(t *testing.T) {
 	env := nativeTestEnvironment(t)
 	bin := filepath.Join(env.Home, "bin")
 	if err := os.MkdirAll(bin, 0700); err != nil {
@@ -74,14 +75,14 @@ func TestNativeListedResolverRequiresExactInstalledTheme(t *testing.T) {
 	}
 	t.Setenv("PATH", bin)
 	resolver := ghostty.Adapter().Resolve
-	if _, ok, err := resolver("dracula", env); err != nil || ok {
+	if _, ok, err := resolver(app.DefaultPort("dracula", "ghostty"), env); err != nil || ok {
 		t.Fatalf("uninstalled exact theme: ok=%v err=%v", ok, err)
 	}
-	port, ok, err := resolver("nord", env)
+	port, ok, err := resolver(app.DefaultPort("nord", "ghostty"), env)
 	if err != nil || !ok || port.Name != "Nord" || port.Source == "" {
 		t.Fatalf("installed theme: %#v %v %v", port, ok, err)
 	}
-	if _, ok, err := resolver("made-up-palette", env); err != nil || ok {
+	if _, ok, err := resolver(model.ThemePort{Native: []string{"made-up-palette"}}, env); err != nil || ok {
 		t.Fatalf("unsupported theme: %v %v", ok, err)
 	}
 }
@@ -170,7 +171,7 @@ func TestNativeOfficialMoonflyTmuxPreservesLayoutsAndBindings(t *testing.T) {
 			nativeAssetClient(t, func(*http.Request) (*http.Response, error) {
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(script)), Header: make(http.Header)}, nil
 			})
-			port, ok, err := tmux.Adapter().Resolve("moonfly", env)
+			port, ok, err := tmux.Adapter().Resolve(app.DefaultPort("moonfly", "tmux"), env)
 			if err != nil || !ok || port.Kind != "official" || port.Source != shared.MoonflySource+"moonfly.tmux" {
 				t.Fatalf("missing current official Moonfly: %#v, %v", port, err)
 			}
@@ -204,12 +205,12 @@ func TestNativeOfficialMoonflyTmuxPreservesLayoutsAndBindings(t *testing.T) {
 
 func TestNativeNeovimRequiresInstalledRuntimeAndOwnsOnlyDedicatedPlugin(t *testing.T) {
 	env := nativeTestEnvironment(t)
-	if _, ok, err := neovim.Adapter().Resolve("dracula", env); err != nil || ok {
+	if _, ok, err := neovim.Adapter().Resolve(app.DefaultPort("dracula", "neovim"), env); err != nil || ok {
 		t.Fatalf("missing runtime: %v %v", ok, err)
 	}
 	root := filepath.Join(env.Home, ".local", "share", "nvim", "lazy", "dracula")
 	nativeTestPut(t, filepath.Join(root, "colors", "dracula.vim"), "let g:colors_name = 'dracula'\n")
-	port, ok, err := neovim.Adapter().Resolve("dracula", env)
+	port, ok, err := neovim.Adapter().Resolve(app.DefaultPort("dracula", "neovim"), env)
 	if err != nil || !ok {
 		t.Fatalf("installed runtime: %v %v", ok, err)
 	}

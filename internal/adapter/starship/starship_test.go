@@ -9,6 +9,7 @@ import (
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -45,7 +46,7 @@ func TestFilesStarshipOfficialFetchesLatestPaletteOnly(t *testing.T) {
 			testutil.Write(t, path, "format = '$directory'\n[directory]\nstyle = 'keep'\n[palettes.keep]\nred = '#123456'\n")
 			source := tt.source
 			filesStarshipTestSource(t, map[string]*string{tt.url: &source})
-			port, ok, err := filesResolveStarship(tt.name, env)
+			port, ok, err := filesResolveStarship(catalog.Port(tt.name, "starship"), env)
 			if !ok || err != nil || port.Source != tt.url {
 				t.Fatalf("resolve: %#v, %v", port, err)
 			}
@@ -94,7 +95,7 @@ func TestFilesStarshipOfficialFailedDownloadPreservesConfiguration(t *testing.T)
 		}
 		return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 	})
-	port, ok, err := filesResolveStarship("dracula", env)
+	port, ok, err := filesResolveStarship(catalog.Port("dracula", "starship"), env)
 	if !ok || err != nil {
 		t.Fatalf("resolve: %#v, %v", port, err)
 	}

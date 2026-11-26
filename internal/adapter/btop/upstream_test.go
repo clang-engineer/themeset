@@ -11,6 +11,7 @@ import (
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -20,17 +21,13 @@ func TestBtopOfficialThemesFetchCurrentBranch(t *testing.T) {
 			env := testutil.Env(t)
 			configPath := shared.Path("btop", env)
 			testutil.Write(t, configPath, "# keep this setting\nupdate_ms = 2000\ncolor_theme = \"old\"\n")
-			port, ok, err := filesResolveBtopUpstream(name)
-			if name == "catppuccin-mocha" {
-				port, ok, err = filesResolveBtopCatppuccin()
-			}
+			spec := catalog.Port(name, "btop")
+			spec.Native = nil
+			port, ok, err := filesResolveBtop(spec, env)
 			if err != nil || !ok || port.Kind != "official" {
 				t.Fatalf("resolve %q: %#v, ok=%t err=%v", name, port, ok, err)
 			}
-			license := shared.BtopUpstreamLicense
-			if name == "catppuccin-mocha" {
-				license = shared.BtopCatppuccinLicense
-			}
+			license := port.LicenseURL
 			color := "#112233"
 			requests := 0
 			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
@@ -76,17 +73,13 @@ func TestBtopOfficialDownloadFailurePreservesSettings(t *testing.T) {
 				path := shared.Path("btop", env)
 				const original = "color_theme = \"precious\"\nupdate_ms = 2000\n"
 				testutil.Write(t, path, original)
-				port, ok, err := filesResolveBtopUpstream(name)
-				if name == "catppuccin-mocha" {
-					port, ok, err = filesResolveBtopCatppuccin()
-				}
+				spec := catalog.Port(name, "btop")
+				spec.Native = nil
+				port, ok, err := filesResolveBtop(spec, env)
 				if err != nil || !ok || port.Kind != "official" {
 					t.Fatalf("resolve: %#v, ok=%t err=%v", port, ok, err)
 				}
-				license := shared.BtopUpstreamLicense
-				if name == "catppuccin-mocha" {
-					license = shared.BtopCatppuccinLicense
-				}
+				license := port.LicenseURL
 				testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 					if failure == "offline" || failure == "license" && r.URL.String() == license {
 						return nil, fmt.Errorf("offline")

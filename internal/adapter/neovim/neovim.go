@@ -14,43 +14,22 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "neovim", Binary: "nvim", Resolve: nativeResolveNeovim, Apply: nativeApplyNeovim}
 }
 
-var nativeNeovimProviders = map[string]string{
-	"dracula":                   "dracula",
-	"catppuccin-mocha":          "catppuccin-mocha",
-	"nord":                      "nord",
-	"gruvbox":                   "gruvbox",
-	"gruvbox-dark":              "gruvbox",
-	"tokyonight":                "tokyonight-night",
-	"tokyo-night":               "tokyonight-night",
-	"rose-pine":                 "rose-pine-main",
-	"kanagawa":                  "kanagawa-wave",
-	"everforest":                "everforest",
-	"onedark":                   "onedark",
-	"github-dark":               "github_dark",
-	"github-dark-high-contrast": "github_dark_high_contrast",
-	"moonfly":                   "moonfly",
-	"vscode-dark":               "vscode",
-	"sonokai":                   "sonokai",
-	"cyberdream":                "cyberdream",
-	"modus-vivendi":             "modus_vivendi",
-}
-
 // Resolve uses on-disk runtime evidence, not a headless launch of the user's
 // init.lua (which can have arbitrary side effects). No plugin is installed.
-func nativeResolveNeovim(theme string, env model.Environment) (model.Port, bool, error) {
-	key := shared.ThemeKey(theme)
-	name, ok := nativeNeovimProviders[key]
-	if !ok {
-		return model.Port{}, false, nil
+func nativeResolveNeovim(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	for _, name := range spec.Native {
+		root, err := nativeNeovimRuntime(name, env)
+		if err != nil {
+			return model.Port{}, false, err
+		}
+		if root != "" {
+			return model.Port{Kind: "native", Name: name, Source: root}, true, nil
+		}
 	}
-	root, err := nativeNeovimRuntime(name, env)
-	if err != nil {
-		return model.Port{}, false, err
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
-	if root == "" {
-		return model.Port{}, false, nil
-	}
-	return model.Port{Kind: "native", Name: name, Source: shared.NeovimProviderSource(key)}, true, nil
+	return model.Port{}, false, nil
 }
 
 func nativeNeovimRuntime(name string, env model.Environment) (string, error) {

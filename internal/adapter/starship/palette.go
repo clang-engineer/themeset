@@ -13,52 +13,20 @@ import (
 // prompt layout and module settings are never imported: only its native palette.
 // Catppuccin's Mocha file is a palette-only official port.
 
-type filesPaletteRecipe struct {
-	source, license, native string
-}
-
-func filesPaletteFamilyRecipe(id, name string) (filesPaletteRecipe, bool) {
-	if id != "starship" {
-		return filesPaletteRecipe{}, false
-	}
-	switch name {
-	case "catppuccin-mocha":
-		return filesPaletteRecipe{shared.StarshipCatppuccinSource, shared.StarshipCatppuccinLicense, "catppuccin_mocha"}, true
-	case "gruvbox":
-		return filesPaletteRecipe{shared.StarshipGruvboxSource, shared.StarshipGruvboxLicense, "gruvbox_dark"}, true
-	default:
-		return filesPaletteRecipe{}, false
-	}
-}
-
-// Resolve is read-only, including in a dry-run. The caller checks registered
-// custom ports first and may fall back to an already defined native palette.
-func filesResolvePaletteFamily(id, name string, _ model.Environment) (model.Port, bool, error) {
-	recipe, ok := filesPaletteFamilyRecipe(id, name)
-	if !ok {
-		return model.Port{}, false, nil
-	}
-	return model.Port{Kind: "official", Name: name, Source: recipe.source}, true, nil
-}
-
 // Return Starship TOML containing only the selected native palette and its
 // selector. Neither an upstream complete preset nor other palettes can replace
 // the user's prompt or module configuration. Validation makes no config writes.
-func filesAcquirePaletteFamily(id, name string, env model.Environment) ([]byte, error) {
-	recipe, ok := filesPaletteFamilyRecipe(id, name)
-	if !ok {
-		return nil, fmt.Errorf("no registered %s palette-family port for %s", id, name)
-	}
-	data, err := shared.AcquireAsset(env, recipe.source)
+func filesAcquirePaletteFamily(port model.Port, env model.Environment) ([]byte, error) {
+	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
-		return nil, fmt.Errorf("acquire %s %s palette: %w", id, name, err)
+		return nil, fmt.Errorf("acquire %s Starship palette: %w", port.Name, err)
 	}
-	data, err = filesPaletteFamilyTOML(data, recipe.native)
+	data, err = filesPaletteFamilyTOML(data, port.Variant)
 	if err != nil {
-		return nil, fmt.Errorf("validate %s %s palette: %w", id, name, err)
+		return nil, fmt.Errorf("validate %s Starship palette: %w", port.Name, err)
 	}
-	if _, err := shared.AcquireAsset(env, recipe.license); err != nil {
-		return nil, fmt.Errorf("acquire %s %s license: %w", id, name, err)
+	if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+		return nil, fmt.Errorf("acquire %s Starship license: %w", port.Name, err)
 	}
 	return data, nil
 }

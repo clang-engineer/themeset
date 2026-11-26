@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -19,33 +20,29 @@ func Adapter() model.Adapter {
 // Only style commands from the current author source are imported; full tmux
 // theme scripts can overwrite the user's status layout or run shell commands.
 
-const moonflySource = shared.MoonflySource + "moonfly.tmux"
-const tokyoNightTmuxSource = shared.TokyoNightBase + "extras/tmux/tokyonight_night.tmux"
-
-func nativeResolveTmux(name string, _ model.Environment) (model.Port, bool, error) {
-	switch name {
-	case "moonfly":
-		return model.Port{Kind: "official", Name: name, Source: moonflySource}, true, nil
-	case "tokyo-night":
-		return model.Port{Kind: "official", Name: name, Source: tokyoNightTmuxSource}, true, nil
+func nativeResolveTmux(spec model.ThemePort, _ model.Environment) (model.Port, bool, error) {
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
 	return model.Port{}, false, nil
 }
 
 func nativeApplyTmux(port model.Port, env model.Environment) error {
-	moonfly := port.File == "" && port.Kind == "official" && port.Name == "moonfly" && port.Source == moonflySource
-	tokyo := port.File == "" && port.Kind == "official" && port.Name == "tokyo-night" && port.Source == tokyoNightTmuxSource
-	if port.File == "" && !moonfly && !tokyo {
+	official := port.Kind == "official" && catalog.Verified("tmux", port)
+	if port.Kind == "official" && !official {
+		return fmt.Errorf("unregistered official tmux port %q", port.Name)
+	}
+	if port.File == "" && !official {
 		return fmt.Errorf("tmux requires an official port or a registered tmux theme config file")
 	}
 	source := shared.NativeExpand(port.File, env)
-	if moonfly || tokyo {
+	if official {
 		source = filepath.Join(shared.NativeConfigHome(env), "themeset", "tmux-"+port.Name+".conf")
 	}
 	if !filepath.IsAbs(source) || strings.ContainsAny(source, "\r\n\x00") {
 		return fmt.Errorf("tmux theme config requires an absolute file path")
 	}
-	if !moonfly && !tokyo {
+	if !official {
 		info, err := os.Stat(source)
 		if err != nil {
 			return err
@@ -69,16 +66,16 @@ func nativeApplyTmux(port model.Port, env model.Environment) error {
 	if err != nil {
 		return err
 	}
-	if moonfly {
-		styles, err := nativeAcquireMoonflyTmux(env)
-		if err != nil {
-			return err
+	if official {
+		var styles []byte
+		switch port.Format {
+		case "tmux-moonfly":
+			styles, err = nativeAcquireMoonflyTmux(env, port.Source)
+		case "tmux-tokyo":
+			styles, err = nativeAcquireTokyoNightTmux(env, port.Source)
+		default:
+			return fmt.Errorf("unsupported official tmux format %q", port.Format)
 		}
-		if err := shared.Atomic(source, styles); err != nil {
-			return err
-		}
-	} else if tokyo {
-		styles, err := nativeAcquireTokyoNightTmux(env)
 		if err != nil {
 			return err
 		}
@@ -116,8 +113,8 @@ func filesTokyoNightTmuxColors(data []byte) ([]byte, error) {
 	return []byte(result.String()), nil
 }
 
-func nativeAcquireTokyoNightTmux(env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, tokyoNightTmuxSource)
+func nativeAcquireTokyoNightTmux(env model.Environment, source string) ([]byte, error) {
+	data, err := shared.AcquireAsset(env, source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire Tokyo Night tmux: %w", err)
 	}
@@ -149,8 +146,8 @@ func filesMoonflyTmuxColors(data []byte) ([]byte, error) {
 	return []byte(result.String()), nil
 }
 
-func nativeAcquireMoonflyTmux(env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, moonflySource)
+func nativeAcquireMoonflyTmux(env model.Environment, source string) ([]byte, error) {
+	data, err := shared.AcquireAsset(env, source)
 	if err != nil {
 		return nil, fmt.Errorf("acquire Moonfly tmux: %w", err)
 	}

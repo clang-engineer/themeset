@@ -92,10 +92,6 @@ func ReplaceLines(data []byte, match func(string) bool, line string) []byte {
 	return []byte(strings.Join(result, "\n") + "\n")
 }
 
-func ThemeKey(theme string) string {
-	return strings.NewReplacer("_", "-", " ", "-").Replace(strings.ToLower(strings.TrimSpace(theme)))
-}
-
 var ANSI = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 func ListContains(out []byte, name string) bool {
@@ -130,22 +126,19 @@ func Selection(port model.Port, env model.Environment, parse func([]byte) (strin
 	return port.Name, nil
 }
 
-// ListedResolver accepts only names confirmed by the installed application's list.
-func ListedResolver(binary string, names map[string][]string, source string, args ...string) func(string, model.Environment) (model.Port, bool, error) {
-	return func(theme string, env model.Environment) (model.Port, bool, error) {
-		candidates := names[ThemeKey(theme)]
-		if len(candidates) == 0 {
-			return model.Port{}, false, nil
-		}
-		out, err := Command(env, binary, args...)
-		if err != nil {
-			return model.Port{}, false, err
-		}
-		for _, name := range candidates {
-			if ListContains(out, name) {
-				return model.Port{Kind: "native", Name: name, Source: source}, true, nil
-			}
-		}
+// ListedCandidates accepts only configured names confirmed by the installed app.
+func ListedCandidates(binary string, candidates []string, source string, env model.Environment, args ...string) (model.Port, bool, error) {
+	if len(candidates) == 0 {
 		return model.Port{}, false, nil
 	}
+	out, err := Command(env, binary, args...)
+	if err != nil {
+		return model.Port{}, false, err
+	}
+	for _, name := range candidates {
+		if ListContains(out, name) {
+			return model.Port{Kind: "native", Name: name, Source: source}, true, nil
+		}
+	}
+	return model.Port{}, false, nil
 }

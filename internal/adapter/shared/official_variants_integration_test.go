@@ -16,13 +16,14 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
 	"github.com/clang-engineer/themeset/internal/adapter/tmux"
 	"github.com/clang-engineer/themeset/internal/adapter/yazi"
+	"github.com/clang-engineer/themeset/internal/app"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
 func TestTokyoNightOfficialRoutesReadOnly(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"btop", "eza", "fzf", "lazygit", "yazi"} {
-		port, ok, err := shared.ResolveTokyoNightPort(id, "tokyo-night", env)
+		port, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{Official: app.DefaultPort("tokyo-night", id).Official}, env)
 		source, _ := shared.TokyoNightSource(id)
 		if err != nil || !ok || port.Kind != "official" || port.Source != source {
 			t.Fatalf("%s: port=%#v ok=%v err=%v", id, port, ok, err)
@@ -33,12 +34,12 @@ func TestTokyoNightOfficialRoutesReadOnly(t *testing.T) {
 		if id != "btop" && port.Name != "tokyo-night" {
 			t.Fatalf("%s unexpected theme name: %#v", id, port)
 		}
-		if _, ok, err := shared.ResolveTokyoNightPort(id, "tokyonight", env); ok || err != nil {
+		if _, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{}, env); ok || err != nil {
 			t.Fatalf("%s unexpectedly registered an additional catalog ID", id)
 		}
 	}
-	for _, id := range []string{"atuin", "starship", "lazydocker", "syntax"} {
-		if _, ok, err := shared.ResolveTokyoNightPort(id, "tokyo-night", env); ok || err != nil {
+	for _, id := range []string{"atuin", "starship", "lazydocker"} {
+		if _, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{}, env); ok || err != nil {
 			t.Fatalf("unsupported %s port resolved", id)
 		}
 	}
@@ -55,7 +56,7 @@ func TestTokyoNightAcquisitionFailurePreservesActiveThemes(t *testing.T) {
 			const original = "# untouched\n"
 			filesTestWrite(t, path, original)
 			testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) { return nil, fmt.Errorf("offline: %s", r.URL) })
-			port, ok, err := shared.ResolveTokyoNightPort(id, "tokyo-night", env)
+			port, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{Official: app.DefaultPort("tokyo-night", id).Official}, env)
 			if err != nil || !ok {
 				t.Fatal("official port missing")
 			}
@@ -84,13 +85,13 @@ func TestTokyoNightAcquisitionFailurePreservesActiveThemes(t *testing.T) {
 func TestTokyoNightRejectsUnregisteredOfficialSources(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"eza", "fzf", "btop", "lazygit", "yazi"} {
-		port, _, _ := shared.ResolveTokyoNightPort(id, "tokyo-night", env)
+		port, _, _ := filesTestAdapter(t, id).Resolve(app.DefaultPort("tokyo-night", id), env)
 		port.Source += "?unverified=true"
 		if _, err := shared.AcquireTokyoNightPort(id, port, env); err == nil {
 			t.Fatalf("accepted unregistered %s source", id)
 		}
 	}
-	btop, _, _ := shared.ResolveTokyoNightPort("btop", "tokyo-night", env)
+	btop, _, _ := filesTestAdapter(t, "btop").Resolve(app.DefaultPort("tokyo-night", "btop"), env)
 	btop.Name = "tokyo-night"
 	if _, err := shared.AcquireTokyoNightPort("btop", btop, env); err == nil {
 		t.Fatal("accepted wrong native btop filename")
@@ -107,7 +108,7 @@ func TestTokyoNightTmuxAcquisitionFailureKeepsConfig(t *testing.T) {
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("offline: %s", r.URL)
 	})
-	port, ok, err := tmux.Adapter().Resolve("tokyo-night", env)
+	port, ok, err := tmux.Adapter().Resolve(app.DefaultPort("tokyo-night", "tmux"), env)
 	source, _ := shared.TokyoNightSource("tmux")
 	if err != nil || !ok || port.Kind != "official" || port.Source != source {
 		t.Fatalf("Tokyo Night tmux not registered: %#v, %v", port, err)
@@ -127,7 +128,7 @@ func TestTokyoNightNativeFlavorsTakePrecedenceOverDownloads(t *testing.T) {
 	root := filepath.Join(filepath.Dir(shared.Path("yazi", env)), "flavors", "tokyo-night.yazi")
 	filesTestWrite(t, filepath.Join(root, "flavor.toml"), flavor)
 	filesTestWrite(t, filepath.Join(root, "tmtheme.xml"), syntax)
-	port, ok, err := yazi.Adapter().Resolve("tokyo-night", env)
+	port, ok, err := yazi.Adapter().Resolve(app.DefaultPort("tokyo-night", "yazi"), env)
 	if err != nil || !ok || port.Kind != "native" || port.File != filepath.Join(root, "flavor.toml") {
 		t.Fatalf("installed native Tokyo Night Yazi port ignored: %#v, %v", port, err)
 	}
@@ -148,7 +149,7 @@ func TestTokyoNightNativeFlavorsTakePrecedenceOverDownloads(t *testing.T) {
 
 	btopPath := filepath.Join(filepath.Dir(shared.Path("btop", env)), "themes", "tokyonight_night.theme")
 	filesTestWrite(t, btopPath, "theme[main_bg]=\"#1a1b26\"\n")
-	btopPort, ok, err := btop.Adapter().Resolve("tokyo-night", env)
+	btopPort, ok, err := btop.Adapter().Resolve(app.DefaultPort("tokyo-night", "btop"), env)
 	if err != nil || !ok || btopPort.Kind != "native" || btopPort.File != btopPath || btopPort.Name != "tokyonight_night" {
 		t.Fatalf("installed native btop port ignored: %#v, %v", btopPort, err)
 	}

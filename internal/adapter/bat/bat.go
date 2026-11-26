@@ -11,22 +11,23 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-var names = map[string][]string{
-	"dracula": {"Dracula"}, "catppuccin-mocha": {"Catppuccin Mocha"}, "nord": {"Nord"},
-	"rose-pine": {"Rosé Pine", "Rose Pine", "rose-pine"},
-	"gruvbox":   {"gruvbox-dark"}, "gruvbox-dark": {"gruvbox-dark"},
-	"tokyonight": {"tokyonight_night"}, "tokyo-night": {"tokyonight_night"},
+func Adapter() model.Adapter {
+	return model.Adapter{ID: "bat", Binary: "bat", Resolve: nativeResolveBat, Apply: nativeApplyBat}
 }
 
-func Adapter() model.Adapter {
-	listed := shared.ListedResolver("bat", names, shared.BatThemesSource, "--list-themes", "--color=never")
-	return model.Adapter{ID: "bat", Binary: "bat", Resolve: func(theme string, env model.Environment) (model.Port, bool, error) {
-		port, ok, err := listed(theme, env)
-		if ok && shared.ThemeKey(theme) == "rose-pine" {
-			port.Source = shared.BatRosePineSource
-		}
+func nativeResolveBat(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	source := spec.NativeSource
+	if source == "" {
+		source = shared.BatThemesSource
+	}
+	port, ok, err := shared.ListedCandidates("bat", spec.Native, source, env, "--list-themes", "--color=never")
+	if ok || err != nil {
 		return port, ok, err
-	}, Apply: nativeApplyBat}
+	}
+	if spec.Official != nil {
+		return *spec.Official, true, nil
+	}
+	return model.Port{}, false, nil
 }
 
 var nativeBatTheme = regexp.MustCompile(`^\s*--theme(?:\s*=|\s+|$)`)

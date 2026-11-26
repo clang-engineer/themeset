@@ -10,6 +10,7 @@ import (
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/adapter/testutil"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -29,7 +30,7 @@ func TestYaziFamilyNoUnverifiedAcquisition(t *testing.T) {
 		return nil, errors.New("unexpected acquisition")
 	})
 	for _, name := range []string{"gruvbox", "nord", "moonfly", "unknown", "dracula", "catppuccin-mocha"} {
-		port, ok, err := filesResolveYaziFamily(name, env)
+		port, ok, err := Adapter().Resolve(model.ThemePort{Native: []string{name}}, env)
 		if err != nil || ok || port != (model.Port{}) {
 			t.Fatalf("unverified %s source registered: %#v, %v", name, port, err)
 		}
@@ -51,7 +52,7 @@ func TestYaziFamilyCompleteNativeFlavorsSelectAndSwitch(t *testing.T) {
 	for _, name := range []string{"gruvbox", "nord", "moonfly"} {
 		root := filesTestYaziFamilyInstall(t, name, env)
 		before := testutil.Read(t, filepath.Join(root, "flavor.toml"))
-		port, ok, err := filesResolveYaziFamily(name, env)
+		port, ok, err := Adapter().Resolve(model.ThemePort{Native: []string{name}}, env)
 		if err != nil || !ok || port.Kind != "native" || port.Source != shared.YaziThemesSource || port.File != filepath.Join(root, "flavor.toml") {
 			t.Fatalf("complete native %s not recognized: %#v, %v", name, port, err)
 		}
@@ -79,10 +80,7 @@ func TestYaziFamilyCompleteNativeFlavorsSelectAndSwitch(t *testing.T) {
 
 func TestYaziFamilyRemovesOnlyOwnedCatppuccinStyles(t *testing.T) {
 	env := testutil.Env(t)
-	cat, ok := shared.OfficialPort("yazi", "catppuccin-mocha")
-	if !ok {
-		t.Fatal("Catppuccin direct style missing")
-	}
+	cat := *catalog.Port("catppuccin-mocha", "yazi").Official
 	if err := filesApplyYazi(cat, env); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +95,7 @@ func TestYaziFamilyRemovesOnlyOwnedCatppuccinStyles(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := filesTestYaziFamilyInstall(t, "nord", env)
-	port, ok, err := filesResolveYaziFamily("nord", env)
+	port, ok, err := Adapter().Resolve(model.ThemePort{Native: []string{"nord"}}, env)
 	if err != nil || !ok {
 		t.Fatalf("native Nord not found: %v", err)
 	}
@@ -128,7 +126,7 @@ func TestYaziFamilyIncompleteOrMalformedDoesNotActivate(t *testing.T) {
 			root := filesTestYaziFamilyInstall(t, "gruvbox", env)
 			original := "[flavor]\ndark = 'old'\n[mgr]\nsyntect_theme = '/user/custom.tmTheme'\n"
 			testutil.Write(t, shared.Path("yazi", env), original)
-			port, _, _ := filesResolveYaziFamily("gruvbox", env)
+			port, _, _ := Adapter().Resolve(model.ThemePort{Native: []string{"gruvbox"}}, env)
 			switch shape {
 			case "missing syntax":
 				if err := os.Remove(filepath.Join(root, "tmtheme.xml")); err != nil {
@@ -148,7 +146,7 @@ func TestYaziFamilyIncompleteOrMalformedDoesNotActivate(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			_, ok, resolveErr := filesResolveYaziFamily("gruvbox", env)
+			_, ok, resolveErr := Adapter().Resolve(model.ThemePort{Native: []string{"gruvbox"}}, env)
 			switch shape {
 			case "missing syntax", "removed after resolution":
 				if ok || resolveErr != nil {

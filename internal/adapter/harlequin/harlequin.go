@@ -12,29 +12,24 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-var names = map[string][]string{
-	"dracula": {"dracula"}, "catppuccin-mocha": {"catppuccin-mocha"}, "nord": {"nord"}, "gruvbox": {"gruvbox"},
-	"rose-pine":  {"rose-pine"},
-	"tokyonight": {"tokyo-night"}, "tokyo-night": {"tokyo-night"}, "monokai": {"monokai"}, "solarized-light": {"solarized-light"},
-}
-
 func Adapter() model.Adapter {
 	return model.Adapter{ID: "harlequin", Binary: "harlequin", Resolve: resolve, Apply: nativeApplyHarlequin}
 }
 
-func resolve(theme string, env model.Environment) (model.Port, bool, error) {
-	candidates := names[shared.ThemeKey(theme)]
-	if len(candidates) == 0 {
-		return model.Port{}, false, nil
-	}
-	out, err := shared.Command(env, "harlequin", "--help")
-	if err != nil {
-		return model.Port{}, false, err
-	}
-	for _, name := range candidates {
-		if nativeHarlequinHasTheme(out, name) {
-			return model.Port{Kind: "native", Name: name, Source: shared.HarlequinThemesSource}, true, nil
+func resolve(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	if len(spec.Native) > 0 {
+		out, err := shared.Command(env, "harlequin", "--help")
+		if err != nil {
+			return model.Port{}, false, err
 		}
+		for _, name := range spec.Native {
+			if nativeHarlequinHasTheme(out, name) {
+				return model.Port{Kind: "native", Name: name, Source: shared.HarlequinThemesSource}, true, nil
+			}
+		}
+	}
+	if spec.Official != nil {
+		return *spec.Official, true, nil
 	}
 	return model.Port{}, false, nil
 }

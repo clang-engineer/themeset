@@ -7,13 +7,9 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
-
-var names = map[string][]string{
-	"dracula": {"Dracula"}, "catppuccin-mocha": {"Catppuccin Mocha"}, "nord": {"Nord"},
-	"gruvbox": {"gruvbox-dark"}, "gruvbox-dark": {"gruvbox-dark"}, "tokyonight": {"tokyonight_night"}, "tokyo-night": {"tokyonight_night"},
-}
 
 func Adapter() model.Adapter {
 	return model.Adapter{ID: "delta", Binary: "delta", Resolve: nativeResolveDelta, Apply: nativeApplyDelta}
@@ -31,11 +27,15 @@ func nativeDeltaThemeKey(key string) bool {
 	return option == "syntax-theme" || option == "features" || option == "dark" || option == "light" || strings.HasSuffix(option, "-style") || strings.HasSuffix(option, "-syntax-theme")
 }
 
-func nativeResolveDelta(theme string, env model.Environment) (model.Port, bool, error) {
-	if theme == "rose-pine" {
-		return model.Port{Kind: "official", Name: theme, Source: shared.DeltaRosePineSource}, true, nil
+func nativeResolveDelta(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {
+	port, ok, err := shared.ListedCandidates("delta", spec.Native, shared.DeltaThemesSource, env, "--list-syntax-themes")
+	if ok || err != nil {
+		return port, ok, err
 	}
-	return shared.ListedResolver("delta", names, shared.DeltaThemesSource, "--list-syntax-themes")(theme, env)
+	if spec.Official != nil {
+		return *spec.Official, true, nil
+	}
+	return model.Port{}, false, nil
 }
 
 // Import only the author's main Delta feature. The same upstream file contains
@@ -52,10 +52,10 @@ func nativeRosePineDeltaMain(data []byte) ([]byte, error) {
 }
 
 func nativeApplyRosePineDelta(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || port.Name != "rose-pine" || port.Source != shared.DeltaRosePineSource || port.File != "" {
-		return fmt.Errorf("unregistered Rosé Pine Delta feature")
+	if port.Kind != "official" || !catalog.Verified("delta", port) {
+		return fmt.Errorf("invalid Rosé Pine Delta feature")
 	}
-	data, err := shared.AcquireAsset(env, shared.DeltaRosePineSource)
+	data, err := shared.AcquireAsset(env, port.Source)
 	if err != nil {
 		return err
 	}
