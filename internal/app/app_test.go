@@ -463,8 +463,12 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 		t.Fatalf("incorrect listed state, metadata, or declared ports: %#v", byID)
 	}
 	if byID["catppuccin-latte"].Appearance != "light" || byID["rose-pine-dawn"].Appearance != "light" ||
-		byID["solarized-light"].Appearance != "light" || byID["dracula"].Appearance != "" ||
-		byID["rose-pine"].Appearance != "" || byID["my-theme"].Appearance != "" {
+		byID["solarized-light"].Appearance != "light" || byID["ayu-light"].Appearance != "light" ||
+		byID["flexoki-light"].Appearance != "light" || byID["kanagawa-lotus"].Appearance != "light" ||
+		byID["tokyo-night-day"].Appearance != "light" || byID["tokyo-night-day"].Listed ||
+		!slices.Contains(byID["tokyo-night-day"].Tools, "btop") ||
+		!slices.Contains(byID["kanagawa-lotus"].Tools, "ghostty") ||
+		byID["dracula"].Appearance != "" || byID["rose-pine"].Appearance != "" || byID["my-theme"].Appearance != "" {
 		t.Fatalf("incorrect light appearance labels: %#v", byID)
 	}
 	stdout.Reset()
@@ -486,6 +490,10 @@ func TestPreviewMarksLightAppearanceWithoutChangingThemeID(t *testing.T) {
 		{theme: "catppuccin-latte", light: true},
 		{theme: "rose-pine-dawn", light: true},
 		{theme: "solarized-light", light: true},
+		{theme: "ayu-light", light: true},
+		{theme: "flexoki-light", light: true},
+		{theme: "kanagawa-lotus", light: true},
+		{theme: "tokyo-night-day", light: true},
 		{theme: "catppuccin-mocha"},
 	} {
 		t.Run(test.theme, func(t *testing.T) {

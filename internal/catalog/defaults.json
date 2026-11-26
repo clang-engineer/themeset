@@ -1,20 +1,39 @@
 {
   "listed": [
+    {"id": "ayu-light", "support_site": "https://ayutheme.com/"},
     {"id": "catppuccin-mocha", "support_site": "https://catppuccin.com/ports"},
     {"id": "catppuccin-latte", "support_site": "https://catppuccin.com/ports"},
     {"id": "catppuccin-frappe", "support_site": "https://catppuccin.com/ports"},
     {"id": "catppuccin-macchiato", "support_site": "https://catppuccin.com/ports"},
     {"id": "dracula", "support_site": "https://draculatheme.com/"},
+    {"id": "flexoki-light", "support_site": "https://github.com/kepano/flexoki"},
     {"id": "gruvbox", "support_site": "https://github.com/morhetz/gruvbox-contrib"},
+    {"id": "kanagawa-lotus", "support_site": "https://github.com/rebelot/kanagawa.nvim"},
     {"id": "moonfly"},
     {"id": "nord", "support_site": "https://www.nordtheme.com/ports"},
     {"id": "rose-pine", "support_site": "https://rosepinetheme.com/themes/"},
     {"id": "rose-pine-dawn", "support_site": "https://rosepinetheme.com/themes/"},
     {"id": "rose-pine-moon", "support_site": "https://rosepinetheme.com/themes/"},
-    {"id": "tokyo-night"}
+    {"id": "tokyo-night"},
+    {"id": "tokyo-night-day", "support_site": "https://github.com/folke/tokyonight.nvim"}
   ],
-  "light": ["catppuccin-latte", "rose-pine-dawn", "solarized-light"],
+  "light": ["ayu-light", "catppuccin-latte", "flexoki-light", "kanagawa-lotus", "rose-pine-dawn", "solarized-light", "tokyo-night-day"],
   "themes": {
+    "ayu-light": {
+      "ghostty": {"native": ["Ayu Light"]}
+    },
+    "flexoki-light": {
+      "ghostty": {"native": ["Flexoki Light"]}
+    },
+    "kanagawa-lotus": {
+      "ghostty": {"native": ["Kanagawa Lotus"], "official": {"source": "https://raw.githubusercontent.com/rebelot/kanagawa.nvim/master/extras/ghostty/kanagawa-lotus"}},
+      "neovim": {"native": ["kanagawa-lotus"]}
+    },
+    "tokyo-night-day": {
+      "btop": {"native": ["tokyonight_day"], "official": {"name": "tokyonight_day", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/btop/tokyonight_day.theme"}},
+      "ghostty": {"native": ["TokyoNight Day"], "official": {"source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/ghostty/tokyonight_day"}},
+      "neovim": {"native": ["tokyonight-day"]}
+    },
     "catppuccin-mocha": {
       "atuin": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml", "variant": "catppuccin-mocha-mauve"}},
       "bat": {"native": ["Catppuccin Mocha"]},

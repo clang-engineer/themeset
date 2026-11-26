@@ -71,9 +71,10 @@ theme IDs; `list --all` also shows hidden bundled and configured IDs that can
 be passed explicitly to `apply`. Neither option adds themes to the picker or
 shell completion. `list --details` adds a `listed`/`hidden` marker, appearance,
 declared tool IDs, and a known upstream support site (`-` when absent). Only
-explicitly identified light themes show `light`: `catppuccin-latte`,
-`rose-pine-dawn`, and the hidden `solarized-light`. `-` means unspecified, not
-necessarily dark; custom theme appearance is not guessed. The interactive
+explicitly identified light themes show `light`: `ayu-light`,
+`catppuccin-latte`, `flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`,
+`tokyo-night-day`, and the hidden `solarized-light`. `-` means unspecified,
+not necessarily dark; custom theme appearance is not guessed. The interactive
 picker marks light entries with `[light]` in its selection list and
 `Appearance: light` in the preview; the selected value remains the exact ID.
 `--json` keeps the existing string array without `--details`; with it, each
