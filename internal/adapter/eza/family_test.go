@@ -166,7 +166,7 @@ func TestEzaFamilyRejectsWrongSchemaAndUnknownTheme(t *testing.T) {
 	if _, ok, err := filesResolveEzaFamily("moonfly", env); ok || err != nil {
 		t.Fatalf("unverified Moonfly unexpectedly resolved: ok=%v err=%v", ok, err)
 	}
-	if _, err := filesAcquireEzaFamily(model.Port{Kind: "official", Name: "nord", Format: "eza-family"}, env); err == nil {
+	if _, err := filesPortData(model.Port{Kind: "official", Name: "nord", Format: "eza-family"}, env); err == nil {
 		t.Fatal("unregistered eza family theme acquired")
 	}
 }

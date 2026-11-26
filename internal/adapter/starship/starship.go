@@ -48,33 +48,29 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 				return err
 			}
 		} else {
-			expected := catalog.Port(port.Name, "starship").Official
-			if expected == nil || port.Name != expected.Name || port.Source != expected.Source ||
-				port.Format != expected.Format || port.Variant != expected.Variant ||
-				port.LicenseURL != expected.LicenseURL || port.SyntaxURL != expected.SyntaxURL ||
-				port.File != "" || port.URL != "" {
+			if !catalog.Verified("starship", port) {
 				return errors.New("unknown official Starship port")
 			}
 			var err error
+			data, err = shared.AcquireAsset(env, port.Source)
+			if err != nil {
+				return fmt.Errorf("acquire %s Starship palette: %w", port.Name, err)
+			}
 			switch port.Format {
-			case "starship-rose":
-				data, err = filesAcquireRosePinePort(port, env)
-			case "starship-preset":
-				data, err = shared.AcquireAsset(env, port.Source)
-				if err != nil {
-					return fmt.Errorf("acquire %s Starship palette: %w", port.Name, err)
-				}
-				data, err = filesPrepareOfficialStarshipPalette(data, port.Name)
-				if err != nil {
-					return fmt.Errorf("invalid %s Starship palette: %w", port.Name, err)
-				}
 			case "starship-palette":
-				data, err = filesAcquirePaletteFamily(port, env)
+				data, err = filesPaletteFamilyTOML(data, port.Variant)
+			case "starship-preset":
+				data, err = filesPrepareOfficialStarshipPalette(data, port.Name)
 			default:
 				return fmt.Errorf("unsupported official Starship format %q", port.Format)
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("invalid %s Starship palette: %w", port.Name, err)
+			}
+			if port.LicenseURL != "" {
+				if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+					return fmt.Errorf("acquire %s Starship license: %w", port.Name, err)
+				}
 			}
 		}
 		var err error
@@ -109,18 +105,6 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 		config["palette"] = port.Name
 		return nil
 	})
-}
-
-func filesAcquireRosePinePort(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireRosePinePort("starship", port, env)
-	if err != nil {
-		return nil, err
-	}
-	data, err = filesPaletteFamilyTOML(data, port.Name)
-	if err != nil {
-		return nil, fmt.Errorf("invalid Rosé Pine starship theme: %w", err)
-	}
-	return data, nil
 }
 
 var filesStarshipOfficialColor = regexp.MustCompile(`^#[[:xdigit:]]{6}$`)

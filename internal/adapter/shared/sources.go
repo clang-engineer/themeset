@@ -1,7 +1,5 @@
 package shared
 
-import "github.com/clang-engineer/themeset/internal/catalog"
-
 const MoonflySource = "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/"
 const RosePineYaziBase = "https://raw.githubusercontent.com/rose-pine/yazi/main/"
 const RosePineYaziSource = "https://github.com/rose-pine/yazi/tree/main/flavors/rose-pine.yazi"
@@ -9,24 +7,6 @@ const RosePineYaziSource = "https://github.com/rose-pine/yazi/tree/main/flavors/
 var RosePineYaziAssets = []string{
 	"flavors/rose-pine.yazi/flavor.toml",
 	"flavors/rose-pine.yazi/tmtheme.xml",
-}
-
-func RosePineSource(id string) (string, bool) {
-	port := catalog.Port("rose-pine", id).Official
-	if port == nil {
-		return "", false
-	}
-	return port.Source, true
-}
-
-const TokyoNightBase = "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/"
-
-func TokyoNightSource(id string) (string, bool) {
-	port := catalog.Port("tokyo-night", id).Official
-	if port == nil {
-		return "", false
-	}
-	return port.Source, true
 }
 
 const YaziDraculaSource = "https://github.com/yazi-rs/flavors/tree/main/dracula.yazi"
@@ -42,8 +22,8 @@ const BtopCatppuccinBase = "https://raw.githubusercontent.com/catppuccin/btop/ma
 const BtopCatppuccinSource = BtopCatppuccinBase + "themes/catppuccin_mocha.theme"
 const BtopCatppuccinLicense = BtopCatppuccinBase + "LICENSE"
 
-// Source provenance lives here; each tool adapter still owns format validation
-// and the decision to use a registered source for a requested theme.
+// Tool-native provider provenance and legacy test fixture URLs live here.
+// Official port sources are selected exclusively from the bundled catalog.
 const (
 	AtuinThemesSource          = "https://docs.atuin.sh/latest/guide/theming/"
 	BatThemesSource            = "https://github.com/sharkdp/bat/tree/master/assets/themes"

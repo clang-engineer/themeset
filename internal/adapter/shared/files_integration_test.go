@@ -142,7 +142,7 @@ func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 		}
 	}
 	rosePine, ok, err := atuin.Adapter().Resolve(app.DefaultPort("rose-pine", "atuin"), env)
-	source, _ := shared.RosePineSource("atuin")
+	source := app.DefaultPort("rose-pine", "atuin").Official.Source
 	if err != nil || !ok || rosePine.Kind != "official" || rosePine.Source != source {
 		t.Fatalf("missing registered Rosé Pine Atuin theme: %#v, %v", rosePine, err)
 	}

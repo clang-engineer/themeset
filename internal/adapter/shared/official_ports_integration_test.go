@@ -37,16 +37,13 @@ func TestRosePineOfficialRecipesAreReadOnly(t *testing.T) {
 		return nil, errors.New("resolve cannot download")
 	})
 	for _, id := range []string{"starship", "fzf", "lazygit", "atuin", "eza", "btop"} {
-		source, ok := shared.RosePineSource(id)
-		if !ok || !strings.Contains(source, "https://raw.githubusercontent.com/rose-pine/"+id+"/main/") {
+		source := app.DefaultPort("rose-pine", id).Official.Source
+		if !strings.Contains(source, "https://raw.githubusercontent.com/rose-pine/"+id+"/main/") {
 			t.Fatalf("missing current %s source: %q", id, source)
 		}
 		port, ok, err := filesTestAdapter(t, id).Resolve(app.DefaultPort("rose-pine", id), env)
 		if err != nil || !ok || port.Kind != "official" || port.Source != source {
 			t.Fatalf("resolve %s: %#v, ok=%v, err=%v", id, port, ok, err)
-		}
-		if _, err := shared.AcquireRosePinePort(id, model.Port{Kind: "official", Name: "rose-pine", Source: "https://example.org/unverified"}, env); err == nil {
-			t.Fatalf("accepted unregistered %s asset", id)
 		}
 		if _, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{}, env); ok || err != nil {
 			t.Fatalf("unregistered variant available for %s: %v", id, err)
@@ -66,7 +63,7 @@ func TestRosePineFZFOfficialColorsPreserveUserOptionsAndRefresh(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("resolve: %#v, %v", port, err)
 	}
-	source, _ := shared.RosePineSource("fzf")
+	source := port.Source
 	script := rosePineFixture(t, "rose-pine-fzf.txt")
 	shell := filepath.Join(env.Home, ".zshrc")
 	filesTestWrite(t, shell, "export FZF_DEFAULT_OPTS='--height=40% --bind=ctrl-j:down'\n")

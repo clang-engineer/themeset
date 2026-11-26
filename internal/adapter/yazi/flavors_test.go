@@ -434,7 +434,7 @@ func TestTokyoNightYaziInstallsAuthorFlavorWithoutOverwritingLayout(t *testing.T
 	testutil.Write(t, filepath.Join(filepath.Dir(path), "yazi.toml"), "# untouched\n")
 	const flavor = "[mgr]\ncwd = { fg = '#a9b1d6' }\n[filetype]\nrules = [{ name = '*', fg = '#c0caf5' }]\n"
 	const syntax = "<?xml version=\"1.0\"?><plist><dict/></plist>"
-	if err := filesInstallTokyoNightYazi(env, shared.TokyoNightBase+"extras/yazi/tokyonight_night.toml", []byte(flavor), []byte(syntax)); err != nil {
+	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte(flavor), []byte(syntax)); err != nil {
 		t.Fatal(err)
 	}
 	root := filesYaziFlavorRoot("tokyo-night", env)
@@ -453,7 +453,7 @@ func TestTokyoNightYaziInstallsAuthorFlavorWithoutOverwritingLayout(t *testing.T
 		t.Fatalf("rewrote yazi.toml: %q", got)
 	}
 	first := testutil.Read(t, path)
-	if err := filesInstallTokyoNightYazi(env, shared.TokyoNightBase+"extras/yazi/tokyonight_night.toml", []byte(flavor), []byte(syntax)); err != nil || !bytes.Equal(first, testutil.Read(t, path)) {
+	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte(flavor), []byte(syntax)); err != nil || !bytes.Equal(first, testutil.Read(t, path)) {
 		t.Fatalf("flavor reapplication changed selection: %v", err)
 	}
 }
@@ -463,7 +463,7 @@ func TestTokyoNightYaziRejectsInvalidSyntaxBeforeWriting(t *testing.T) {
 	path := shared.Path("yazi", env)
 	testutil.Write(t, path, "[flavor]\ndark = 'old'\n")
 	for _, bad := range []string{"", "<not-a-plist/>", "<plist>"} {
-		if err := filesInstallTokyoNightYazi(env, shared.TokyoNightBase+"extras/yazi/tokyonight_night.toml", []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte(bad)); err == nil {
+		if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte(bad)); err == nil {
 			t.Fatalf("accepted invalid syntax %q", bad)
 		}
 		if string(testutil.Read(t, path)) != "[flavor]\ndark = 'old'\n" {
@@ -475,7 +475,7 @@ func TestTokyoNightOfficialYaziCannotReplaceExistingFlavor(t *testing.T) {
 	env := testutil.Env(t)
 	root := filesYaziFlavorRoot("tokyo-night", env)
 	testutil.Write(t, filepath.Join(root, "flavor.toml"), "[mgr]\ncwd = { fg = '#abcdef' }\n")
-	if err := filesInstallTokyoNightYazi(env, shared.TokyoNightBase+"extras/yazi/tokyonight_night.toml", []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte("<plist><dict/></plist>")); err == nil {
+	if err := filesInstallTokyoNightYazi(env, catalog.Port("tokyo-night", "yazi").Official.Source, []byte("[mgr]\ncwd = { fg = '#a9b1d6' }\n"), []byte("<plist><dict/></plist>")); err == nil {
 		t.Fatal("replaced an independently installed partial flavor")
 	}
 	if got := string(testutil.Read(t, filepath.Join(root, "flavor.toml"))); !strings.Contains(got, "#abcdef") {

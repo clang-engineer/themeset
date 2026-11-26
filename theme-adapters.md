@@ -32,9 +32,12 @@ Each enabled `(theme, tool)` recipe must record:
 The bundled [theme declarations](internal/catalog/defaults.json) list native
 candidate names and verified official source URLs by theme and tool. User
 `themes.<id>.custom.<tool>` entries replace that one bundled declaration;
-other tool declarations stay in effect. Adapters validate and apply the native
-data using tool-specific logic. Documentation links below describe upstream
-procedures, not executable registry entries.
+other tool declarations stay in effect. Official file adapters verify the
+catalog declaration, fetch its `source` (and `license_url` when specified), then
+validate the native file format before changing settings. Format-specific parsers
+remain in the tool adapter; source selection does not branch on theme names.
+Documentation links below describe upstream procedures, not executable registry
+entries.
 
 Requested application rules:
 

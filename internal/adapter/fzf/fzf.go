@@ -83,38 +83,34 @@ func filesApplyFZF(port model.Port, env model.Environment) error {
 			return err
 		}
 	} else if port.Kind == "official" {
-		expected := catalog.Port(port.Name, "fzf").Official
-		if expected == nil || port.Name != expected.Name || port.Source != expected.Source ||
-			port.Format != expected.Format || port.Variant != expected.Variant ||
-			port.LicenseURL != expected.LicenseURL || port.SyntaxURL != expected.SyntaxURL ||
-			port.File != "" || port.URL != "" {
+		if !catalog.Verified("fzf", port) {
 			return errors.New("unknown official fzf port")
 		}
+		if port.Format == "fzf-rc" {
+			if err := filesFZFRequireSelectedColors(env); err != nil {
+				return err
+			}
+		}
 		var err error
+		data, err = shared.AcquireAsset(env, port.Source)
+		if err != nil {
+			return fmt.Errorf("acquire %s fzf theme: %w", port.Name, err)
+		}
 		switch port.Format {
-		case "fzf-rc", "fzf-presets", "fzf-install", "fzf-shell":
-			if port.Format == "fzf-rc" {
-				if err := filesFZFRequireSelectedColors(env); err != nil {
-					return err
-				}
-			}
-			data, err = shared.AcquireAsset(env, port.Source)
-			if err != nil {
-				return fmt.Errorf("acquire %s fzf theme: %w", port.Name, err)
-			}
-			data, err = filesPrepareFZFOfficial(port.Format, port.Variant, data)
-			if err != nil {
-				return fmt.Errorf("invalid %s fzf theme: %w", port.Name, err)
-			}
 		case "fzf-tokyo":
-			data, err = filesAcquireTokyoNightPort(port, env)
+			data, err = filesTokyoNightFZF(data)
 		case "fzf-rose":
-			data, err = filesAcquireRosePinePort(port, env)
+			data, err = rosePineFZFOptions(data)
 		default:
-			return fmt.Errorf("unsupported official fzf format %q", port.Format)
+			data, err = filesPrepareFZFOfficial(port.Format, port.Variant, data)
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid %s fzf theme: %w", port.Name, err)
+		}
+		if port.LicenseURL != "" {
+			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+				return fmt.Errorf("acquire %s fzf license: %w", port.Name, err)
+			}
 		}
 	} else {
 		return errors.New("fzf requires an official port or custom options file")
@@ -183,41 +179,6 @@ func rosePineFZFOptions(script []byte) ([]byte, error) {
 	data := []byte(result.String())
 	if err := filesFZFOptions(data); err != nil {
 		return nil, err
-	}
-	return data, nil
-}
-
-func filesPrepareFZFPort(format string, data []byte) ([]byte, error) {
-	switch format {
-	case "fzf-rose":
-		return rosePineFZFOptions(data)
-	case "fzf-tokyo":
-		return filesTokyoNightFZF(data)
-	default:
-		return nil, fmt.Errorf("unsupported fzf format %q", format)
-	}
-}
-
-func filesAcquireRosePinePort(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireRosePinePort("fzf", port, env)
-	if err != nil {
-		return nil, err
-	}
-	data, err = filesPrepareFZFPort(port.Format, data)
-	if err != nil {
-		return nil, fmt.Errorf("invalid Rosé Pine fzf theme: %w", err)
-	}
-	return data, nil
-}
-
-func filesAcquireTokyoNightPort(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireTokyoNightPort("fzf", port, env)
-	if err != nil {
-		return nil, err
-	}
-	data, err = filesPrepareFZFPort(port.Format, data)
-	if err != nil {
-		return nil, fmt.Errorf("invalid Tokyo Night fzf port: %w", err)
 	}
 	return data, nil
 }

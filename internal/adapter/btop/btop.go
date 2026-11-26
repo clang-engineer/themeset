@@ -97,21 +97,21 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		if !catalog.Verified("btop", port) {
 			return fmt.Errorf("unregistered btop official theme %q", port.Name)
 		}
-		var err error
-		switch port.Format {
-		case "btop-cat":
-			asset, err = filesAcquireBtopCatppuccin(port, env)
-		case "btop-tokyo":
-			asset, err = filesAcquireTokyoNightPort(port, env)
-		case "btop-rose":
-			asset, err = filesAcquireRosePinePort(port, env)
-		case "btop-upstream":
-			asset, err = filesAcquireBtopUpstream(port, env)
-		default:
+		if port.Format != "btop-theme" {
 			return fmt.Errorf("unsupported btop official format %q", port.Format)
 		}
+		var err error
+		asset, err = shared.AcquireAsset(env, port.Source)
 		if err != nil {
-			return err
+			return fmt.Errorf("acquire btop %s: %w", port.Name, err)
+		}
+		if err := filesBtopTheme(asset); err != nil {
+			return fmt.Errorf("invalid btop %s: %w", port.Name, err)
+		}
+		if port.LicenseURL != "" {
+			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+				return fmt.Errorf("acquire btop license: %w", err)
+			}
 		}
 	case "native":
 		if _, ok, err := filesResolveBtop(model.ThemePort{Native: []string{port.Name}}, env); err != nil {
@@ -160,42 +160,4 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		}
 	}
 	return shared.Atomic(path, []byte(strings.Join(lines, "\n")))
-}
-
-func filesAcquireBtopCatppuccin(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, port.Source)
-	if err != nil {
-		return nil, fmt.Errorf("acquire btop Catppuccin Mocha: %w", err)
-	}
-	if err := filesBtopTheme(data); err != nil {
-		return nil, fmt.Errorf("invalid btop Catppuccin Mocha: %w", err)
-	}
-	if port.LicenseURL != "" {
-		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-			return nil, fmt.Errorf("acquire btop Catppuccin Mocha license: %w", err)
-		}
-	}
-	return data, nil
-}
-
-func filesAcquireRosePinePort(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireRosePinePort("btop", port, env)
-	if err != nil {
-		return nil, err
-	}
-	if err := filesBtopTheme(data); err != nil {
-		return nil, fmt.Errorf("invalid Rosé Pine btop theme: %w", err)
-	}
-	return data, nil
-}
-
-func filesAcquireTokyoNightPort(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireTokyoNightPort("btop", port, env)
-	if err != nil {
-		return nil, err
-	}
-	if err := filesBtopTheme(data); err != nil {
-		return nil, fmt.Errorf("invalid Tokyo Night btop port: %w", err)
-	}
-	return data, nil
 }

@@ -21,11 +21,6 @@ func filesApplyEza(port model.Port, env model.Environment) error {
 	if err != nil {
 		return err
 	}
-	if port.Kind == "official" && port.File == "" && port.URL == "" {
-		if err := filesValidateEzaPort(port, data); err != nil {
-			return err
-		}
-	}
 	if port.URL != "" {
 		if err := filesValidateEzaCustom(data); err != nil {
 			return err
@@ -147,9 +142,9 @@ func filesValidateEzaCustomStyle(name string, value any) error {
 	return nil
 }
 
-// The upstream Rosé Pine distribution has no \"colourful\" toggle; validate its
-// native eza style tables without imposing Gruvbox's additional setting.
-func rosePineValidateEza(data []byte) error {
+// The flat eza style format has no "colourful" toggle; validate its native
+// style tables without imposing the family format's additional setting.
+func filesValidateEzaFlat(data []byte) error {
 	config, err := shared.YAML(data)
 	if err != nil {
 		return err
@@ -157,7 +152,7 @@ func rosePineValidateEza(data []byte) error {
 	for _, section := range []string{"filekinds", "perms", "size", "users", "links", "git", "git_repo", "security_context", "file_type"} {
 		styles, ok := config[section].(map[string]any)
 		if !ok || len(styles) == 0 {
-			return fmt.Errorf("Rosé Pine eza requires native %s styles", section)
+			return fmt.Errorf("flat eza theme requires native %s styles", section)
 		}
 		for key, style := range styles {
 			if err := filesValidateEzaFamilyStyle(section+"."+key, style); err != nil {
@@ -175,34 +170,15 @@ func rosePineValidateEza(data []byte) error {
 
 func filesValidateEzaPort(port model.Port, data []byte) error {
 	switch port.Format {
-	case "eza-cat", "eza-rose":
-		return rosePineValidateEza(data)
-	case "eza-tokyo":
+	case "eza-flat":
+		return filesValidateEzaFlat(data)
+	case "eza-family":
 		return filesValidateEzaFamily(data)
 	case "eza-dracula":
 		return filesValidateEzaDracula(data)
-	case "eza-family":
-		return filesValidateEzaFamily(data)
 	default:
 		return fmt.Errorf("unsupported eza port format %q", port.Format)
 	}
-}
-
-// Acquisition is apply-only. Validate the upstream theme before touching settings.
-func filesAcquireEzaDracula(port model.Port, env model.Environment) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, port.Source)
-	if err != nil {
-		return nil, fmt.Errorf("acquire eza Dracula: %w", err)
-	}
-	if err := filesValidateEzaDracula(data); err != nil {
-		return nil, err
-	}
-	if port.LicenseURL != "" {
-		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-			return nil, fmt.Errorf("acquire eza Dracula license: %w", err)
-		}
-	}
-	return data, nil
 }
 
 // Check the native upstream structure before the caller merges it into the
@@ -247,27 +223,6 @@ func filesValidateEzaDraculaStyle(name string, value any) error {
 	return nil
 }
 
-// Called only on apply, after the resolver has registered an exact source.
-// The caller merges the validated eza styles into the effective theme.yml.
-func filesAcquireEzaFamily(port model.Port, env model.Environment) ([]byte, error) {
-	if !catalog.Verified("eza", port) || port.Format != "eza-family" {
-		return nil, fmt.Errorf("unregistered eza family theme %q", port.Name)
-	}
-	data, err := shared.AcquireAsset(env, port.Source)
-	if err != nil {
-		return nil, fmt.Errorf("acquire eza %s: %w", port.Name, err)
-	}
-	if err := filesValidateEzaPort(port, data); err != nil {
-		return nil, err
-	}
-	if port.LicenseURL != "" {
-		if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
-			return nil, fmt.Errorf("acquire eza %s license: %w", port.Name, err)
-		}
-	}
-	return data, nil
-}
-
 var filesEzaFamilyHexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 // Validate the eza theme.yml style tables, rather than merely accepting YAML
@@ -275,15 +230,15 @@ var filesEzaFamilyHexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 func filesValidateEzaFamily(data []byte) error {
 	config, err := shared.YAML(data)
 	if err != nil {
-		return fmt.Errorf("parse eza Gruvbox Dark YAML: %w", err)
+		return fmt.Errorf("parse eza theme YAML: %w", err)
 	}
 	if colourful, ok := config["colourful"].(bool); !ok || !colourful {
-		return fmt.Errorf("eza Gruvbox Dark requires colourful: true")
+		return fmt.Errorf("eza theme requires colourful: true")
 	}
 	for _, section := range []string{"filekinds", "perms", "size", "users", "links", "git", "git_repo", "security_context", "file_type"} {
 		styles, ok := config[section].(map[string]any)
 		if !ok || len(styles) == 0 {
-			return fmt.Errorf("eza Gruvbox Dark requires native %s styles", section)
+			return fmt.Errorf("eza theme requires native %s styles", section)
 		}
 		for key, style := range styles {
 			if err := filesValidateEzaFamilyStyle(section+"."+key, style); err != nil {
@@ -302,25 +257,25 @@ func filesValidateEzaFamily(data []byte) error {
 func filesValidateEzaFamilyStyle(name string, value any) error {
 	style, ok := value.(map[string]any)
 	if !ok {
-		return fmt.Errorf("eza Gruvbox Dark %s must be a native style mapping", name)
+		return fmt.Errorf("eza %s must be a native style mapping", name)
 	}
 	foreground, ok := style["foreground"].(string)
 	if !ok || !filesEzaFamilyHexColor.MatchString(foreground) {
-		return fmt.Errorf("eza Gruvbox Dark %s requires a hexadecimal foreground color", name)
+		return fmt.Errorf("eza %s requires a hexadecimal foreground color", name)
 	}
 	for key, value := range style {
 		switch key {
 		case "foreground", "background":
 			color, ok := value.(string)
 			if !ok || !filesEzaFamilyHexColor.MatchString(color) {
-				return fmt.Errorf("eza Gruvbox Dark %s.%s requires a hexadecimal color", name, key)
+				return fmt.Errorf("eza %s.%s requires a hexadecimal color", name, key)
 			}
 		case "is_bold", "is_dimmed", "is_italic", "is_underline", "is_blink", "is_reverse", "is_hidden", "is_strikethrough", "prefix_with_reset":
 			if _, ok := value.(bool); !ok {
-				return fmt.Errorf("eza Gruvbox Dark %s.%s requires a boolean", name, key)
+				return fmt.Errorf("eza %s.%s requires a boolean", name, key)
 			}
 		default:
-			return fmt.Errorf("eza Gruvbox Dark %s.%s is not a native style property", name, key)
+			return fmt.Errorf("eza %s.%s is not a native style property", name, key)
 		}
 	}
 	return nil
@@ -341,20 +296,19 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 		if !catalog.Verified("eza", port) {
 			return nil, fmt.Errorf("unregistered eza official port %q", port.Name)
 		}
-		switch port.Format {
-		case "eza-tokyo":
-			return shared.AcquireTokyoNightPort("eza", port, env)
-		case "eza-rose":
-			return shared.AcquireRosePinePort("eza", port, env)
-		case "eza-dracula":
-			return filesAcquireEzaDracula(port, env)
-		case "eza-family":
-			return filesAcquireEzaFamily(port, env)
-		case "eza-cat":
-			return shared.AcquireAsset(env, port.Source)
-		default:
-			return nil, fmt.Errorf("unsupported eza official format %q", port.Format)
+		data, err := shared.AcquireAsset(env, port.Source)
+		if err != nil {
+			return nil, fmt.Errorf("acquire eza %s: %w", port.Name, err)
 		}
+		if err := filesValidateEzaPort(port, data); err != nil {
+			return nil, err
+		}
+		if port.LicenseURL != "" {
+			if _, err := shared.AcquireAsset(env, port.LicenseURL); err != nil {
+				return nil, fmt.Errorf("acquire eza %s license: %w", port.Name, err)
+			}
+		}
+		return data, nil
 	}
 	return nil, fmt.Errorf("eza requires an available official port or a registered native theme file")
 }

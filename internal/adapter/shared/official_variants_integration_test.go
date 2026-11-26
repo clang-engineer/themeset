@@ -24,7 +24,7 @@ func TestTokyoNightOfficialRoutesReadOnly(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"btop", "eza", "fzf", "lazygit", "yazi"} {
 		port, ok, err := filesTestAdapter(t, id).Resolve(model.ThemePort{Official: app.DefaultPort("tokyo-night", id).Official}, env)
-		source, _ := shared.TokyoNightSource(id)
+		source := app.DefaultPort("tokyo-night", id).Official.Source
 		if err != nil || !ok || port.Kind != "official" || port.Source != source {
 			t.Fatalf("%s: port=%#v ok=%v err=%v", id, port, ok, err)
 		}
@@ -82,22 +82,26 @@ func TestTokyoNightAcquisitionFailurePreservesActiveThemes(t *testing.T) {
 	}
 }
 
-func TestTokyoNightRejectsUnregisteredOfficialSources(t *testing.T) {
-	env := filesTestEnv(t)
+func TestTokyoNightRejectsTamperedOfficialPortsWithoutChangingConfig(t *testing.T) {
 	for _, id := range []string{"eza", "fzf", "btop", "lazygit", "yazi"} {
-		port, _, _ := filesTestAdapter(t, id).Resolve(app.DefaultPort("tokyo-night", id), env)
-		port.Source += "?unverified=true"
-		if _, err := shared.AcquireTokyoNightPort(id, port, env); err == nil {
-			t.Fatalf("accepted unregistered %s source", id)
-		}
-	}
-	btop, _, _ := filesTestAdapter(t, "btop").Resolve(app.DefaultPort("tokyo-night", "btop"), env)
-	btop.Name = "tokyo-night"
-	if _, err := shared.AcquireTokyoNightPort("btop", btop, env); err == nil {
-		t.Fatal("accepted wrong native btop filename")
-	}
-	if _, err := shared.AcquireTokyoNightPort("starship", model.Port{Kind: "official", Name: "tokyo-night"}, env); err == nil {
-		t.Fatal("accepted unsupported Starship source")
+		t.Run(id, func(t *testing.T) {
+			env := filesTestEnv(t)
+			path := shared.Path(id, env)
+			filesTestWrite(t, path, "# untouched\n")
+			calls := 0
+			testutil.AssetClient(t, func(*http.Request) (*http.Response, error) {
+				calls++
+				return nil, errors.New("untrusted request")
+			})
+			port := *app.DefaultPort("tokyo-night", id).Official
+			port.Source += "?unverified=true"
+			if err := filesTestAdapter(t, id).Apply(port, env); err == nil {
+				t.Fatal("accepted a tampered official source")
+			}
+			if calls != 0 || string(filesTestRead(t, path)) != "# untouched\n" {
+				t.Fatalf("tampered source fetched or changed config: calls=%d", calls)
+			}
+		})
 	}
 }
 
@@ -109,7 +113,7 @@ func TestTokyoNightTmuxAcquisitionFailureKeepsConfig(t *testing.T) {
 		return nil, fmt.Errorf("offline: %s", r.URL)
 	})
 	port, ok, err := tmux.Adapter().Resolve(app.DefaultPort("tokyo-night", "tmux"), env)
-	source, _ := shared.TokyoNightSource("tmux")
+	source := port.Source
 	if err != nil || !ok || port.Kind != "official" || port.Source != source {
 		t.Fatalf("Tokyo Night tmux not registered: %#v, %v", port, err)
 	}
