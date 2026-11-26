@@ -37,7 +37,7 @@
       "ghostty": {"native": ["Moonfly", "moonfly"]}, "neovim": {"native": ["moonfly"]},
       "fzf": {"official": {"kind": "official", "name": "moonfly", "source": "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/moonfly-fzf.sh", "format": "fzf-shell"}},
       "starship": {"native": ["moonfly"], "official": {"kind": "official", "name": "moonfly", "source": "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/moonfly-starship.toml", "format": "starship-preset"}},
-      "tmux": {"official": {"kind": "official", "name": "moonfly", "source": "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/moonfly.tmux", "format": "tmux-moonfly"}},
+      "tmux": {"official": {"kind": "official", "name": "moonfly", "source": "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/moonfly.tmux", "format": "tmux-styles", "style_keys": "message-style pane-active-border-style pane-border-style status-style window-status-activity-style window-status-current-style", "required_style_keys": "pane-active-border-style status-style"}},
       "yazi": {"native": ["moonfly"]}
     },
     "nord": {
@@ -65,7 +65,7 @@
       "lazygit": {"official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/lazygit/tokyonight_night.yml"}},
       "eza": {"official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/eza/tokyonight_night.yml", "format": "eza-tokyo"}},
       "yazi": {"native": ["tokyo-night"], "official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/yazi/tokyonight_night.toml", "syntax_url": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/sublime/tokyonight_night.tmTheme", "format": "yazi-flavor-tokyo"}},
-      "tmux": {"official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/tmux/tokyonight_night.tmux", "format": "tmux-tokyo"}},
+      "tmux": {"official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/tmux/tokyonight_night.tmux", "format": "tmux-styles", "style_keys": "mode-style message-style message-command-style pane-border-style pane-active-border-style status-style window-status-activity-style window-status-style", "required_style_keys": "pane-active-border-style status-style"}},
       "syntax": {"official": {"kind": "official", "name": "tokyo-night", "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/main/extras/sublime/tokyonight_night.tmTheme"}}
     },
     "gruvbox-dark": {"bat": {"native": ["gruvbox-dark"]}, "delta": {"native": ["gruvbox-dark"]}, "ghostty": {"native": ["Gruvbox Dark"]}, "neovim": {"native": ["gruvbox"]}},

@@ -267,6 +267,8 @@ are read from the author's current branch on apply:
   A `paths.tmux` override can target an existing managed theme include, as in an
   Oh my tmux! wrapper. Oh my tmux!'s own layout and embedded segment colors are
   not remapped; inline colors can still override the imported style fields.
+  The permitted and required style keys for each official tmux port live in
+  `internal/catalog/defaults.json`; the tmux adapter applies one shared parser.
 
 Ghostty and Neovim continue to use installed native Moonfly providers. Other
 applications remain unsupported unless a real installed/native or explicitly

@@ -3,6 +3,8 @@ package tmux
 import (
 	"strings"
 	"testing"
+
+	"github.com/clang-engineer/themeset/internal/catalog"
 )
 
 func TestTokyoNightTmuxKeepsOnlyAuthorColors(t *testing.T) {
@@ -15,7 +17,7 @@ set -g status-right-length "100"
 setw -g window-status-style "NONE,fg=#a9b1d6,bg=#16161e"
 if-shell 'echo should-not-run' { run-shell 'false' }
 `
-	colors, err := filesTokyoNightTmuxColors([]byte(script))
+	colors, err := filesTmuxStyles([]byte(script), *catalog.Port("tokyo-night", "tmux").Official)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +27,22 @@ if-shell 'echo should-not-run' { run-shell 'false' }
 	if !strings.Contains(string(colors), "pane-active-border-style") || !strings.Contains(string(colors), "window-status-style") {
 		t.Fatalf("author color styles missing: %s", colors)
 	}
-	if _, err := filesTokyoNightTmuxColors([]byte("set -g status-left \"layout only\"")); err == nil {
+	if _, err := filesTmuxStyles([]byte("set -g status-left \"layout only\""), *catalog.Port("tokyo-night", "tmux").Official); err == nil {
 		t.Fatal("accepted a layout-only tmux script")
+	}
+}
+
+func TestMoonflyTmuxUsesDeclaredStyleKeys(t *testing.T) {
+	port := *catalog.Port("moonfly", "tmux").Official
+	const script = "set -g pane-active-border-style \"fg=#111111\"\nset -g status-style \"bg=#222222\"\nset -g window-status-current-style none\nset -g mode-style \"fg=#333333\"\nrun-shell 'false'\n"
+	colors, err := filesTmuxStyles([]byte(script), port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(colors), "window-status-current-style none") || strings.Contains(string(colors), "mode-style") || strings.Contains(string(colors), "run-shell") {
+		t.Fatalf("styles escaped declared allowlist: %s", colors)
+	}
+	if _, err := filesTmuxStyles([]byte("set -g status-style \"bg=#222222\"\n"), port); err == nil {
+		t.Fatal("accepted a source missing the required pane border color")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
@@ -67,15 +68,14 @@ func nativeApplyTmux(port model.Port, env model.Environment) error {
 		return err
 	}
 	if official {
-		var styles []byte
-		switch port.Format {
-		case "tmux-moonfly":
-			styles, err = nativeAcquireMoonflyTmux(env, port.Source)
-		case "tmux-tokyo":
-			styles, err = nativeAcquireTokyoNightTmux(env, port.Source)
-		default:
+		if port.Format != "tmux-styles" {
 			return fmt.Errorf("unsupported official tmux format %q", port.Format)
 		}
+		data, err := shared.AcquireAsset(env, port.Source)
+		if err != nil {
+			return fmt.Errorf("acquire tmux styles: %w", err)
+		}
+		styles, err := filesTmuxStyles(data, port)
 		if err != nil {
 			return err
 		}
@@ -90,66 +90,35 @@ func nativeApplyTmux(port model.Port, env model.Environment) error {
 	return shared.Atomic(path, shared.ReplaceLines(data, func(s string) bool { return strings.HasSuffix(s, " # themeset") }, "source-file "+quoted+" # themeset"))
 }
 
-// Tmux's full author script changes status layout, clock and plugin settings.
-// Select only its literal color-style commands, retaining existing user layout.
-var filesTokyoNightTmuxStyle = regexp.MustCompile(`^(set|setw) -g ([a-z-]+) ("[a-zA-Z0-9,#=]+"|NONE,[a-zA-Z0-9,#=]+)$`)
+// Import only literal color-style commands selected by the bundled declaration.
+// Never execute an upstream theme script or let it replace the user's layout.
+var filesTmuxStyle = regexp.MustCompile(`^(set|setw) -g ([a-z-]+) ("[a-zA-Z0-9,#=]+"|none|NONE,[a-zA-Z0-9,#=]+)$`)
 
-func filesTokyoNightTmuxColors(data []byte) ([]byte, error) {
+func filesTmuxStyles(data []byte, port model.Port) ([]byte, error) {
+	allowed := strings.Fields(port.StyleKeys)
+	required := strings.Fields(port.RequiredStyleKeys)
+	if len(allowed) == 0 || len(required) == 0 {
+		return nil, errors.New("tmux style declaration requires allowed and required keys")
+	}
+	seen := make([]bool, len(required))
 	var result strings.Builder
 	for _, line := range strings.Split(string(data), "\n") {
-		matches := filesTokyoNightTmuxStyle.FindStringSubmatch(line)
-		if len(matches) == 0 {
+		match := filesTmuxStyle.FindStringSubmatch(line)
+		if len(match) == 0 || !slices.Contains(allowed, match[2]) {
 			continue
 		}
-		switch matches[2] {
-		case "mode-style", "message-style", "message-command-style", "pane-border-style", "pane-active-border-style", "status-style", "window-status-activity-style", "window-status-style":
-			result.WriteString(line)
-			result.WriteByte('\n')
+		result.WriteString(line)
+		result.WriteByte('\n')
+		for i, key := range required {
+			if match[2] == key {
+				seen[i] = true
+			}
 		}
 	}
-	if !strings.Contains(result.String(), "pane-active-border-style") || !strings.Contains(result.String(), "status-style") {
-		return nil, errors.New("Tokyo Night tmux script has no native color styles")
+	for i, ok := range seen {
+		if !ok {
+			return nil, fmt.Errorf("tmux source has no %s style", required[i])
+		}
 	}
 	return []byte(result.String()), nil
-}
-
-func nativeAcquireTokyoNightTmux(env model.Environment, source string) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, source)
-	if err != nil {
-		return nil, fmt.Errorf("acquire Tokyo Night tmux: %w", err)
-	}
-	data, err = filesTokyoNightTmuxColors(data)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-var filesMoonflyTmuxStyle = regexp.MustCompile(`^(set|setw) -g ([a-z-]+) ("[a-zA-Z0-9,#=]+"|none)$`)
-
-func filesMoonflyTmuxColors(data []byte) ([]byte, error) {
-	var result strings.Builder
-	for _, line := range strings.Split(string(data), "\n") {
-		match := filesMoonflyTmuxStyle.FindStringSubmatch(line)
-		if len(match) == 0 {
-			continue
-		}
-		switch match[2] {
-		case "message-style", "pane-active-border-style", "pane-border-style", "status-style", "window-status-activity-style", "window-status-current-style":
-			result.WriteString(line)
-			result.WriteByte('\n')
-		}
-	}
-	if !strings.Contains(result.String(), "pane-active-border-style") || !strings.Contains(result.String(), "status-style") {
-		return nil, errors.New("Moonfly tmux source has no native color styles")
-	}
-	return []byte(result.String()), nil
-}
-
-func nativeAcquireMoonflyTmux(env model.Environment, source string) ([]byte, error) {
-	data, err := shared.AcquireAsset(env, source)
-	if err != nil {
-		return nil, fmt.Errorf("acquire Moonfly tmux: %w", err)
-	}
-	return filesMoonflyTmuxColors(data)
 }

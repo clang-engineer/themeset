@@ -5,17 +5,19 @@ import "os/exec"
 // Port references an existing app theme, an app-native file, or an explicitly
 // registered remote file. Source is provenance text; URL is the fetch location.
 type Port struct {
-	Kind             string `json:"kind,omitempty"`
-	Name             string `json:"name,omitempty"`
-	File             string `json:"file,omitempty"`
-	URL              string `json:"url,omitempty"`
-	SyntaxURL        string `json:"syntax_url,omitempty"`
-	Source           string `json:"source,omitempty"`
-	Format           string `json:"format,omitempty"`
-	Variant          string `json:"variant,omitempty"`
-	LicenseURL       string `json:"license_url,omitempty"`
-	AssetURL         string `json:"asset_url,omitempty"`
-	LicenseSyntaxURL string `json:"license_syntax_url,omitempty"`
+	Kind              string `json:"kind,omitempty"`
+	Name              string `json:"name,omitempty"`
+	File              string `json:"file,omitempty"`
+	URL               string `json:"url,omitempty"`
+	SyntaxURL         string `json:"syntax_url,omitempty"`
+	Source            string `json:"source,omitempty"`
+	Format            string `json:"format,omitempty"`
+	Variant           string `json:"variant,omitempty"`
+	LicenseURL        string `json:"license_url,omitempty"`
+	AssetURL          string `json:"asset_url,omitempty"`
+	LicenseSyntaxURL  string `json:"license_syntax_url,omitempty"`
+	StyleKeys         string `json:"style_keys,omitempty"`
+	RequiredStyleKeys string `json:"required_style_keys,omitempty"`
 }
 
 // ThemePort describes the bundled default for one theme and tool. Native

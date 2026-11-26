@@ -137,9 +137,11 @@ roots and existing package managers; do not hardcode a developer's home path.
   Existing plugin options and keybindings must survive. Dracula's full plugin
   executes shell code and changes status layouts; it cannot be described as a
   colors-only operation that preserves an Oh my tmux! status layout.
-- **Current / target gap:** current code writes Moonfly's six style commands or a
-  trusted custom include; it neither runs TPM nor installs/activates Dracula.
-  Full-plugin recipes must explicitly declare their layout impact.
+- **Current / target gap:** the bundled catalog declares the permitted and
+  required color-style keys for Moonfly and Tokyo Night. One tmux parser imports
+  only matching literal style commands into a managed include; it never runs TPM
+  or installs/activates Dracula. Full-plugin recipes must explicitly declare
+  their layout impact.
 
 ## bat
 
