@@ -157,9 +157,9 @@ rules, and current implementation gaps, see the
 Registered official assets are fetched over HTTPS on each apply; adapters validate
 their native formats before changing settings. Installed native themes and custom
 ports remain local. Rosé Pine uses Main-variant sources; Tokyo Night uses Night.
-Shared source URLs and asset paths live in `internal/adapter/official_sources.go`.
-Tool-first adapter files (for example, `fzf.go` and `fzf_test.go`) own parsing,
-validation, installation, and configuration changes; common helpers remain shared.
+Shared registration, source URLs, acquisition, and file helpers use `shared_*.go`
+(for example, `internal/adapter/shared_official_sources.go`). Tool-first files
+such as `fzf.go` and `fzf_test.go` own parsing, validation, and configuration.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|

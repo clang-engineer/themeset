@@ -405,19 +405,19 @@ roots and existing package managers; do not hardcode a developer's home path.
 
 ## Implementation anchors and verification scope
 
-- [Native list discovery and selectors](internal/adapter/native.go),
+- [Shared native list discovery and selectors](internal/adapter/shared_native_registry.go),
   [Neovim](internal/adapter/neovim.go),
   [tmux](internal/adapter/tmux.go),
   [delta](internal/adapter/delta.go),
   [Harlequin](internal/adapter/harlequin.go).
-- [File adapter registration](internal/adapter/files.go),
-  [official source registry](internal/adapter/official_sources.go),
+- [Shared file adapter registration](internal/adapter/shared_file_registry.go),
+  [official source registry](internal/adapter/shared_official_sources.go),
   [Yazi flavor installers](internal/adapter/yazi_flavors.go),
   [installed Yazi family](internal/adapter/yazi_family.go),
   [btop source recipes](internal/adapter/btop_upstream.go),
   [eza Gruvbox](internal/adapter/eza_family.go),
   [Starship palettes](internal/adapter/starship_palette.go),
-  [path resolution](internal/adapter/file_helpers.go),
+  [shared path resolution](internal/adapter/shared_file_helpers.go),
   [custom-first selection and skip reasons](internal/app/engine.go).
 
 Isolated runtime checks verified fresh Catppuccin btop/Starship and Gruvbox
