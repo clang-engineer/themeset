@@ -1,0 +1,69 @@
+package ghostty
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/model"
+)
+
+var names = map[string][]string{
+	"dracula": {"Dracula"}, "catppuccin-mocha": {"Catppuccin Mocha"}, "nord": {"Nord"}, "gruvbox": {"Gruvbox Dark"},
+	"gruvbox-dark": {"Gruvbox Dark"}, "gruvbox-dark-hard": {"Gruvbox Dark Hard"},
+	"tokyonight": {"TokyoNight Night"}, "tokyo-night": {"TokyoNight Night"}, "rose-pine": {"Rose Pine"}, "kanagawa": {"Kanagawa Wave"},
+	"everforest": {"Everforest Dark Med", "everforest"}, "github-dark": {"GitHub Dark"}, "moonfly": {"Moonfly", "moonfly"},
+	"sonokai": {"Sonokai"}, "cyberdream": {"cyberdream"}, "onedark": {"onedark", "One Dark"},
+	"github-dark-high-contrast": {"GitHub Dark High Contrast"}, "gruvbox-hard": {"Gruvbox Dark Hard"},
+	"modus-vivendi": {"Modus Vivendi"}, "vscode-dark": {"vscode-dark"},
+}
+
+func Adapter() model.Adapter {
+	return model.Adapter{ID: "ghostty", Binary: "ghostty", Resolve: shared.ListedResolver("ghostty", names, "https://github.com/mbadolato/iTerm2-Color-Schemes/tree/master/ghostty", "+list-themes"), Apply: nativeApplyGhostty}
+}
+
+func nativeGhosttyPath(env model.Environment) string {
+	xdg := filepath.Join(shared.NativeConfigHome(env), "ghostty", "config")
+	if env.OS == "darwin" {
+		mac := filepath.Join(env.Home, "Library", "Application Support", "com.mitchellh.ghostty", "config")
+		if _, err := os.Stat(mac); err == nil {
+			xdg = mac
+		}
+	}
+	return shared.NativePath("ghostty", env, xdg)
+}
+
+var nativeGhosttyTheme = regexp.MustCompile(`^\s*theme\s*=`)
+
+func nativeApplyGhostty(port model.Port, env model.Environment) error {
+	name := port.Name
+	if port.File != "" {
+		name = shared.NativeExpand(port.File, env)
+		info, err := os.Stat(name)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("Ghostty theme must be a regular theme asset: %s", name)
+		}
+	}
+	if name == "" || strings.ContainsAny(name, "\r\n\x00") {
+		return fmt.Errorf("invalid Ghostty theme name")
+	}
+	path := nativeGhosttyPath(env)
+	if port.File != "" && filepath.Clean(shared.NativeExpand(port.File, env)) == filepath.Clean(path) {
+		return fmt.Errorf("Ghostty theme asset cannot be the destination config")
+	}
+	data, err := shared.Read(path, true)
+	if err != nil {
+		return err
+	}
+	if err := shared.Atomic(path, shared.ReplaceLines(data, func(s string) bool { return nativeGhosttyTheme.MatchString(s) }, "theme = "+strconv.Quote(name))); err != nil {
+		return err
+	}
+	return nativeReloadGhostty(env)
+}

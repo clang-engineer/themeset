@@ -405,20 +405,23 @@ roots and existing package managers; do not hardcode a developer's home path.
 
 ## Implementation anchors and verification scope
 
-- [Shared native list discovery and selectors](internal/adapter/shared_native_registry.go),
-  [Neovim](internal/adapter/neovim.go),
-  [tmux](internal/adapter/tmux.go),
-  [delta](internal/adapter/delta.go),
-  [Harlequin](internal/adapter/harlequin.go).
-- [Shared file adapter registration](internal/adapter/shared_file_registry.go),
-  [official source registry](internal/adapter/shared_official_sources.go),
-  [Yazi flavor installers](internal/adapter/yazi_flavors.go),
-  [installed Yazi family](internal/adapter/yazi_family.go),
-  [btop source recipes](internal/adapter/btop_upstream.go),
-  [eza Gruvbox](internal/adapter/eza_family.go),
-  [Starship palettes](internal/adapter/starship_palette.go),
-  [shared path resolution](internal/adapter/shared_file_helpers.go),
-  [custom-first selection and skip reasons](internal/app/engine.go).
+- [Adapter registry](internal/adapter/shared_registry.go),
+  [shared helpers and official source catalog](internal/adapter/shared/),
+  [Ghostty](internal/adapter/ghostty/),
+  [Neovim](internal/adapter/neovim/),
+  [tmux](internal/adapter/tmux/),
+  [bat](internal/adapter/bat/),
+  [delta](internal/adapter/delta/),
+  [Harlequin](internal/adapter/harlequin/).
+- [Starship](internal/adapter/starship/),
+  [fzf](internal/adapter/fzf/),
+  [Yazi](internal/adapter/yazi/),
+  [Atuin](internal/adapter/atuin/),
+  [lazygit](internal/adapter/lazygit/),
+  [lazydocker](internal/adapter/lazydocker/),
+  [btop](internal/adapter/btop/),
+  [eza](internal/adapter/eza/).
+- [Custom-first selection and skip reasons](internal/app/engine.go).
 
 Isolated runtime checks verified fresh Catppuccin btop/Starship and Gruvbox
 eza/Starship downloads, btop-maintained Dracula/Gruvbox Dark/Nord downloads
