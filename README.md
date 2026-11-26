@@ -142,10 +142,13 @@ The bundled catalog in `internal/catalog/defaults.json` lists twelve themes:
 `catppuccin-mocha`, `catppuccin-latte`, `catppuccin-frappe`,
 `catppuccin-macchiato`, `dracula`, `gruvbox`, `moonfly`, `nord`,
 `rose-pine` (Main), `rose-pine-dawn`, `rose-pine-moon`, and
-`tokyo-night` (Night). It declares each tool's installed-native candidate
-names and, where available, a verified upstream port.
-The same listed IDs feed `list`, shell completion, and the interactive
-picker. This shortlist is not a promise that every tool supports each theme.
+`tokyo-night` (Night). Each bundled `listed` entry has an `id` and, where
+available, a `support_site` pointing to the theme project's port directory.
+These links are reference metadata, not verified themeset ports or download
+sources. The catalog also declares each tool's installed-native candidate names
+and, where available, a verified upstream port. Listed IDs feed `list`, shell
+completion, and the interactive picker; the shortlist is not a promise that
+every tool supports each theme.
 Without a `listed` override, IDs registered under `themes` in the user config
 are added to this shortlist. A user `listed` array replaces the displayed
 shortlist exactly; `list` and the picker preserve its order, while completion
@@ -156,9 +159,10 @@ Use an empty theme object to register an extra ID without custom ports.
 User custom entries replace the bundled declaration for that theme and tool;
 other tools remain unchanged. Custom URLs are never labeled official.
 
-Bundled entries are grouped by `themes.<theme>.<tool>` so each theme's
-supported tools are together. `listed` remains a separate shortlist for the
-CLI. Official ports infer `kind: official` and, unless an upstream filename
+Bundled `listed` entries are objects; the user config's `listed` override
+remains an array of theme ID strings. Bundled ports are grouped by
+`themes.<theme>.<tool>` so each theme's supported tools are together.
+Official ports infer `kind: official` and, unless an upstream filename
 differs, their name from the theme key. Keep `native` candidates, `format`,
 `variant`, and companion URLs only where the adapter actually uses them.
 This does not change user config: overrides still use

@@ -11,8 +11,13 @@ import (
 //go:embed defaults.json
 var bundledThemeData []byte
 
+type listedTheme struct {
+	ID          string `json:"id"`
+	SupportSite string `json:"support_site,omitempty"`
+}
+
 type bundledThemes struct {
-	Listed []string                              `json:"listed"`
+	Listed []listedTheme                         `json:"listed"`
 	Themes map[string]map[string]model.ThemePort `json:"themes"`
 }
 
@@ -35,7 +40,13 @@ var defaults = func() bundledThemes {
 	return data
 }()
 
-func Listed() []string { return defaults.Listed }
+func Listed() []string {
+	ids := make([]string, len(defaults.Listed))
+	for i, theme := range defaults.Listed {
+		ids[i] = theme.ID
+	}
+	return ids
+}
 
 var verifiedPorts = func() map[string]map[model.Port]struct{} {
 	byTool := make(map[string]map[model.Port]struct{})

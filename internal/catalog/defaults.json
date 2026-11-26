@@ -1,5 +1,18 @@
 {
-  "listed": ["catppuccin-mocha", "catppuccin-latte", "catppuccin-frappe", "catppuccin-macchiato", "dracula", "gruvbox", "moonfly", "nord", "rose-pine", "rose-pine-dawn", "rose-pine-moon", "tokyo-night"],
+  "listed": [
+    {"id": "catppuccin-mocha", "support_site": "https://catppuccin.com/ports"},
+    {"id": "catppuccin-latte", "support_site": "https://catppuccin.com/ports"},
+    {"id": "catppuccin-frappe", "support_site": "https://catppuccin.com/ports"},
+    {"id": "catppuccin-macchiato", "support_site": "https://catppuccin.com/ports"},
+    {"id": "dracula", "support_site": "https://draculatheme.com/"},
+    {"id": "gruvbox", "support_site": "https://github.com/morhetz/gruvbox-contrib"},
+    {"id": "moonfly"},
+    {"id": "nord", "support_site": "https://www.nordtheme.com/ports"},
+    {"id": "rose-pine", "support_site": "https://rosepinetheme.com/themes/"},
+    {"id": "rose-pine-dawn", "support_site": "https://rosepinetheme.com/themes/"},
+    {"id": "rose-pine-moon", "support_site": "https://rosepinetheme.com/themes/"},
+    {"id": "tokyo-night"}
+  ],
   "themes": {
     "catppuccin-mocha": {
       "atuin": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml", "variant": "catppuccin-mocha-mauve"}},
