@@ -458,7 +458,7 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 	}
 	if !byID["dracula"].Listed || byID["dracula"].SupportSite != "https://draculatheme.com/" ||
 		!reflect.DeepEqual(byID["my-theme"].Tools, []string{"fzf"}) || !byID["my-theme"].Listed ||
-		byID["kanagawa"].Listed || byID["kanagawa"].SupportSite != "" ||
+		byID["kanagawa"].Listed || byID["kanagawa"].SupportSite != "https://github.com/rebelot/kanagawa.nvim" ||
 		!slices.Contains(byID["kanagawa"].Tools, "eza") || !slices.Contains(byID["kanagawa"].Tools, "yazi") {
 		t.Fatalf("incorrect listed state, metadata, or declared ports: %#v", byID)
 	}

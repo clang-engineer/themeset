@@ -73,7 +73,7 @@ shell completion. `list --details` adds a `listed`/`hidden` marker, appearance,
 declared tool IDs, and a known upstream support site (`-` when absent). Only
 explicitly identified light themes show `light`: `ayu-light`,
 `catppuccin-latte`, `flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`,
-`tokyo-night-day`, and the hidden `solarized-light`. `-` means unspecified,
+`solarized-light`, and `tokyo-night-day`. `-` means unspecified,
 not necessarily dark; custom theme appearance is not guessed. The interactive
 picker marks light entries with `[light]` in its selection list and
 `Appearance: light` in the preview; the selected value remains the exact ID.
@@ -154,12 +154,14 @@ request, not that every window visually refreshed. On Linux, press
 `Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
 used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 
-The bundled catalog in `internal/catalog/defaults.json` lists twelve themes:
-`catppuccin-mocha`, `catppuccin-latte`, `catppuccin-frappe`,
-`catppuccin-macchiato`, `dracula`, `gruvbox`, `moonfly`, `nord`,
-`rose-pine` (Main), `rose-pine-dawn`, `rose-pine-moon`, and
-`tokyo-night` (Night). Each bundled `listed` entry has an `id` and, where
-available, a `support_site` pointing to the theme project's port directory.
+The bundled discovery list in `internal/catalog/defaults.json` includes the
+Dracula, Catppuccin, Gruvbox, Tokyo Night, Nord, Kanagawa, Everforest, Rose
+Pine, Solarized Light, and Nightfox families, alongside other supported IDs.
+`github-dark` and `vscode-dark` also appear in the default list. Nightfox
+declares an upstream Ghostty port and the installed Neovim `nightfox`
+colorscheme; other tools use the configured fallback where no Nightfox port
+exists. Each bundled `listed` entry has an `id` and, where available, a
+`support_site` pointing to the theme project's port directory.
 The separate `light` metadata includes both curated and hidden bundled IDs.
 These links are reference metadata, not verified themeset ports or download
 sources. The catalog also declares each tool's installed-native candidate names
@@ -182,7 +184,7 @@ port; unregistered tools retain the documented fallback behavior.
 `kanagawa` selects the Wave variant with registered btop, eza, Ghostty, and
 Yazi ports; Bat and Delta use a previously installed `Kanagawa` syntax theme
 only. `everforest` selects dark-medium ports for btop, fzf, and Yazi.
-Hidden `github-dark` and `modus-vivendi` fzf presets require fzf 0.63.0 or
+The `github-dark` and hidden `modus-vivendi` fzf presets require fzf 0.63.0 or
 newer for their footer colors; older fzf versions fail before changing options.
 The hidden `gruvbox-dark` and `tokyonight` declarations contain native selectors
 only; use the listed `gruvbox` and `tokyo-night` IDs for their wider registered

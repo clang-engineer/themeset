@@ -9,7 +9,7 @@ import (
 // Ghostty treats a theme as an unrestricted configuration file. Only accept
 // plain hex colors so a changed upstream asset cannot set executable options.
 func validateOfficialTheme(data []byte) error {
-	var palette [16]bool
+	var palette [256]bool
 	colors := map[string]bool{}
 	for number, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
@@ -46,8 +46,8 @@ func validateOfficialTheme(data []byte) error {
 	if !colors["background"] || !colors["foreground"] {
 		return fmt.Errorf("theme must set background and foreground")
 	}
-	for i, seen := range palette {
-		if !seen {
+	for i := range 16 {
+		if !palette[i] {
 			return fmt.Errorf("theme is missing palette color %d", i)
 		}
 	}

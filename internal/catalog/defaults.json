@@ -6,16 +6,22 @@
     {"id": "catppuccin-frappe", "support_site": "https://catppuccin.com/ports"},
     {"id": "catppuccin-macchiato", "support_site": "https://catppuccin.com/ports"},
     {"id": "dracula", "support_site": "https://draculatheme.com/"},
+    {"id": "everforest", "support_site": "https://github.com/sainnhe/everforest"},
     {"id": "flexoki-light", "support_site": "https://github.com/kepano/flexoki"},
+    {"id": "github-dark"},
     {"id": "gruvbox", "support_site": "https://github.com/morhetz/gruvbox-contrib"},
+    {"id": "kanagawa", "support_site": "https://github.com/rebelot/kanagawa.nvim"},
     {"id": "kanagawa-lotus", "support_site": "https://github.com/rebelot/kanagawa.nvim"},
     {"id": "moonfly"},
+    {"id": "nightfox", "support_site": "https://github.com/EdenEast/nightfox.nvim"},
     {"id": "nord", "support_site": "https://www.nordtheme.com/ports"},
     {"id": "rose-pine", "support_site": "https://rosepinetheme.com/themes/"},
     {"id": "rose-pine-dawn", "support_site": "https://rosepinetheme.com/themes/"},
     {"id": "rose-pine-moon", "support_site": "https://rosepinetheme.com/themes/"},
+    {"id": "solarized-light", "support_site": "https://ethanschoonover.com/solarized/"},
     {"id": "tokyo-night"},
-    {"id": "tokyo-night-day", "support_site": "https://github.com/folke/tokyonight.nvim"}
+    {"id": "tokyo-night-day", "support_site": "https://github.com/folke/tokyonight.nvim"},
+    {"id": "vscode-dark"}
   ],
   "light": ["ayu-light", "catppuccin-latte", "flexoki-light", "kanagawa-lotus", "rose-pine-dawn", "solarized-light", "tokyo-night-day"],
   "themes": {
@@ -238,6 +244,10 @@
     },
     "marine": {
       "atuin": {"native": ["marine"]}
+    },
+    "nightfox": {
+      "ghostty": {"official": {"source": "https://raw.githubusercontent.com/EdenEast/nightfox.nvim/main/extra/nightfox/nightfox.ghostty"}},
+      "neovim": {"native": ["nightfox"]}
     },
     "modus-vivendi": {
       "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Modus Vivendi"}},

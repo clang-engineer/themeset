@@ -31,6 +31,18 @@ func TestGhosttyOfficialAcceptsPlainHexColors(t *testing.T) {
 	}
 }
 
+func TestGhosttyOfficialAcceptsExtendedPalette(t *testing.T) {
+	theme := sampleOfficialTheme("#112233") + "palette = 16=#f4a261\npalette = 255=#abcdef\n"
+	if err := validateOfficialTheme([]byte(theme)); err != nil {
+		t.Fatalf("valid extended palette rejected: %v", err)
+	}
+	for _, extra := range []string{"palette = 256=#abcdef\n", "palette = 16=#abcdef\n", "palette = 17=invalid\n"} {
+		if err := validateOfficialTheme([]byte(theme + extra)); err == nil {
+			t.Fatalf("accepted invalid extended palette entry %q", extra)
+		}
+	}
+}
+
 func TestGhosttyOfficialThemesInstallAndRefresh(t *testing.T) {
 	for _, theme := range []string{"catppuccin-latte", "catppuccin-frappe", "catppuccin-macchiato", "catppuccin-mocha", "dracula", "rose-pine", "tokyo-night"} {
 		t.Run(theme, func(t *testing.T) {
