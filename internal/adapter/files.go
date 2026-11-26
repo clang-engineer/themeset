@@ -2,7 +2,7 @@ package adapter
 
 import "github.com/clang-engineer/themeset/internal/model"
 
-const filesMoonflySource = "https://github.com/bluz71/vim-moonfly-colors/blob/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras/"
+const filesMoonflySource = "https://raw.githubusercontent.com/bluz71/vim-moonfly-colors/master/extras/"
 
 func fileAdapters() []model.Adapter {
 	return []model.Adapter{

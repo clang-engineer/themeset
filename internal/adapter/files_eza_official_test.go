@@ -21,7 +21,7 @@ func ezaDraculaClient(t *testing.T, transport ezaDraculaTransport) {
 	t.Cleanup(func() { filesAssetHTTPClient = previous })
 }
 
-func TestEzaDraculaAcquiresNativeThemeAndCachesLicense(t *testing.T) {
+func TestEzaDraculaAcquiresCurrentNativeThemeAndLicense(t *testing.T) {
 	env := filesTestEnv(t)
 	path := filepath.Join(env.Home, "explicit", "theme.yml")
 	env.Paths["eza"] = path
@@ -62,13 +62,13 @@ func TestEzaDraculaAcquiresNativeThemeAndCachesLicense(t *testing.T) {
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if requests != 2 || !bytes.Equal(first, filesTestRead(t, path)) {
-		t.Fatal("reapply changed theme or downloaded again")
+	if requests != 4 || !bytes.Equal(first, filesTestRead(t, path)) {
+		t.Fatal("reapply did not fetch latest theme and license or changed effective theme")
 	}
 }
 
 func TestEzaDraculaFailureDoesNotMutateActiveTheme(t *testing.T) {
-	for _, failure := range []string{"download", "checksum", "license"} {
+	for _, failure := range []string{"download", "invalid schema", "license"} {
 		t.Run(failure, func(t *testing.T) {
 			env := filesTestEnv(t)
 			path := filesPath("eza", env)
@@ -79,7 +79,7 @@ func TestEzaDraculaFailureDoesNotMutateActiveTheme(t *testing.T) {
 					return nil, fmt.Errorf("offline")
 				}
 				body := ezaDraculaTestTheme
-				if failure == "checksum" {
+				if failure == "invalid schema" {
 					body = "gui: {theme: {}}\n"
 				}
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil

@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -160,9 +162,13 @@ func TestNativeOfficialMoonflyTmuxPreservesLayoutsAndBindings(t *testing.T) {
 				path = env.Paths["tmux"]
 			}
 			nativeTestPut(t, path, layout)
+			script := "set -g pane-active-border-style \"fg=#111111\"\nset -g status-style \"bg=#222222\"\nset -g status-left 'OVERRIDE'\nrun-shell 'false'\n"
+			ezaDraculaClient(t, func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(script)), Header: make(http.Header)}, nil
+			})
 			port, ok, err := nativeResolveTmux("moonfly", env)
 			if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly.tmux" {
-				t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+				t.Fatalf("missing current official Moonfly: %#v, %v", port, err)
 			}
 			if err := nativeApplyTmux(port, env); err != nil {
 				t.Fatal(err)
@@ -173,32 +179,17 @@ func TestNativeOfficialMoonflyTmuxPreservesLayoutsAndBindings(t *testing.T) {
 				t.Fatalf("layout/bindings changed: %s", first)
 			}
 			styles := nativeTestGet(t, source)
-			allowed := map[string]bool{
-				"set -g message-style \"bg=#1c1c1c,fg=#9c9c9c\"":                true,
-				"set -g pane-active-border-style \"bg=#080808,fg=#80a0ff\"":     true,
-				"set -g pane-border-style \"bg=#080808,fg=#303030\"":            true,
-				"set -g status-style \"bg=#1c1c1c,fg=#9c9c9c\"":                 true,
-				"setw -g window-status-activity-style none":                     true,
-				"setw -g window-status-current-style \"bg=#353946,fg=#80a0ff\"": true,
+			if !strings.Contains(styles, "pane-active-border-style \"fg=#111111\"") ||
+				!strings.Contains(styles, "status-style \"bg=#222222\"") ||
+				strings.Contains(styles, "status-left") || strings.Contains(styles, "run-shell") {
+				t.Fatalf("Moonfly style extraction changed layout or omitted colors: %s", styles)
 			}
-			lines := strings.Split(strings.TrimSpace(styles), "\n")
-			if len(lines) != len(allowed) {
-				t.Fatalf("unexpected Moonfly theme commands: %s", styles)
-			}
-			for _, line := range lines {
-				if !allowed[line] {
-					t.Errorf("non-upstream style or layout command: %s", line)
-				}
-				delete(allowed, line)
-			}
-			if len(allowed) != 0 {
-				t.Errorf("missing official styles: %v", allowed)
-			}
+			script = "set -g pane-active-border-style \"fg=#333333\"\nset -g status-style \"bg=#444444\"\n"
 			if err := nativeApplyTmux(port, env); err != nil {
 				t.Fatal(err)
 			}
-			if nativeTestGet(t, path) != first {
-				t.Fatal("reapply duplicated or changed tmux include")
+			if nativeTestGet(t, path) != first || !strings.Contains(nativeTestGet(t, source), "fg=#333333") {
+				t.Fatal("reapply failed to refresh styles or changed tmux include")
 			}
 			if managed && nativeTestGet(t, filepath.Join(env.Home, ".tmux.conf")) != wrapper {
 				t.Fatal("Oh my tmux wrapper was changed")

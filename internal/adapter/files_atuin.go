@@ -91,6 +91,11 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 		if err != nil {
 			return err
 		}
+		if port.Kind == "official" && port.File == "" {
+			if err := filesValidateAtuinPort(port.Name, asset); err != nil {
+				return err
+			}
+		}
 		port.Name, err = filesAtuinTheme(asset)
 		if err != nil {
 			return err
@@ -116,4 +121,18 @@ func filesApplyAtuin(port model.Port, env model.Environment) error {
 		theme["name"] = port.Name
 		return nil
 	})
+}
+
+func filesValidateAtuinPort(theme string, data []byte) error {
+	name, err := filesAtuinTheme(data)
+	if err != nil {
+		return err
+	}
+	if theme == "catppuccin-mocha" {
+		theme = "catppuccin-mocha-mauve"
+	}
+	if name != theme {
+		return fmt.Errorf("unexpected Atuin theme name %q", name)
+	}
+	return nil
 }

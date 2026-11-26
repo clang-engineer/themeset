@@ -2,8 +2,6 @@ package adapter
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,14 +17,13 @@ func ezaGruvboxFixture(t *testing.T) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256(data)
-	if hex.EncodeToString(sum[:]) != filesEzaGruvboxSHA256 {
-		t.Fatal("test fixture does not match pinned upstream Gruvbox Dark YAML")
+	if err := filesValidateEzaFamily(data); err != nil {
+		t.Fatalf("fixture is not a native Gruvbox Dark theme: %v", err)
 	}
 	return data
 }
 
-func TestEzaFamilyGruvboxAcquisitionOfflineReapply(t *testing.T) {
+func TestEzaFamilyGruvboxAcquisitionFetchesLatest(t *testing.T) {
 	fixture := ezaGruvboxFixture(t)
 	env := filesTestEnv(t)
 	path := filepath.Join(env.Home, "custom", "eza", "theme.yml")
@@ -65,21 +62,26 @@ func TestEzaFamilyGruvboxAcquisitionOfflineReapply(t *testing.T) {
 	if directory["foreground"] != "#83a598" || directory["is_italic"] != true || config["filenames"].(map[string]any)["Makefile"].(map[string]any)["icon"].(map[string]any)["glyph"] != "KEEP" || config["extensions"].(map[string]any)["mine"] == nil {
 		t.Fatalf("theme did not preserve user settings: %#v", config)
 	}
-	// Only the verified cache is available for the second application.
+	// A second application fetches the current upstream branch again.
 	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
-		return nil, fmt.Errorf("offline: %s", r.URL)
+		requests++
+		body := fixture
+		if r.URL.String() == filesEzaFamilyLicenseSource {
+			body = []byte(ezaDraculaTestLicense)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
 	})
 	if err := filesApplyEza(port, env); err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(first, filesTestRead(t, path)) {
-		t.Fatal("offline reapply changed effective theme")
+	if requests != 4 || !bytes.Equal(first, filesTestRead(t, path)) {
+		t.Fatal("reapply failed to fetch current theme or changed effective theme")
 	}
 }
 
 func TestEzaFamilyInitialAcquisitionFailurePreservesTheme(t *testing.T) {
 	fixture := ezaGruvboxFixture(t)
-	for _, failure := range []string{"offline", "wrong checksum", "missing license"} {
+	for _, failure := range []string{"offline", "invalid schema", "missing license"} {
 		t.Run(failure, func(t *testing.T) {
 			env := filesTestEnv(t)
 			path := filesPath("eza", env)
@@ -90,7 +92,7 @@ func TestEzaFamilyInitialAcquisitionFailurePreservesTheme(t *testing.T) {
 					return nil, fmt.Errorf("offline")
 				}
 				body := fixture
-				if failure == "wrong checksum" {
+				if failure == "invalid schema" {
 					body = []byte("gui: {theme: {}}\n")
 				}
 				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
@@ -109,28 +111,36 @@ func TestEzaFamilyInitialAcquisitionFailurePreservesTheme(t *testing.T) {
 	}
 }
 
-func TestEzaFamilyCorruptCachedAssetPreservesTheme(t *testing.T) {
+func TestEzaFamilyOfflineReapplyPreservesTheme(t *testing.T) {
 	env := filesTestEnv(t)
 	path := filesPath("eza", env)
-	const original = "filenames:\n  precious: {filename: {foreground: red}}\n"
-	filesTestWrite(t, path, original)
-	filesTestWrite(t, filepath.Join(env.Home, ".cache", "themeset", "assets", filesEzaGruvboxSHA256), "gui: {theme: {}}\n")
-	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected download for corrupted cached asset: %s", r.URL)
-		return nil, fmt.Errorf("unexpected request")
-	})
+	filesTestWrite(t, path, "filenames:\n  precious: {filename: {foreground: red}}\n")
 	port, ok, err := filesResolveEzaFamily("gruvbox", env)
 	if err != nil || !ok {
 		t.Fatalf("resolve: ok=%v err=%v", ok, err)
 	}
-	if err := filesApplyEza(port, env); err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
-		t.Fatalf("wanted cached asset checksum error, got %v", err)
+	fixture := ezaGruvboxFixture(t)
+	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
+		body := fixture
+		if r.URL.String() == filesEzaFamilyLicenseSource {
+			body = []byte(ezaDraculaTestLicense)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+	})
+	if err := filesApplyEza(port, env); err != nil {
+		t.Fatal(err)
 	}
-	if string(filesTestRead(t, path)) != original {
-		t.Fatal("corrupted cache mutated active theme")
+	applied := filesTestRead(t, path)
+	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("offline: %s", r.URL)
+	})
+	if err := filesApplyEza(port, env); err == nil {
+		t.Fatal("offline reapply succeeded without fetching current branch")
+	}
+	if !bytes.Equal(filesTestRead(t, path), applied) {
+		t.Fatal("offline reapply mutated active theme")
 	}
 }
-
 func TestEzaFamilyRejectsWrongSchemaAndUnknownTheme(t *testing.T) {
 	fixture := ezaGruvboxFixture(t)
 	for _, bad := range []string{"", "gui: {theme: {}}\n", "colourful: true\nfilekinds: broken\n", strings.Replace(string(fixture), "directory: {foreground: \"#83a598\"}", "directory: {foreground: false}", 1), strings.Replace(string(fixture), "directory: {foreground: \"#83a598\"}", "directory: {foreground: \"#nothex\"}", 1)} {

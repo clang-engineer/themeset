@@ -2,8 +2,6 @@ package adapter
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -106,10 +104,12 @@ func TestYaziDraculaAcquiresCompleteFlavorAndActivates(t *testing.T) {
 	root := filesYaziDraculaRoot(env)
 	for _, asset := range filesYaziDraculaAssets {
 		data := filesTestRead(t, filepath.Join(root, asset.name))
-		digest := sha256.Sum256(data)
-		if hex.EncodeToString(digest[:]) != asset.digest || calls[asset.name] != 1 {
-			t.Fatalf("asset %s not acquired exactly once with pinned bytes", asset.name)
+		if !bytes.Equal(data, filesTestYaziDraculaFixture(t, asset.name)) || calls[asset.name] != 1 {
+			t.Fatalf("asset %s not acquired exactly once from the current branch", asset.name)
 		}
+	}
+	if string(filesTestRead(t, filepath.Join(root, filesYaziSourceMarker))) != filesYaziDraculaSource+"\n" {
+		t.Fatal("official flavor provenance was not recorded")
 	}
 	config, err := filesTOML(filesTestRead(t, path))
 	if err != nil {
@@ -128,7 +128,7 @@ func TestYaziDraculaAcquiresCompleteFlavorAndActivates(t *testing.T) {
 	first := filesTestRead(t, path)
 	port, ok, err := filesResolveYazi("dracula", env)
 	if err != nil || !ok || port.Kind != "official" {
-		t.Fatalf("installed pinned flavor not recognized: %#v, %v", port, err)
+		t.Fatalf("installed official flavor not recognized: %#v, %v", port, err)
 	}
 	if err := filesApplyYazi(port, env); err != nil {
 		t.Fatal(err)
@@ -165,8 +165,30 @@ func TestYaziDraculaReusesCompatibleInstalledFlavorOffline(t *testing.T) {
 	}
 }
 
+func TestYaziDraculaTreatsUnmarkedOfficialBytesAsNative(t *testing.T) {
+	env := filesTestEnv(t)
+	root := filesYaziDraculaRoot(env)
+	for _, asset := range filesYaziDraculaAssets {
+		filesTestWrite(t, filepath.Join(root, asset.name), string(filesTestYaziDraculaFixture(t, asset.name)))
+	}
+	filesTestYaziDraculaHTTP(t, func(*http.Request) (*http.Response, error) {
+		t.Fatal("complete independently installed flavor triggered acquisition")
+		return nil, errors.New("offline")
+	})
+	port, ok, err := filesResolveYazi("dracula", env)
+	if err != nil || !ok || port.Kind != "native" || port.File != filepath.Join(root, "flavor.toml") {
+		t.Fatalf("unmarked independent flavor was not native: %#v, %v", port, err)
+	}
+	if err := filesApplyYazi(port, env); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filesYaziSourceMarker)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("independent flavor was marked as official")
+	}
+}
+
 func TestYaziDraculaFailurePreservesSelectionAndIncompleteFlavor(t *testing.T) {
-	for _, failure := range []string{"network", "status", "checksum"} {
+	for _, failure := range []string{"network", "status", "malformed syntax"} {
 		t.Run(failure, func(t *testing.T) {
 			env := filesTestEnv(t)
 			path := filesPath("yazi", env)
@@ -176,18 +198,19 @@ func TestYaziDraculaFailurePreservesSelectionAndIncompleteFlavor(t *testing.T) {
 			filesTestWrite(t, filepath.Join(root, "flavor.toml"), string(filesTestYaziDraculaFixture(t, "flavor.toml")))
 			filesTestWrite(t, filepath.Join(root, "keep.txt"), "user file")
 			filesTestYaziDraculaHTTP(t, func(req *http.Request) (*http.Response, error) {
-				if filepath.Base(req.URL.Path) == "LICENSE" {
-					switch failure {
-					case "network":
+				switch failure {
+				case "network":
+					if filepath.Base(req.URL.Path) == "LICENSE" {
 						return nil, errors.New("offline")
-					case "status":
-						return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("missing"))}, nil
-					case "checksum":
-						return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("wrong bytes"))}, nil
 					}
-				}
-				if filepath.Base(req.URL.Path) == "flavor.toml" {
-					t.Fatal("matching partial asset downloaded unnecessarily")
+				case "status":
+					if filepath.Base(req.URL.Path) == "LICENSE" {
+						return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("missing"))}, nil
+					}
+				case "malformed syntax":
+					if filepath.Base(req.URL.Path) == "tmtheme.xml" {
+						return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("<html>not a tmtheme</html>")), Header: make(http.Header)}, nil
+					}
 				}
 				return filesTestYaziDraculaResponse(t, req), nil
 			})
@@ -224,21 +247,67 @@ func TestYaziDraculaCompletesOnlyMatchingPartialAssets(t *testing.T) {
 			calls := 0
 			filesTestYaziDraculaHTTP(t, func(req *http.Request) (*http.Response, error) {
 				calls++
-				if conflict || filepath.Base(req.URL.Path) == "flavor.toml" {
-					t.Fatal("conflicting or already present asset downloaded")
-				}
 				return filesTestYaziDraculaResponse(t, req), nil
 			})
 			err := filesApplyYazi(model.Port{Kind: "official", Name: "dracula"}, env)
 			if conflict {
-				if err == nil || calls != 0 || !bytes.Equal(before, filesTestRead(t, filesPath("yazi", env))) {
+				if err == nil || calls != 1 || !bytes.Equal(before, filesTestRead(t, filesPath("yazi", env))) {
 					t.Fatal("conflicting native partial flavor was not preserved")
 				}
-			} else if err != nil || calls != 3 {
+				if _, err := os.Stat(filepath.Join(root, filesYaziSourceMarker)); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("conflicting partial flavor was marked official")
+				}
+			} else if err != nil || calls != len(filesYaziDraculaAssets) {
 				t.Fatalf("matching partial flavor not completed: calls=%d, %v", calls, err)
 			}
 			if string(filesTestRead(t, filepath.Join(root, "keep.txt"))) != "user file" || string(filesTestRead(t, filepath.Join(root, "flavor.toml"))) != partial {
 				t.Fatal("existing partial flavor data changed")
+			}
+		})
+	}
+}
+
+func TestYaziDraculaRejectsMalformedDownloadsWithoutChangingSelection(t *testing.T) {
+	for _, failure := range []string{"invalid TOML", "missing manager", "invalid syntax", "empty license"} {
+		t.Run(failure, func(t *testing.T) {
+			env := filesTestEnv(t)
+			path := filesPath("yazi", env)
+			original := "[flavor]\ndark = 'keep'\n"
+			filesTestWrite(t, path, original)
+			filesTestYaziDraculaHTTP(t, func(req *http.Request) (*http.Response, error) {
+				name := filepath.Base(req.URL.Path)
+				var invalid string
+				switch failure {
+				case "invalid TOML":
+					if name == "flavor.toml" {
+						invalid = "broken = ["
+					}
+				case "missing manager":
+					if name == "flavor.toml" {
+						invalid = "[manager]\ncwd = 'old'\n"
+					}
+				case "invalid syntax":
+					if name == "tmtheme.xml" {
+						invalid = "<html>not a tmtheme</html>"
+					}
+				case "empty license":
+					if name == "LICENSE" {
+						return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
+					}
+				}
+				if invalid != "" {
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(invalid)), Header: make(http.Header)}, nil
+				}
+				return filesTestYaziDraculaResponse(t, req), nil
+			})
+			if err := filesApplyYazi(model.Port{Kind: "official", Name: "dracula"}, env); err == nil {
+				t.Fatal("invalid upstream flavor was installed")
+			}
+			if string(filesTestRead(t, path)) != original {
+				t.Fatal("invalid upstream flavor changed selection")
+			}
+			if _, err := os.Stat(filesYaziDraculaRoot(env)); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("invalid upstream flavor created the destination directory")
 			}
 		})
 	}
@@ -283,7 +352,7 @@ func TestYaziDraculaRemovesOnlyOwnedPreviousCatppuccinLeaves(t *testing.T) {
 	env := filesTestEnv(t)
 	cat, ok := filesOfficialYazi("catppuccin-mocha")
 	if !ok {
-		t.Fatal("bundled Catppuccin port missing")
+		t.Fatal("official Catppuccin port missing")
 	}
 	if err := filesApplyYazi(cat, env); err != nil {
 		t.Fatal(err)

@@ -1,22 +1,14 @@
 package adapter
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-// Exact existing upstream assets; the sibling LICENSE files record revisions.
-//
-//go:embed assets/starship-dracula.toml
-var filesStarshipDracula []byte
-
-//go:embed assets/starship-moonfly.toml
-var filesStarshipMoonfly []byte
-
-const filesStarshipSource = "https://github.com/dracula/starship/blob/920e9f46ccc25beee15ed7fe0baddabdfeaaf92a/starship.toml"
+const filesStarshipSource = "https://raw.githubusercontent.com/dracula/starship/master/starship.toml"
 
 func filesResolveStarship(name string, env model.Environment) (model.Port, bool, error) {
 	switch name {
@@ -64,10 +56,23 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 				if err != nil {
 					return err
 				}
-			case "dracula":
-				data = filesStarshipDracula
-			case "moonfly":
-				data = filesStarshipMoonfly
+			case "dracula", "moonfly":
+				source := filesStarshipSource
+				if port.Name == "moonfly" {
+					source = filesMoonflySource + "moonfly-starship.toml"
+				}
+				if port.Source != source {
+					return fmt.Errorf("unregistered official Starship source for %q", port.Name)
+				}
+				var err error
+				data, err = filesAcquireAsset(env, source)
+				if err != nil {
+					return fmt.Errorf("acquire %s Starship palette: %w", port.Name, err)
+				}
+				data, err = filesPrepareOfficialStarshipPalette(data, port.Name)
+				if err != nil {
+					return fmt.Errorf("invalid %s Starship palette: %w", port.Name, err)
+				}
 			default:
 				var err error
 				data, err = filesAcquirePaletteFamily("starship", port.Name, env)
@@ -108,4 +113,37 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 		config["palette"] = port.Name
 		return nil
 	})
+}
+
+func filesPrepareStarshipPort(theme string, data []byte) ([]byte, error) {
+	if theme != "rose-pine" {
+		return nil, fmt.Errorf("unsupported Starship port %q", theme)
+	}
+	return filesPaletteFamilyTOML(data, theme)
+}
+
+var filesStarshipOfficialColor = regexp.MustCompile(`^#[[:xdigit:]]{6}$`)
+
+// Only the named palette is carried forward; prompt/module settings from
+// upstream must never replace the user's Starship configuration.
+func filesPrepareOfficialStarshipPalette(data []byte, name string) ([]byte, error) {
+	config, err := filesTOML(data)
+	if err != nil {
+		return nil, err
+	}
+	if config["palette"] != name {
+		return nil, fmt.Errorf("Starship source does not select %q", name)
+	}
+	palettes, _ := config["palettes"].(map[string]any)
+	palette, ok := palettes[name].(map[string]any)
+	if !ok || len(palette) == 0 {
+		return nil, fmt.Errorf("Starship source has no %q colors", name)
+	}
+	for key, value := range palette {
+		color, ok := value.(string)
+		if !ok || !filesStarshipOfficialColor.MatchString(color) {
+			return nil, fmt.Errorf("invalid Starship color %q", key)
+		}
+	}
+	return data, nil
 }

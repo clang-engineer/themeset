@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/clang-engineer/themeset/internal/model"
@@ -37,4 +38,20 @@ func filesApplyLazy(id string) func(model.Port, model.Environment) error {
 			return nil
 		})
 	}
+}
+
+func filesValidateLazyPort(data []byte) error {
+	config, err := filesYAML(data)
+	if err != nil {
+		return err
+	}
+	gui, _ := config["gui"].(map[string]any)
+	theme, _ := gui["theme"].(map[string]any)
+	if len(theme) == 0 {
+		theme, _ = config["theme"].(map[string]any)
+	}
+	if len(theme) == 0 {
+		return errors.New("missing lazygit theme mapping")
+	}
+	return nil
 }

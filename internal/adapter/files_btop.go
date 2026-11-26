@@ -108,7 +108,7 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		var err error
 		if port.Source == filesBtopCatppuccinSource && port.Name == "catppuccin_mocha" {
 			asset, err = filesAcquireBtopCatppuccin(env)
-		} else if port.Source == filesTokyoNightBase+filesTokyoNightAssets["btop"].path && port.Name == "tokyonight_night" {
+		} else if port.Source == filesTokyoNightBase+filesTokyoNightAssets["btop"] && port.Name == "tokyonight_night" {
 			asset, err = filesAcquireTokyoNightPort("btop", port, env)
 		} else if port.Name == "rose-pine" {
 			asset, err = filesAcquireRosePinePort("btop", port, env)
@@ -165,4 +165,22 @@ func filesApplyBtop(port model.Port, env model.Environment) error {
 		}
 	}
 	return filesAtomic(path, []byte(strings.Join(lines, "\n")))
+}
+
+func filesResolveBtopCatppuccin() (model.Port, bool, error) {
+	return model.Port{Kind: "official", Name: "catppuccin_mocha", Source: filesBtopCatppuccinSource}, true, nil
+}
+
+func filesAcquireBtopCatppuccin(env model.Environment) ([]byte, error) {
+	data, err := filesAcquireAsset(env, filesBtopCatppuccinSource)
+	if err != nil {
+		return nil, fmt.Errorf("acquire btop Catppuccin Mocha: %w", err)
+	}
+	if err := filesBtopTheme(data); err != nil {
+		return nil, fmt.Errorf("invalid btop Catppuccin Mocha: %w", err)
+	}
+	if _, err := filesAcquireAsset(env, filesBtopCatppuccinLicense); err != nil {
+		return nil, fmt.Errorf("acquire btop Catppuccin Mocha license: %w", err)
+	}
+	return data, nil
 }

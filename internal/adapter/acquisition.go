@@ -1,16 +1,11 @@
 package adapter
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/clang-engineer/themeset/internal/model"
@@ -31,32 +26,16 @@ var filesAssetHTTPClient = &http.Client{
 	},
 }
 
-// Only apply calls acquisition. Source and digest come from the registered,
-// pinned recipe, never from an executable command or an untrusted web page.
-func filesAcquireAsset(env model.Environment, source, digest string) ([]byte, error) {
-	return filesAcquireAssetWithClient(env, source, digest, filesAssetHTTPClient)
+// Fetch the current official source on every apply. Never execute downloaded
+// content; the tool adapter validates its native format before changing config.
+func filesAcquireAsset(env model.Environment, source string) ([]byte, error) {
+	return filesAcquireAssetWithClient(env, source, filesAssetHTTPClient)
 }
 
-func filesAcquireAssetWithClient(env model.Environment, source, digest string, client *http.Client) ([]byte, error) {
-	expected, err := hex.DecodeString(digest)
-	if err != nil || len(expected) != sha256.Size {
-		return nil, errors.New("theme asset requires a SHA-256 digest")
-	}
+func filesAcquireAssetWithClient(_ model.Environment, source string, client *http.Client) ([]byte, error) {
 	location, err := url.Parse(source)
 	if err != nil || location.Scheme != "https" || location.Host == "" || location.User != nil {
 		return nil, errors.New("theme asset source must be an absolute HTTPS URL without credentials")
-	}
-	cache := filepath.Join(env.Home, ".cache", "themeset", "assets", hex.EncodeToString(expected))
-	data, err := os.ReadFile(cache)
-	if err == nil {
-		actual := sha256.Sum256(data)
-		if !bytes.Equal(actual[:], expected) {
-			return nil, fmt.Errorf("cached theme asset checksum mismatch: %s", cache)
-		}
-		return data, nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("read theme asset cache: %w", err)
 	}
 	response, err := client.Get(source)
 	if err != nil {
@@ -66,19 +45,12 @@ func filesAcquireAssetWithClient(env model.Environment, source, digest string, c
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download theme asset %s: HTTP %d", source, response.StatusCode)
 	}
-	data, err = io.ReadAll(io.LimitReader(response.Body, filesAssetMaxBytes+1))
+	data, err := io.ReadAll(io.LimitReader(response.Body, filesAssetMaxBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read theme asset %s: %w", source, err)
 	}
 	if len(data) > filesAssetMaxBytes {
 		return nil, fmt.Errorf("theme asset exceeds %d bytes: %s", filesAssetMaxBytes, source)
-	}
-	actual := sha256.Sum256(data)
-	if !bytes.Equal(actual[:], expected) {
-		return nil, fmt.Errorf("downloaded theme asset checksum mismatch: %s", source)
-	}
-	if err := filesAtomic(cache, data); err != nil {
-		return nil, fmt.Errorf("cache theme asset: %w", err)
 	}
 	return data, nil
 }

@@ -1,8 +1,8 @@
 # themeset
 
 Apply existing application themes together. Use explicitly registered per-tool
-overrides first, otherwise select installed native themes or bundled official
-ports, and skip unsupported tools without changing their settings.
+overrides first, otherwise select installed native themes or fetch current
+official ports, and skip unsupported tools without changing their settings.
 
 **No palette generation, approximate substitutions, plugin installation, or
 shell commands from configuration.**
@@ -110,8 +110,8 @@ In Zsh, Homebrew's completion directory must be in `fpath` before `compinit`.
 1. Skip missing executables.
 2. Use an explicitly registered custom port for the exact **theme × tool**
    combination. Invalid overrides fail; they never silently fall back.
-3. Otherwise resolve the installed app's native theme/provider or a bundled
-   official port.
+3. Otherwise resolve the installed app's native theme/provider or a registered
+   current official port.
 4. If neither exists, warn and skip that tool. Its previous settings remain.
    Actual inspection/apply failures remain errors; other selected tools are
    still processed and the command returns nonzero.
@@ -154,37 +154,39 @@ A custom registration is never relabeled as official.
 For each tool's source, installation/placement, activation, reload, preservation
 rules, and current implementation gaps, see the
 [adapter lifecycle reference](theme-adapters.md).
-Missing registered assets are downloaded from revision-pinned HTTPS sources on
-first apply, checked against SHA-256, and cached. Other integrations use
-installed providers, bundled files, or custom ports. Rosé Pine uses official
-Main-variant assets; Tokyo Night uses official Night-variant assets.
+Registered official assets are fetched over HTTPS on each apply; adapters validate
+their native formats before changing settings. Installed native themes and custom
+ports remain local. Rosé Pine uses Main-variant sources; Tokyo Night uses Night.
+Source URLs and asset paths are collected in `internal/adapter/files_sources.go`
+and tool-specific resolvers. Parsing, validation, installation, and configuration
+changes live with the corresponding tool adapter files.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
 | Ghostty | Installed `+list-themes` names | Native Ghostty theme asset |
 | Neovim | Installed colorscheme runtime files | Existing Lua/Vim theme script |
-| tmux | Pinned official Moonfly and Tokyo Night style commands; no general native registry | Trusted tmux theme config |
+| tmux | Fetch current Moonfly/Tokyo Night styles; no general native registry | Trusted tmux theme config |
 | bat | Installed syntax-theme list, including Rosé Pine when present | bat config containing `--theme` |
 | delta | Installed syntax-theme list or official Rosé Pine feature | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
-| Starship | Existing named palettes; bundled Dracula/Moonfly; acquire official Catppuccin Mocha, Gruvbox Dark, or Rosé Pine palette | Selected palette in Starship TOML |
-| fzf | Pinned official Dracula, Moonfly, Catppuccin Mocha, Rosé Pine, and Tokyo Night ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
-| Yazi | Installed complete flavors; acquire Dracula, Rosé Pine, or Tokyo Night flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
-| Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve; acquire Rosé Pine | Native theme TOML asset |
-| lazygit | Bundled Dracula and Catppuccin Mocha/Mauve; acquire Rosé Pine or Tokyo Night | `gui.theme` YAML fragment |
-| lazydocker | Bundled Dracula | `gui.theme` YAML fragment |
-| btop | Installed user/system themes; acquire official Catppuccin Mocha, Dracula, Gruvbox Dark, Nord, Rosé Pine, or Tokyo Night | Native `.theme` file |
-| eza | Acquire official Dracula, Gruvbox Dark, Rosé Pine, or Tokyo Night YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
+| Starship | Existing named palettes or current official Dracula, Moonfly, Catppuccin Mocha, Gruvbox Dark, and Rosé Pine palettes | Selected palette in Starship TOML |
+| fzf | Current official Dracula, Moonfly, Catppuccin Mocha, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night colors | Color-only native options file |
+| Yazi | Installed complete flavors or current official Dracula, Rosé Pine, Tokyo Night, and Catppuccin files | Native `theme.toml` fragment |
+| Atuin | Shipped/installed themes or current official Catppuccin Mocha/Mauve and Rosé Pine files | Native theme TOML asset |
+| lazygit | Current official Dracula, Catppuccin Mocha/Mauve, Rosé Pine, and Tokyo Night settings | `gui.theme` YAML fragment |
+| lazydocker | Current official Dracula settings | `gui.theme` YAML fragment |
+| btop | Installed user/system themes or current official Catppuccin Mocha, Dracula, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night files | Native `.theme` file |
+| eza | Current official Dracula, Gruvbox Dark, Catppuccin Mocha/Mauve, Rosé Pine, and Tokyo Night YAML | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
 honestly rather than replaced by newly synthesized colors.
 
-Bundled ports are applied by writing the application's native settings/assets;
-no separate theme installation or installer script is needed. Downloaded ports
-fetch only their pinned assets and licenses when absent, and reuse a verified
-local cache offline. Native discovery inspects fixed app commands or local
-theme files. `native` means available through the app; it does not certify
+Official ports are applied through the application's native settings/assets;
+no separate theme installer script is needed. Downloads fetch current upstream
+files on every apply and require network access.
+Native discovery inspects fixed app commands or local theme files. `native`
+means available through the app; it does not certify
 theme-author provenance. `official` includes application-maintained recipes
 for Gruvbox eza/Starship and btop's shipped colors; it is not a claim that
 Gruvbox's theme author maintains those repos. Starship's palette selection
@@ -197,39 +199,41 @@ Catppuccin Atuin installs and selects its declared `catppuccin-mocha-mauve`
 name. Yazi imports only UI style tables and installs the official Catppuccin
 syntax theme; separators, icons, file rules, layouts, and keymaps remain intact.
 
-### Acquiring missing registered assets
+### Acquiring registered assets
 
-`apply` downloads missing registered assets from immutable HTTPS URLs and checks
-SHA-256 hashes. Verified assets and licenses are cached under
-`~/.cache/themeset/assets/<sha256>` (under `--home` when supplied). Later applies
-reuse the cache without updating upstream revisions. Dry-run never downloads or
-creates this cache.
+`apply` fetches registered files from the official project's current branch
+over HTTPS each time. Downloads are size-bounded and parsed as data, never
+executed. A failed download or malformed file leaves the previous selection
+unchanged. This trades reproducibility and offline reapplication for current
+upstream colors. Dry-run does not download.
 
-- **Yazi:** installs `flavor.toml`, `tmtheme.xml`, and both licenses from the
-  application-maintained `yazi-rs/flavors` Dracula package beneath the effective
+- **Yazi:** installs `flavor.toml`, `tmtheme.xml`, and upstream license files from
+  the application-maintained `yazi-rs/flavors` Dracula package beneath the effective
   config directory's `flavors/dracula.yazi/`. Selects `[flavor] dark/light =
   "dracula"` in `theme.toml`; honors `YAZI_CONFIG_HOME` or `paths.yazi`.
   Compatible independently installed flavors are reused, not replaced.
-  Switching from the bundled Catppuccin import removes only matching old styles
-  identified by its themeset-owned syntax path, preserving user edits and layout.
+  Switching from a themeset-managed Catppuccin import removes only matching
+  previous style values, preserving user edits and layout. New applies record
+  the imported values for precise future cleanup; legacy installs without that
+  record compare current upstream values and may retain stale historical styles.
 - **eza:** fetches `eza-community/eza-themes`' native Dracula or Gruvbox Dark
-  YAML and MIT license, validates the theme structure, and merges styles into
-  `theme.yml`, preserving unrelated filename/icon rules. Honors `EZA_CONFIG_DIR`
-  or `paths.eza`. Existing `LS_COLORS`/`EZA_COLORS` overrides can affect rendering.
+  YAML, validates the theme structure, and merges styles into `theme.yml`,
+  preserving unrelated filename/icon rules. Honors `EZA_CONFIG_DIR` or
+  `paths.eza`. Existing `LS_COLORS`/`EZA_COLORS` overrides can affect rendering.
 - **btop:** reuses installed user/system themes; otherwise fetches Catppuccin's
-  Mocha file or btop's Dracula/Gruvbox Dark/Nord files and license, installs the
-  native `.theme` under the effective user theme directory, then selects it in
+  Mocha file or btop's Dracula/Gruvbox Dark/Nord files, installs the native
+  `.theme` under the effective user theme directory, then selects it in
   `btop.conf`. Relaunch btop to see the change.
-- **Starship:** fetches Catppuccin Mocha or Starship's Gruvbox Rainbow preset
-  and license, imports only the exact selected palette, then changes `palette`.
+- **Starship:** fetches Catppuccin Mocha or Starship's Gruvbox Rainbow preset,
+  imports only the selected palette, then changes `palette`.
   It never replaces a custom prompt layout or module configuration.
 
-Fetch/checksum/install failures remain errors and do not change the prior theme
-selection. An incomplete conflicting user Yazi flavor is not silently
-overwritten. Yazi Dracula and eza's files are application-maintained, not
-necessarily theme-author ports. Relaunch Yazi; eza and Starship use their new
-settings on the next invocation/prompt. Source revisions and hashes are in the
-adapter code and notices.
+Fetch/validation/install failures remain errors and do not change the prior theme
+selection. A conflicting independent Yazi flavor is not silently overwritten;
+themeset-owned flavors carry a source marker and refresh from upstream.
+Yazi Dracula and eza's files are application-maintained, not necessarily
+theme-author ports. Relaunch Yazi; eza and Starship use their new settings on
+the next invocation/prompt.
 
 Dracula still skips Atuin (no registered verified port) and tmux (full plugin
 installation/layout integration is not implemented).
@@ -241,18 +245,18 @@ startup code can still override an application's normal config.
 
 ### Moonfly provenance and scope
 
-The [official Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras)
-are pinned at `2c883835f5b7b380a0a9e80695c420f7efebdfe4`:
+The [official Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras)
+are read from the author's current branch on apply:
 
-- **fzf:** the exact 14 upstream color options, with shell export syntax removed
+- **fzf:** upstream color options are extracted, with shell export syntax removed
   and `--color VALUE` expressed as `--color=VALUE`. Ordinary picker options and
   shell startup files are not changed.
 - **Starship:** only the selected upstream `[palettes.moonfly]` is imported and
   selected, just as for Dracula. Prompt/module formats, symbols, truncation, and
-  other palettes remain intact. The upstream palette defines only `fern`,
-  `lavender`, `orange`, and `red`; no missing colors are invented. Existing styles
-  use this palette only when they reference those names.
-- **tmux:** only the six exact upstream style commands (message, pane borders,
+  other palettes remain intact. Only the colors defined by the upstream palette
+  are used; no missing colors are invented. Existing styles use this palette
+  only when they reference those names.
+- **tmux:** only upstream style commands (message, pane borders,
   status, window activity, and current-window styles) are imported. Upstream's
   status-left/right, window formats, and shell conditional are deliberately
   omitted to preserve layouts and keymaps. A dedicated
@@ -265,10 +269,8 @@ are pinned at `2c883835f5b7b380a0a9e80695c420f7efebdfe4`:
 Ghostty and Neovim continue to use installed native Moonfly providers. Other
 applications remain unsupported unless a real installed/native or explicitly
 registered custom port exists. The matching but distinct `fly16` bat theme is
-**not** treated as Moonfly. Source hashes, adaptation details, and the full
-upstream MIT license are retained in
-[`internal/adapter/assets/moonfly.LICENSE`](internal/adapter/assets/moonfly.LICENSE);
-see also [third-party notices](THIRD_PARTY_NOTICES.md).
+**not** treated as Moonfly. The current upstream sources are listed in
+[third-party notices](THIRD_PARTY_NOTICES.md).
 
 
 ### fzf activation
@@ -385,5 +387,5 @@ applications with an isolated home, never a user's real configuration.
 
 ## License
 
-MIT. Official port assets retain their licenses and pinned provenance; see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT. Upstream theme files are downloaded rather than redistributed; source and
+license references are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

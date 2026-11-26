@@ -2,10 +2,12 @@ package adapter
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/clang-engineer/themeset/internal/model"
@@ -34,7 +36,7 @@ func TestPaletteFamilyResolveWithoutDownload(t *testing.T) {
 	}
 }
 
-func TestPaletteFamilyCatppuccinOfflineAcquisitionAndImport(t *testing.T) {
+func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T) {
 	env := filesTestEnv(t)
 	palette, err := os.ReadFile("testdata/starship-catppuccin-mocha.toml")
 	if err != nil {
@@ -44,45 +46,31 @@ func TestPaletteFamilyCatppuccinOfflineAcquisitionAndImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, asset := range []struct {
-		data   []byte
-		digest string
-	}{
-		{palette, filesPaletteCatSHA256},
-		{license, filesPaletteCatLicenseSHA256},
-	} {
-		if got := fmt.Sprintf("%x", sha256.Sum256(asset.data)); got != asset.digest {
-			t.Fatalf("fixture digest changed: %s != %s", got, asset.digest)
+	requests := 0
+	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
+		requests++
+		var body []byte
+		switch r.URL.String() {
+		case filesPaletteCatSource:
+			body = palette
+		case filesPaletteCatLicenseSource:
+			body = license
+		default:
+			t.Fatalf("unexpected palette request %s", r.URL)
 		}
-		filesTestWrite(t, filepath.Join(env.Home, ".cache", "themeset", "assets", asset.digest), string(asset.data))
-	}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+	})
 	path := filesPath("starship", env)
 	filesTestWrite(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[palettes.keep]\nred = '#112233'\n")
-	var first []byte
-	for i := range 2 {
-		data, err := filesAcquirePaletteFamily("starship", "catppuccin-mocha", env)
-		if err != nil {
-			t.Fatal(err)
-		}
-		incoming, err := filesTOML(data)
-		if err != nil || incoming["palette"] != "catppuccin_mocha" {
-			t.Fatalf("native selector: %#v, %v", incoming, err)
-		}
-		if len(incoming) != 2 {
-			t.Fatalf("unexpected imported application keys: %#v", incoming)
-		}
-		// Exercise the existing Starship import path without requiring network:
-		// this is exactly the normalized data parent wires into official apply.
-		portFile := filepath.Join(env.Home, "normalized.toml")
-		filesTestWrite(t, portFile, string(data))
-		if err := filesApplyStarship(model.Port{Kind: "custom", File: portFile}, env); err != nil {
-			t.Fatal(err)
-		}
-		if i == 0 {
-			first = filesTestRead(t, path)
-		} else if !bytes.Equal(first, filesTestRead(t, path)) {
-			t.Fatal("reapplying palette changed Starship config")
-		}
+	port, ok, err := filesResolveStarship("catppuccin-mocha", env)
+	if err != nil || !ok || port.Source != filesPaletteCatSource || requests != 0 {
+		t.Fatalf("resolve: %#v, ok=%v err=%v requests=%d", port, ok, err, requests)
+	}
+	if err := filesApplyStarship(port, env); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 2 {
+		t.Fatalf("acquired %d assets, want palette and license", requests)
 	}
 	config, err := filesTOML(filesTestRead(t, path))
 	if err != nil {
@@ -92,17 +80,32 @@ func TestPaletteFamilyCatppuccinOfflineAcquisitionAndImport(t *testing.T) {
 	mocha := palettes["catppuccin_mocha"].(map[string]any)
 	if config["palette"] != "catppuccin_mocha" || config["format"] != "$directory" || config["add_newline"] != false ||
 		config["directory"].(map[string]any)["truncation_length"] != int64(2) || palettes["keep"].(map[string]any)["red"] != "#112233" ||
-		len(mocha) != 26 || mocha["mauve"] != "#cba6f7" || mocha["crust"] != "#11111b" {
+		mocha["mauve"] != "#cba6f7" {
 		t.Fatalf("palette import changed unrelated settings or colors: %#v", config)
 	}
-	// The verified license is mandatory even when the palette itself is cached.
-	// Acquisition must fail without touching the active config.
-	filesTestWrite(t, filepath.Join(env.Home, ".cache", "themeset", "assets", filesPaletteCatLicenseSHA256), "invalid")
-	if _, err := filesAcquirePaletteFamily("starship", "catppuccin-mocha", env); err == nil {
-		t.Fatal("corrupted cached license accepted")
+	// A changed upstream palette is fetched on reapply rather than read from a cache.
+	palette = []byte("[palettes.catppuccin_mocha]\nmauve = '#123456'\n")
+	if err := filesApplyStarship(port, env); err != nil {
+		t.Fatal(err)
 	}
-	if !bytes.Equal(first, filesTestRead(t, path)) {
-		t.Fatal("failed acquisition changed Starship config")
+	config, err = filesTOML(filesTestRead(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 4 || config["palettes"].(map[string]any)["catppuccin_mocha"].(map[string]any)["mauve"] != "#123456" ||
+		config["format"] != "$directory" {
+		t.Fatalf("reapply did not import current palette or preserve prompt: %#v; requests=%d", config, requests)
+	}
+	previous := filesTestRead(t, path)
+	// Even a valid palette must not apply if its license cannot be fetched.
+	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() == filesPaletteCatLicenseSource {
+			return nil, fmt.Errorf("offline")
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(palette))), Header: make(http.Header)}, nil
+	})
+	if err := filesApplyStarship(port, env); err == nil || !bytes.Equal(previous, filesTestRead(t, path)) {
+		t.Fatalf("license failure changed Starship settings: %v", err)
 	}
 }
 
@@ -133,6 +136,46 @@ func TestPaletteFamilyGruvboxImportsOnlyPresetPalette(t *testing.T) {
 	if config["palette"] != "gruvbox_dark" || config["format"] != "$character" || config["directory"].(map[string]any)["truncation_length"] != int64(2) ||
 		config["palettes"].(map[string]any)["gruvbox_dark"].(map[string]any)["color_blue"] != "#458588" {
 		t.Fatalf("preset overwrote prompt or lost palette: %#v", config)
+	}
+}
+
+func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
+	env := filesTestEnv(t)
+	path := filesPath("starship", env)
+	filesTestWrite(t, path, "format = '$directory'\n[directory]\ntruncation_length = 2\n")
+	port, ok, err := filesResolveStarship("gruvbox", env)
+	if err != nil || !ok || port.Source != filesPaletteGruvSource {
+		t.Fatalf("Gruvbox official port: %#v, %v", port, err)
+	}
+	color := "#458588"
+	requests := 0
+	ezaDraculaClient(t, func(r *http.Request) (*http.Response, error) {
+		requests++
+		var body string
+		switch r.URL.String() {
+		case filesPaletteGruvSource:
+			body = "format = 'DO NOT IMPORT'\npalette = 'gruvbox_dark'\n[palettes.gruvbox_dark]\ncolor_blue = '" + color + "'\n"
+		case filesPaletteGruvLicenseSource:
+			body = "Official license"
+		default:
+			t.Fatalf("unexpected Gruvbox download %s", r.URL)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})
+	if err := filesApplyStarship(port, env); err != nil {
+		t.Fatal(err)
+	}
+	color = "#123456"
+	if err := filesApplyStarship(port, env); err != nil {
+		t.Fatal(err)
+	}
+	config, err := filesTOML(filesTestRead(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 4 || config["format"] != "$directory" ||
+		config["palettes"].(map[string]any)["gruvbox_dark"].(map[string]any)["color_blue"] != color {
+		t.Fatalf("did not fetch current Gruvbox palette or preserve layout: %#v; requests=%d", config, requests)
 	}
 }
 

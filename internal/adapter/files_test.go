@@ -118,11 +118,13 @@ func TestFilesCustomPortsPreserveNonThemeConfiguration(t *testing.T) {
 func TestFilesOfficialMoonflyPreservesApplicationConfiguration(t *testing.T) {
 	t.Run("starship", func(t *testing.T) {
 		env := filesTestEnv(t)
+		moonfly := filesStarshipTestMoonfly
+		filesStarshipTestSource(t, map[string]*string{filesMoonflySource + "moonfly-starship.toml": &moonfly})
 		path := filesPath("starship", env)
 		filesTestWrite(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[character]\nsuccess_symbol = 'KEEP'\n[palettes.keep]\nred = '#111111'\n")
 		port, ok, err := filesResolveStarship("moonfly", env)
 		if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly-starship.toml" {
-			t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+			t.Fatalf("missing official Moonfly: %#v, %v", port, err)
 		}
 		if err := filesApplyStarship(port, env); err != nil {
 			t.Fatal(err)
@@ -150,12 +152,14 @@ func TestFilesOfficialMoonflyPreservesApplicationConfiguration(t *testing.T) {
 	})
 	t.Run("fzf", func(t *testing.T) {
 		env := filesTestEnv(t)
+		moonfly := filesFZFTestMoonfly
+		filesFZFTestSource(t, map[string]*string{filesMoonflySource + "moonfly-fzf.sh": &moonfly})
 		unrelated := filepath.Join(env.Home, ".fzf.zsh")
 		original := "export FZF_DEFAULT_OPTS='--height=40% --reverse'\n"
 		filesTestWrite(t, unrelated, original)
 		port, ok, err := filesResolveFZF("moonfly", env)
 		if err != nil || !ok || port.Kind != "official" || port.Source != filesMoonflySource+"moonfly-fzf.sh" {
-			t.Fatalf("missing pinned official Moonfly: %#v, %v", port, err)
+			t.Fatalf("missing official Moonfly: %#v, %v", port, err)
 		}
 		if err := filesApplyFZF(port, env); err != nil {
 			t.Fatal(err)
@@ -255,7 +259,7 @@ func TestFilesMalformedConfigsAndUnsafeOptionsDoNotClobber(t *testing.T) {
 			source := "[mgr]\ncwd = { fg = 'red' }\n"
 			switch id {
 			case "starship":
-				source = string(filesStarshipDracula)
+				source = "palette = 'dracula'\n[palettes.dracula]\nforeground = '#f8f8f2'\n"
 			case "atuin":
 				source = "[theme]\nname = 'sample'\n[colors]\nAlertInfo = 'red'\n"
 			case "lazygit", "lazydocker":

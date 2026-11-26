@@ -17,7 +17,7 @@ func TestTokyoNightOfficialRoutesReadOnly(t *testing.T) {
 	env := filesTestEnv(t)
 	for _, id := range []string{"btop", "eza", "fzf", "lazygit", "yazi"} {
 		port, ok, err := filesResolveTokyoNightPort(id, "tokyo-night", env)
-		if err != nil || !ok || port.Kind != "official" || port.Source != filesTokyoNightBase+filesTokyoNightAssets[id].path {
+		if err != nil || !ok || port.Kind != "official" || port.Source != filesTokyoNightBase+filesTokyoNightAssets[id] {
 			t.Fatalf("%s: port=%#v ok=%v err=%v", id, port, ok, err)
 		}
 		if id == "btop" && port.Name != "tokyonight_night" {
@@ -188,7 +188,7 @@ func TestTokyoNightTmuxAcquisitionFailureKeepsConfig(t *testing.T) {
 		return nil, fmt.Errorf("offline: %s", r.URL)
 	})
 	port, ok, err := nativeResolveTmux("tokyo-night", env)
-	if err != nil || !ok || port.Kind != "official" || port.Source != filesTokyoNightBase+filesTokyoNightAssets["tmux"].path {
+	if err != nil || !ok || port.Kind != "official" || port.Source != filesTokyoNightBase+filesTokyoNightAssets["tmux"] {
 		t.Fatalf("Tokyo Night tmux not registered: %#v, %v", port, err)
 	}
 	if err := nativeApplyTmux(port, env); err == nil || !strings.Contains(err.Error(), "offline") {

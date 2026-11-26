@@ -1,75 +1,46 @@
 package adapter
 
 import (
-	_ "embed"
 	"fmt"
 	"path/filepath"
 
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-// Assets are exact upstream files. Sibling LICENSE files pin their provenance.
+// Official URLs are source registrations, not embedded theme snapshots.
 // Catppuccin Mocha consistently selects the official Mauve accent.
 
-//go:embed assets/lazygit-dracula.yml
-var filesLazygitDracula []byte
-
-//go:embed assets/lazydocker-dracula.yml
-var filesLazydockerDracula []byte
-
-//go:embed assets/lazygit-catppuccin-mocha.yml
-var filesLazygitCatppuccin []byte
-
-//go:embed assets/atuin-catppuccin-mocha.toml
-var filesAtuinCatppuccin []byte
-
-//go:embed assets/eza-catppuccin-mocha.yml
-var filesEzaCatppuccin []byte
-
-//go:embed assets/yazi-catppuccin-mocha.toml
-var filesYaziCatppuccin []byte
-
-//go:embed assets/yazi-catppuccin-mocha.tmTheme
-var filesYaziCatppuccinSyntax []byte
-
-func filesOfficialPort(id, name string) (model.Port, []byte, bool) {
+func filesOfficialPort(id, name string) (model.Port, bool) {
 	var source string
-	var data []byte
 	switch id {
 	case "lazygit":
 		switch name {
 		case "dracula":
-			source = "https://github.com/dracula/lazygit/blob/f60ffa9e53d011739d86f0dcb681efacf3bc3cfb/config/dracula.yml"
-			data = filesLazygitDracula
+			source = "https://raw.githubusercontent.com/dracula/lazygit/main/config/dracula.yml"
 		case "catppuccin-mocha":
-			source = "https://github.com/catppuccin/lazygit/blob/1a4b26cbc2b5be05cc5494d0d7f764120a2cf86d/themes/mocha/mauve.yml"
-			data = filesLazygitCatppuccin
+			source = "https://raw.githubusercontent.com/catppuccin/lazygit/main/themes/mocha/mauve.yml"
 		}
 	case "lazydocker":
 		if name == "dracula" {
-			source = "https://github.com/dracula/lazydocker/blob/a699a726fab2f2c6925211606f0a28151d0562db/config/dracula.yml"
-			data = filesLazydockerDracula
+			source = "https://raw.githubusercontent.com/dracula/lazydocker/main/config/dracula.yml"
 		}
 	case "atuin":
 		if name == "catppuccin-mocha" {
-			source = "https://github.com/catppuccin/atuin/blob/68aa64b77573c235044b614e752a781701af4eec/themes/mocha/catppuccin-mocha-mauve.toml"
-			data = filesAtuinCatppuccin
+			source = "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml"
 		}
 	case "eza":
 		if name == "catppuccin-mocha" {
-			source = "https://github.com/catppuccin/eza/blob/70f805f6cc27fa5b91750b75afb4296a0ec7fec9/themes/mocha/catppuccin-mocha-mauve.yml"
-			data = filesEzaCatppuccin
+			source = "https://raw.githubusercontent.com/catppuccin/eza/main/themes/mocha/catppuccin-mocha-mauve.yml"
 		}
 	case "yazi":
 		if name == "catppuccin-mocha" {
-			source = "https://github.com/catppuccin/yazi/blob/d62802be39210ea10e54b3e3b09735c6cb9e57c1/themes/mocha/catppuccin-mocha-mauve.toml"
-			data = filesYaziCatppuccin
+			source = "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/mocha/catppuccin-mocha-mauve.toml"
 		}
 	}
-	if data == nil {
-		return model.Port{}, nil, false
+	if source == "" {
+		return model.Port{}, false
 	}
-	return model.Port{Kind: "official", Name: name, Source: source}, data, true
+	return model.Port{Kind: "official", Name: name, Source: source}, true
 }
 
 func filesResolveLazy(id string) func(string, model.Environment) (model.Port, bool, error) {
@@ -80,7 +51,7 @@ func filesResolveLazy(id string) func(string, model.Environment) (model.Port, bo
 		if port, found, err := filesResolveRosePinePort(id, name, env); found || err != nil {
 			return port, found, err
 		}
-		port, _, ok := filesOfficialPort(id, name)
+		port, ok := filesOfficialPort(id, name)
 		return port, ok, nil
 	}
 }
@@ -98,17 +69,17 @@ func filesResolveEza(name string, env model.Environment) (model.Port, bool, erro
 	if port, found, err := filesResolveEzaFamily(name, env); found || err != nil {
 		return port, found, err
 	}
-	port, _, ok := filesOfficialPort("eza", name)
+	port, ok := filesOfficialPort("eza", name)
 	return port, ok, nil
 }
 
 func filesOfficialYazi(name string) (model.Port, bool) {
-	port, _, ok := filesOfficialPort("yazi", name)
+	port, ok := filesOfficialPort("yazi", name)
 	return port, ok
 }
 
 func filesOfficialAtuin(name string) (model.Port, bool) {
-	port, _, ok := filesOfficialPort("atuin", name)
+	port, ok := filesOfficialPort("atuin", name)
 	return port, ok
 }
 
@@ -129,8 +100,8 @@ func filesPortData(id string, port model.Port, env model.Environment) ([]byte, e
 		if id == "eza" && port.Name == "gruvbox" && port.Source == filesEzaGruvboxSource {
 			return filesAcquireEzaFamily(port.Name, env)
 		}
-		if _, data, ok := filesOfficialPort(id, port.Name); ok {
-			return data, nil
+		if registered, ok := filesOfficialPort(id, port.Name); ok && port.Source == registered.Source {
+			return filesAcquireAsset(env, port.Source)
 		}
 	}
 	return nil, fmt.Errorf("%s requires an available official port or a registered native theme file", id)
@@ -140,9 +111,12 @@ func filesPortData(id string, port model.Port, env model.Environment) ([]byte, e
 // upstream Style tables, not separators, icons, filename rules or layout, and
 // install the associated official syntax theme instead of the upstream example
 // path. No plugin, downloader or application command is executed.
-func filesApplyOfficialYazi(config, incoming map[string]any, env model.Environment) error {
+func filesApplyOfficialYazi(config, incoming map[string]any, syntaxData []byte, env model.Environment) error {
 	flavor, err := filesTable(config, "flavor")
 	if err != nil {
+		return err
+	}
+	if err := filesRemovePreviousYaziStyles(config, env); err != nil {
 		return err
 	}
 	flavor["dark"] = ""
@@ -177,7 +151,7 @@ func filesApplyOfficialYazi(config, incoming map[string]any, env model.Environme
 		return err
 	}
 	path := filepath.Join(filepath.Dir(filesPath("yazi", env)), "themeset-catppuccin-mocha.tmTheme")
-	if err := filesAtomic(path, filesYaziCatppuccinSyntax); err != nil {
+	if err := filesAtomic(path, syntaxData); err != nil {
 		return err
 	}
 	mgr["syntect_theme"] = path

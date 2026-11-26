@@ -1,16 +1,16 @@
 # Theme adapter installation and activation
 
-This is the per-tool implementation reference for themeset's requested
-**registered source → acquire if missing → activate using the tool's own mechanism**
-lifecycle. Pinned recipes acquire Catppuccin/btop themes, btop's own
+This is the per-tool implementation reference for themeset's
+**registered source → fetch current asset → activate with the tool's own mechanism**
+lifecycle. Official sources provide Catppuccin/btop themes, btop's own
 Dracula/Gruvbox Dark/Nord files, eza's Dracula/Gruvbox Dark YAML,
 Starship's Catppuccin Mocha/Gruvbox Dark palettes, and Yazi's Dracula flavor.
 Complete independently installed Yazi Gruvbox/Nord/Moonfly flavors are selected
-without downloading. Other adapters inspect installed providers, write bundled
-official assets, or apply explicitly registered native files. No plugin manager
+without downloading. Other adapters inspect installed providers, fetch current
+official files, or apply explicitly registered native files. No plugin manager
 or arbitrary installer script is invoked.
 See [current integrations](README.md#integrations) and
-[pinned bundled sources/licenses](THIRD_PARTY_NOTICES.md).
+[official source notices](THIRD_PARTY_NOTICES.md).
 
 ## Shared recipe contract
 
@@ -19,7 +19,7 @@ Each enabled `(theme, tool)` recipe must record:
 | Field | Meaning |
 | --- | --- |
 | Provenance | Theme-author port, application-maintained preset, or explicit user override; these are different claims |
-| Source | Repository/download URL, immutable revision, required artifact paths, and license |
+| Source | Official repository/current-branch URL and required artifact paths |
 | Compatibility | Native selector/variant, format, minimum tool version, and required companion files |
 | Ownership and placement | Effective config destination, separate owned asset location, and any package-manager ownership |
 | Detection | Evidence that the exact usable asset/provider is installed, not merely that a directory exists |
@@ -30,8 +30,8 @@ Each enabled `(theme, tool)` recipe must record:
 | Verification | Asset validation plus observation that the actual application consumes the selected theme |
 
 Documentation links below describe upstream procedures, not executable registry
-entries. Default-branch links must be resolved to an immutable revision before
-being enabled for automatic acquisition. Existing asset pins are in the notices.
+entries. Automatic downloads use registered official HTTPS URLs and are validated
+as data by the tool adapter.
 No unimplemented JSON fields or new CLI commands are introduced by this document.
 
 Requested application rules:
@@ -40,10 +40,9 @@ Requested application rules:
   is outside theme installation; missing applications remain skipped.
 - An explicit per-tool custom override wins. An invalid override fails; do not
   replace it silently with an official theme.
-- Without an override, reuse a compatible installed provider or a complete owned
-  artifact for the registered revision. Fetch/install only when needed. Ordinary
-  switching must not implicitly run `git pull` or upgrade unrelated packages;
-  updating sources is a separate operation, not an existing CLI command.
+- Without an override, reuse a compatible installed provider or fetch the
+  current registered official source on apply. Ordinary switching does not run
+  `git pull`, execute downloaded scripts, or upgrade unrelated packages.
 - Resolve each application's actual config path and startup overrides. A
   themeset `paths` override must match the file the application really reads.
 - Acquire and validate required files before changing active selection. Reapply
@@ -199,12 +198,11 @@ roots and existing package managers; do not hardcode a developer's home path.
   present. Keep prompt formats, modules, symbols and unrelated palettes. Modules
   with hardcoded colors do not become themed merely by selecting a palette;
   styles must reference its semantic color names.
-- **Current / target gap:** current code imports bundled Dracula/Moonfly palettes,
-  selects an existing palette, or acquires pinned Catppuccin Mocha/Gruvbox Dark
-  palettes and licenses. It never imports the Gruvbox Rainbow preset's prompt
-  modules/layout. A palette selector alone cannot recolor modules with hardcoded
-  styles; `paths.starship` is supported but `STARSHIP_CONFIG` is not detected
-  automatically.
+- **Current / target gap:** current code fetches official Dracula/Moonfly and
+  Catppuccin Mocha/Gruvbox Dark palettes or selects an existing one. It imports
+  only a palette, never a preset's prompt modules/layout.
+  A palette selector alone cannot recolor modules with hardcoded styles;
+  `paths.starship` is supported but `STARSHIP_CONFIG` is not detected automatically.
 
 ## fzf
 
@@ -228,8 +226,8 @@ roots and existing package managers; do not hardcode a developer's home path.
   options on the author's web generator require 0.73.0+. Record requirements per
   artifact. Author-site presets are not automatically licensed by the fzf
   repository; current Gruvbox/Nord provenance limitations are in the notices.
-- **Current / target gap:** current code writes bundled color data for the five
-  catalog themes; it does not acquire data or install shell integration at runtime.
+- **Current / target gap:** current code fetches color data for the seven
+  catalog themes and writes only color options; shell integration is external.
 
 ## harlequin
 
@@ -278,13 +276,13 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Source caveat:** `dracula/yazi`'s old `flavor.toml` and `[flavor] use` example
   are not a complete current package. `yazi-rs/flavors:dracula` is a verified
   application-maintained alternative, not the same source/provenance claim.
-- **Current / target gap:** Dracula downloads the pinned native runtime files and
-  both licenses when missing, stages installation, and selects the flavor.
-  Existing compatible flavors are reused offline. `YAZI_CONFIG_HOME` is honored.
+- **Current / target gap:** Dracula fetches current native runtime files and
+  both licenses, stages installation, and selects the flavor. Independently
+  installed compatible flavors remain native; themeset-owned flavors refresh.
   Independently installed complete Gruvbox, Nord and Moonfly flavors can be
   selected without network access; the application-maintained collection does
   not ship these three. Its Gruvbox/Nord README links lead to independent
-  community ports, not registered automatic recipes. Previous bundled
+  community ports, not registered automatic recipes. Previously managed
   Catppuccin styles are removed only when the managed syntax path establishes
   ownership and individual values still match. No `ya` command or package
   manager registration is performed.
@@ -310,19 +308,18 @@ roots and existing package managers; do not hardcode a developer's home path.
   unstyled output, so successful process exit alone does not verify application.
 - **Preserve:** history/sync/account settings, database paths, search/keybindings
   and other theme options.
-- **Current / target gap:** current code writes bundled Catppuccin and selects its
-  native name, or selects installed/builtin themes. Its path heuristics do not
-  implement the full upstream environment resolver; no runtime acquisition exists.
+- **Current / target gap:** current code fetches official Catppuccin and selects
+  its native name, or selects installed/builtin themes. Its path heuristics do not
+  implement the full upstream environment resolver.
 
 ## lazygit
 
 - **Sources:** [lazygit configuration](https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md),
   [Dracula lazygit](https://github.com/dracula/lazygit), and
   [Catppuccin lazygit](https://github.com/catppuccin/lazygit).
-- **Detect / acquire:** there is no native theme registry. Cache the registered
-  YAML artifact separately from the active config; existence of `config.yml`
-  alone does not identify a theme. Dracula/Catppuccin theme fragments start with
-  `theme:`, intended to sit beneath `gui:`.
+- **Detect / acquire:** there is no native theme registry. Fetch the registered
+  YAML artifact on apply. Dracula/Catppuccin theme fragments start with `theme:`,
+  intended to sit beneath `gui:`.
 - **Placement / activate:** resolve the effective directory using
   `lazygit --print-config-dir` and launch overrides. Merge the fragment into
   `gui.theme` without replacing the whole file. Defaults are XDG-style on Linux
@@ -334,14 +331,14 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Effect / preserve:** reopen lazygit. Preserve non-theme GUI fields, Git/pager
   settings, custom commands and keybindings. `gui.darkTheme`/`gui.lightTheme`,
   `gui.colorScheme`, repository and ancestor config may override `gui.theme`.
-- **Current / target gap:** bundled Dracula/Catppuccin fragments are merged now;
-  download/cache acquisition and complete native config discovery are not implemented.
+- **Current / target gap:** official Dracula/Catppuccin fragments are fetched
+  and merged; complete native config discovery is not implemented.
 
 ## lazydocker
 
 - **Sources:** [lazydocker configuration](https://github.com/jesseduffield/lazydocker/blob/master/docs/Config.md)
   and [Dracula lazydocker](https://github.com/dracula/lazydocker).
-- **Detect / acquire:** fetch/cache the registered YAML if missing. Like lazygit,
+- **Detect / acquire:** fetch the registered YAML on apply. Like lazygit,
   there is no installed-theme registry, but Dracula's file already contains
   `gui.theme`; do not assume the two tools' fragment shapes are identical.
 - **Placement / activate:** merge only `gui.theme` into the actual `config.yml`.
@@ -377,9 +374,9 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Preserve:** truecolor/background options, boxes/layout, graphs, process sort,
   intervals and filters. Avoid competing with a running UI saving its settings.
 - **Current / target gap:** installed complete themes take priority. Otherwise
-  Catppuccin Mocha is acquired from `catppuccin/btop`, while Dracula, Gruvbox
-  Dark and Nord come from btop's own pinned upstream theme files. Their licenses
-  are cached with verified SHA-256 assets before the user theme is written.
+  Catppuccin Mocha is fetched from `catppuccin/btop`, while Dracula, Gruvbox
+  Dark and Nord come from btop's own current upstream theme files. Each file is
+  format-validated before the user theme is written.
   Applying a theme still does not reload an already-running btop UI.
 
 ## eza
@@ -400,10 +397,9 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Precedence:** `LS_COLORS` / `EZA_COLORS` can override YAML colors;
   `EXA_COLORS` is a fallback when `EZA_COLORS` is unset. `NO_COLOR` also affects
   rendering. Report conflicts rather than silently editing shell definitions.
-- **Current / target gap:** Dracula and Gruvbox Dark acquire pinned native YAML
-  and the MIT license through a verified persistent cache, then merge active
-  config. `EZA_CONFIG_DIR` and explicit paths are honored; bundled Catppuccin is
-  unchanged. Nord/Moonfly lack a verified eza-maintained or theme-author YAML
+- **Current / target gap:** Dracula, Gruvbox Dark and Catppuccin Mocha fetch
+  current native YAML, validate its structure, then merge active config.
+  Nord/Moonfly lack a verified eza-maintained or theme-author YAML
   in the inspected sources. Alternate `theme.yaml` discovery and
   environment-precedence reporting are not implemented.
 
@@ -415,8 +411,8 @@ roots and existing package managers; do not hardcode a developer's home path.
   [delta](internal/adapter/native_delta.go),
   [Harlequin](internal/adapter/native_harlequin.go).
 - [File adapters](internal/adapter/files.go),
-  [bundled official assets](internal/adapter/files_ports.go),
-  [Yazi flavor recipes](internal/adapter/yazi_dracula.go),
+  [official source registry](internal/adapter/files_sources.go),
+  [Yazi flavor installers](internal/adapter/files_yazi_flavors.go),
   [installed Yazi family](internal/adapter/yazi_family.go),
   [btop source recipes](internal/adapter/btop_upstream.go),
   [eza Gruvbox](internal/adapter/eza_family.go),

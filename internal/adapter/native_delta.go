@@ -21,10 +21,7 @@ func nativeDeltaThemeKey(key string) bool {
 	return option == "syntax-theme" || option == "features" || option == "dark" || option == "light" || strings.HasSuffix(option, "-style") || strings.HasSuffix(option, "-syntax-theme")
 }
 
-const rosePineDeltaSource = "https://raw.githubusercontent.com/rose-pine/delta/38d58cbd01d9d619e2b3d63cdb63005451c8238c/dist/rose-pine.gitconfig"
-const rosePineDeltaDigest = "914b6b33b3d2b1ce70b872a5c7affef9b3e0f15977887472fa3bb07dd307fe15"
-const rosePineDeltaLicense = "https://raw.githubusercontent.com/rose-pine/delta/38d58cbd01d9d619e2b3d63cdb63005451c8238c/LICENSE"
-const rosePineDeltaLicenseDigest = "638a6cb33a2b304656cd8e47e53d5eba925adbe79bac9eb89dae099ae073263c"
+const rosePineDeltaSource = "https://raw.githubusercontent.com/rose-pine/delta/main/dist/rose-pine.gitconfig"
 
 func nativeResolveDelta(theme string, env model.Environment) (model.Port, bool, error) {
 	if theme == "rose-pine" {
@@ -50,15 +47,12 @@ func nativeApplyRosePineDelta(port model.Port, env model.Environment) error {
 	if port.Kind != "official" || port.Name != "rose-pine" || port.Source != rosePineDeltaSource || port.File != "" {
 		return fmt.Errorf("unregistered Rosé Pine Delta feature")
 	}
-	data, err := filesAcquireAsset(env, rosePineDeltaSource, rosePineDeltaDigest)
+	data, err := filesAcquireAsset(env, rosePineDeltaSource)
 	if err != nil {
 		return err
 	}
 	main, err := nativeRosePineDeltaMain(data)
 	if err != nil {
-		return err
-	}
-	if _, err := filesAcquireAsset(env, rosePineDeltaLicense, rosePineDeltaLicenseDigest); err != nil {
 		return err
 	}
 	file, err := os.CreateTemp(env.Home, ".themeset-rose-pine-delta-*.gitconfig")

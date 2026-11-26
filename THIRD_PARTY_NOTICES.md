@@ -1,76 +1,31 @@
 # Third-party notices
 
-## Bundled official ports
+## Official theme sources
 
-- Dracula fzf integration: https://github.com/dracula/fzf at
-  `f4c7758a813ca73b69e9c954c001586c33858c24`. Existing color options only;
-  license retained in `internal/adapter/assets/fzf-dracula.LICENSE`.
-- Dracula Starship integration: https://github.com/dracula/starship at
-  `920e9f46ccc25beee15ed7fe0baddabdfeaaf92a`. Existing palette only; module
-  configuration is not imported. License retained in
-  `internal/adapter/assets/starship-dracula.LICENSE`.
-- Moonfly fzf, Starship, and tmux integrations:
-  https://github.com/bluz71/vim-moonfly-colors at
-  `2c883835f5b7b380a0a9e80695c420f7efebdfe4`.
-  `extras/moonfly-fzf.sh` supplies exact color options, with shell syntax removed
-  and `--color VALUE` rewritten as `--color=VALUE`.
-  `extras/moonfly-starship.toml` is retained unchanged; only its selected palette
-  is imported, never module configuration.
-  `extras/moonfly.tmux` supplies only its six exact style commands; status
-  layouts, window formats, and the shell conditional are omitted.
-  Full MIT license, source hashes, and adaptation details are retained in
-  `internal/adapter/assets/moonfly.LICENSE`.
-- Catppuccin fzf Mocha:
-  https://github.com/catppuccin/fzf at
-  `7508f8141286fb95249100a2b5325960320dcf32`.
-  Exact color options from `themes/catppuccin-fzf-mocha.rc`, with shell export
-  syntax removed. MIT license and source details retained in
-  `internal/adapter/assets/fzf-catppuccin-mocha.LICENSE`.
-- fzf-author Gruvbox Dark and Nord preset color data:
-  https://github.com/junegunn/junegunn.github.io at
-  `8112383a1781605e7b181c5b717327439a0fb981`,
-  `static/js/fzf-color-themes.js`. Only literal color data is included; the
-  generator code is not copied. `current-fg/bg/hl` use equivalent stable fzf
-  aliases `fg+/bg+/hl+`. No website license was declared; this is explicitly
-  recorded in `internal/adapter/assets/fzf-upstream-presets.NOTICE`.
-  Neither the fzf repository's MIT license nor a theme project's license is
-  asserted to license the website data.
-- Dracula lazygit:
-  https://github.com/dracula/lazygit at
-  `f60ffa9e53d011739d86f0dcb681efacf3bc3cfb`, `config/dracula.yml`.
-  The upstream theme mapping is imported into `gui.theme`, without importing
-  unrelated preferences. MIT license retained in
-  `internal/adapter/assets/lazygit-dracula.LICENSE`.
-- Dracula lazydocker:
-  https://github.com/dracula/lazydocker at
-  `a699a726fab2f2c6925211606f0a28151d0562db`, `config/dracula.yml`.
-  Only `gui.theme` is imported. MIT license retained in
-  `internal/adapter/assets/lazydocker-dracula.LICENSE`.
-- Catppuccin Mocha ports select the upstream Mauve accent:
-  - lazygit: https://github.com/catppuccin/lazygit at
-    `1a4b26cbc2b5be05cc5494d0d7f764120a2cf86d`;
-    `themes/mocha/mauve.yml`.
-  - Atuin: https://github.com/catppuccin/atuin at
-    `68aa64b77573c235044b614e752a781701af4eec`;
-    `themes/mocha/catppuccin-mocha-mauve.toml`.
-  - eza: https://github.com/catppuccin/eza at
-    `70f805f6cc27fa5b91750b75afb4296a0ec7fec9`;
-    `themes/mocha/catppuccin-mocha-mauve.yml`.
-  - Yazi: https://github.com/catppuccin/yazi at
-    `d62802be39210ea10e54b3e3b09735c6cb9e57c1`;
-    `themes/mocha/catppuccin-mocha-mauve.toml`. Only native UI style
-    tables are imported; separators, icons, file rules and layout remain local.
-  - Yazi syntax: https://github.com/catppuccin/bat at
-    `6810349b28055dce54076712fc05fc68da4b8ec0`;
-    `themes/Catppuccin Mocha.tmTheme`. Installed unchanged with a local path
-    replacing the Yazi upstream example syntax path.
-  Full MIT licenses and source details are retained in the corresponding
-  `internal/adapter/assets/<app>-catppuccin-mocha.LICENSE` files and
-  `yazi-catppuccin-mocha-syntax.LICENSE`.
+Theme files are not bundled or redistributed. On apply, themeset fetches
+current official sources over HTTPS and imports only the relevant native theme
+settings. The upstream repositories retain their own licensing terms.
 
-These are official port assets, not colors synthesized from another application.
-Other native themes are selected from the user's installed application/providers
-and are not redistributed by this project.
+- Dracula: [fzf](https://github.com/dracula/fzf),
+  [Starship](https://github.com/dracula/starship),
+  [lazygit](https://github.com/dracula/lazygit), and
+  [lazydocker](https://github.com/dracula/lazydocker).
+- Moonfly: [official extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras)
+  for fzf, Starship, and tmux. Shell commands, prompt layouts, and tmux status
+  layouts are not imported.
+- Catppuccin Mocha/Mauve: [fzf](https://github.com/catppuccin/fzf),
+  [lazygit](https://github.com/catppuccin/lazygit),
+  [Atuin](https://github.com/catppuccin/atuin),
+  [eza](https://github.com/catppuccin/eza),
+  [Yazi](https://github.com/catppuccin/yazi), and
+  [Yazi syntax from bat](https://github.com/catppuccin/bat).
+- fzf-author Gruvbox Dark and Nord preset data:
+  [fzf color themes](https://junegunn.github.io/fzf/color-themes/).
+  Only literal color values are parsed from the author's site source; JavaScript
+  is never executed. The site declares no license for its presets, so this is
+  not represented as covered by the fzf software's MIT license.
+
+Other native themes come from the user's installed applications/providers.
 
 ## Go dependencies
 
@@ -86,37 +41,26 @@ licenses do not become official merely by being registered in configuration.
 
 ## Registered downloaded ports
 
-These files are acquired during apply, not embedded in the executable.
-Immutable URLs and SHA-256 hashes are defined in the `internal/adapter/`
-acquisition modules; the helper verifies cached and downloaded bytes before use.
+These files are fetched from current official branches during apply, not embedded
+in the executable. Tool adapters validate their formats before changing settings.
+Current upstream content can change between applications; no checksum cache is used.
 
 - Application-maintained Yazi Dracula flavor:
-  https://github.com/yazi-rs/flavors/tree/38c08d8eb9ea0d28c8c911a249a08f27ba2151ac/dracula.yazi
-  Runtime assets `flavor.toml` and `tmtheme.xml` are installed with their exact
-  `LICENSE` and `LICENSE-tmtheme`. Compatible independently installed flavors
-  are reused without changing their provenance or ownership.
-- Application-maintained eza Dracula native YAML:
-  https://github.com/eza-community/eza-themes/blob/21184b55bfe34e8473c8160f9de0c03e4f76857f/themes/dracula.yml
-  The theme and upstream MIT `LICENSE` are retained in the verified cache.
-  Exact source values are preserved; active configuration is merged, not copied
-  over unrelated user rules.
-- Application-maintained eza Gruvbox Dark native YAML:
-  https://github.com/eza-community/eza-themes/blob/21184b55bfe34e8473c8160f9de0c03e4f76857f/themes/gruvbox-dark.yml
-  The YAML and matching MIT `LICENSE` are kept in the verified cache;
-  existing filename/icon rules are preserved.
+  https://github.com/yazi-rs/flavors/tree/main/dracula.yazi
+  Runtime assets `flavor.toml` and `tmtheme.xml` are installed with their
+  `LICENSE` and `LICENSE-tmtheme`. Independently installed flavors remain native.
+- Application-maintained eza Dracula and Gruvbox Dark YAML:
+  https://github.com/eza-community/eza-themes/tree/main/themes
+  The theme is merged into active configuration, retaining unrelated user rules.
 - Theme-author Catppuccin Mocha btop:
-  https://github.com/catppuccin/btop/blob/f437574b600f1c6d932627050b15ff5153b58fa3/themes/catppuccin_mocha.theme
-  SHA-256-verified `.theme` and the MIT `LICENSE` are cached; the theme is
-  installed under the effective btop user theme directory when not installed.
+  https://github.com/catppuccin/btop/blob/main/themes/catppuccin_mocha.theme
+  The `.theme` is installed under the effective user theme directory when absent.
 - Application-maintained btop Dracula, Gruvbox Dark, and Nord:
-  https://github.com/aristocratos/btop/tree/5d03929a45e0720a4c8e2d189360ff1eb9ce1731/themes
-  Exact `.theme` assets and their upstream Apache-2.0 `LICENSE` are cached;
-  already-installed system/user themes are reused instead of downloaded.
+  https://github.com/aristocratos/btop/tree/main/themes
+  Already-installed system/user themes are reused instead of downloaded.
 - Theme-author Catppuccin Mocha Starship:
-  https://github.com/catppuccin/starship/blob/5906cc369dd8207e063c0e6e2d27bd0c0b567cb8/themes/mocha.toml
-  The palette and MIT `LICENSE` are cached; only `[palettes.catppuccin_mocha]`
-  is merged, not an example prompt layout.
+  https://github.com/catppuccin/starship/blob/main/themes/mocha.toml
+  Only `[palettes.catppuccin_mocha]` is merged, not an example prompt layout.
 - Application-maintained Starship Gruvbox Rainbow:
-  https://github.com/starship/starship/blob/1b5c2f257ef276c3020899623a1942b3ecd457f7/docs/public/presets/toml/gruvbox-rainbow.toml
-  The preset and ISC `LICENSE` are cached; only `[palettes.gruvbox_dark]`
-  is imported, without module or prompt-layout settings.
+  https://github.com/starship/starship/blob/master/docs/public/presets/toml/gruvbox-rainbow.toml
+  Only `[palettes.gruvbox_dark]` is imported, without module or prompt settings.
