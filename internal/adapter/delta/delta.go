@@ -43,26 +43,36 @@ func nativeResolveDelta(spec model.ThemePort, env model.Environment) (model.Port
 func nativeDeltaFeature(data []byte, feature string) ([]byte, error) {
 	text := string(data)
 	header := "[delta \"" + feature + "\"]"
-	first, rest, ok := strings.Cut(text, "\n")
-	if !ok || first != header {
-		return nil, fmt.Errorf("Delta feature %q missing from official asset", feature)
+	start := 0
+	if !strings.HasPrefix(text, header+"\n") {
+		index := strings.Index(text, "\n"+header+"\n")
+		if index < 0 {
+			return nil, fmt.Errorf("Delta feature %q missing from official asset", feature)
+		}
+		start = index + 1
 	}
+	rest := text[start+len(header)+1:]
 	end := len(rest)
-	for start := 0; start < len(rest); {
-		lineEnd := strings.IndexByte(rest[start:], '\n')
+	hasFileStyle := false
+	for offset := 0; offset < len(rest); {
+		lineEnd := strings.IndexByte(rest[offset:], '\n')
 		if lineEnd < 0 {
 			lineEnd = len(rest)
 		} else {
-			lineEnd += start
+			lineEnd += offset
 		}
-		if strings.HasPrefix(strings.TrimLeft(rest[start:lineEnd], " \t"), "[") {
-			end = start
+		line := strings.TrimLeft(rest[offset:lineEnd], " \t")
+		if strings.HasPrefix(line, "[") {
+			end = offset
 			break
 		}
-		start = lineEnd + 1
+		if key, value, ok := strings.Cut(line, "="); ok && strings.TrimSpace(key) == "file-style" && strings.TrimSpace(value) != "" {
+			hasFileStyle = true
+		}
+		offset = lineEnd + 1
 	}
 	main := header + "\n" + rest[:end]
-	if !strings.Contains(main, "\n\tfile-style = ") {
+	if !hasFileStyle {
 		return nil, fmt.Errorf("Delta feature %q has no file style", feature)
 	}
 	return []byte(strings.TrimRight(main, "\n") + "\n"), nil

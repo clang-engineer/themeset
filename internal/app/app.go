@@ -44,12 +44,14 @@ Without THEME, apply requires interactive input and fzf. It previews themes,
 then shows the selected plan and asks for confirmation before writing.
 Use an explicit THEME with --json or from scripts.
 
-Config supports tools, paths, and themes with explicitly registered custom ports.
-Omitted tools selects all adapters; tools: [] selects none. Relative paths and
-custom file references resolve against the config directory; ~/ uses --home.
-Explicit custom ports take precedence over native/official ports. Invalid custom
-ports fail rather than silently falling back. Unsupported or uninstalled apps
-are skipped unchanged. Errors are visible and return a nonzero exit status.
+Config supports tools, paths, themes, and a default_theme ID (catppuccin-mocha
+when omitted). Omitted tools selects all adapters; tools: [] selects none.
+Relative paths and custom file references resolve against the config directory;
+~/ uses --home. Explicit custom ports take precedence over native/official
+ports. Invalid custom ports fail rather than silently falling back. If the
+requested theme is unavailable for a tool, its default theme is tried once;
+uninstalled apps and tools without an available fallback are skipped unchanged.
+Errors are visible and return a nonzero exit status.
 Apply records only result metadata in the app's own state.json; current reports
 that historical result, not a live assertion of current application settings.
 `

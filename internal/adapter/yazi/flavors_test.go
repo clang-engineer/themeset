@@ -569,9 +569,6 @@ func TestRosePineYaziNativeFlavorAndFailedOfficialInstall(t *testing.T) {
 	if flavor["dark"] != "rose-pine" || flavor["light"] != "rose-pine" || config["mgr"].(map[string]any)["ratio"] == nil {
 		t.Fatalf("lost Yazi settings: %#v", config)
 	}
-	if _, ok, err := Adapter().Resolve(catalog.Port("rose-pine-dawn", "yazi"), env); ok || err != nil {
-		t.Fatalf("unregistered Yazi variant accepted: %v", err)
-	}
 }
 
 func TestYaziTwoFileOfficialFlavorsUseCatalogAssetsAndNames(t *testing.T) {

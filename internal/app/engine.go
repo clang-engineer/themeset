@@ -18,13 +18,14 @@ var builtinThemes = catalog.Listed()
 
 // ToolResult separates support selection from the actual application outcome.
 type ToolResult struct {
-	Tool     string      `json:"tool"`
-	Status   string      `json:"status"`
-	Outcome  string      `json:"outcome"`
-	Port     *model.Port `json:"port,omitempty"`
-	Warnings []string    `json:"warnings,omitempty"`
-	Reason   string      `json:"reason,omitempty"`
-	Error    string      `json:"error,omitempty"`
+	Tool          string      `json:"tool"`
+	Status        string      `json:"status"`
+	Outcome       string      `json:"outcome"`
+	Port          *model.Port `json:"port,omitempty"`
+	FallbackTheme string      `json:"fallback_theme,omitempty"`
+	Warnings      []string    `json:"warnings,omitempty"`
+	Reason        string      `json:"reason,omitempty"`
+	Error         string      `json:"error,omitempty"`
 }
 
 type Result struct {
@@ -80,53 +81,74 @@ func selectTools(ids []string, adapters []model.Adapter) ([]model.Adapter, error
 
 func plan(theme string, config model.Config, env model.Environment, adapters []model.Adapter, dryRun bool) Result {
 	result := Result{Theme: theme, DryRun: dryRun, Tools: make([]ToolResult, 0, len(adapters))}
+	fallback := config.DefaultTheme
+	if fallback == "" {
+		fallback = "catppuccin-mocha"
+	}
 	for _, adapter := range adapters {
 		item := ToolResult{Tool: adapter.ID, Outcome: "planned"}
 		if !adapter.Installed() {
 			item.Status, item.Outcome = "not-installed", "skipped"
 			item.Reason = fmt.Sprintf("%s executable not installed", adapter.Binary)
-			result.Tools = append(result.Tools, item)
-			continue
-		}
-		if custom, ok := config.Themes[theme].Custom[adapter.ID]; ok {
-			custom.Kind = "custom"
-			item.Status, item.Port = "custom", &custom
-			if custom.URL != "" && !adapter.Remote {
-				item.Error = fmt.Sprintf("%s does not accept remote theme files", adapter.ID)
-				item.Status, item.Outcome, item.Port = "error", "failed", nil
-				result.Tools = append(result.Tools, item)
-				continue
-			}
-			if custom.File != "" {
-				info, err := os.Stat(custom.File)
-				if err == nil && !info.Mode().IsRegular() {
-					err = errors.New("not a regular file")
-				}
-				if err != nil {
-					item.Error = fmt.Sprintf("inspect custom file %s: %v", custom.File, err)
-					item.Status, item.Outcome, item.Port = "error", "failed", nil
-				}
-			}
 		} else {
-			port, found, err := adapter.Resolve(DefaultPort(theme, adapter.ID), env)
-			switch {
-			case err != nil:
-				item.Error = fmt.Sprintf("inspect native theme: %v", err)
-				item.Status, item.Outcome = "error", "failed"
-			case found && port.Kind != "native" && port.Kind != "official":
-				item.Error = fmt.Sprintf("adapter returned invalid native port kind %q", port.Kind)
-				item.Status, item.Outcome = "error", "failed"
-			case found:
-				item.Status, item.Port = port.Kind, &port
-			default:
-				item.Status, item.Outcome = "unsupported", "skipped"
-				item.Reason = unsupportedReason(adapter.ID, theme)
-				item.Warnings = append(item.Warnings, "no verified native or official theme available", "no registered custom port; settings unchanged")
+			item = resolveTheme(theme, config, env, adapter)
+			if item.Status == "unsupported" && fallback != theme {
+				alternative := resolveTheme(fallback, config, env, adapter)
+				if alternative.Status != "unsupported" {
+					item = alternative
+					item.FallbackTheme = fallback
+					if item.Status == "error" {
+						item.Error = fmt.Sprintf("default theme %s: %s", fallback, item.Error)
+					} else {
+						item.Warnings = append(item.Warnings, fmt.Sprintf("theme %s unavailable for %s; using default theme %s", theme, adapter.ID, fallback))
+					}
+				}
 			}
 		}
 		result.Tools = append(result.Tools, item)
 	}
 	return result
+}
+
+// resolveTheme inspects exactly one theme; inspection errors never trigger fallback.
+func resolveTheme(theme string, config model.Config, env model.Environment, adapter model.Adapter) ToolResult {
+	item := ToolResult{Tool: adapter.ID, Outcome: "planned"}
+	if custom, ok := config.Themes[theme].Custom[adapter.ID]; ok {
+		custom.Kind = "custom"
+		item.Status, item.Port = "custom", &custom
+		if custom.URL != "" && !adapter.Remote {
+			item.Error = fmt.Sprintf("%s does not accept remote theme files", adapter.ID)
+			item.Status, item.Outcome, item.Port = "error", "failed", nil
+			return item
+		}
+		if custom.File != "" {
+			info, err := os.Stat(custom.File)
+			if err == nil && !info.Mode().IsRegular() {
+				err = errors.New("not a regular file")
+			}
+			if err != nil {
+				item.Error = fmt.Sprintf("inspect custom file %s: %v", custom.File, err)
+				item.Status, item.Outcome, item.Port = "error", "failed", nil
+			}
+		}
+		return item
+	}
+	port, found, err := adapter.Resolve(DefaultPort(theme, adapter.ID), env)
+	switch {
+	case err != nil:
+		item.Error = fmt.Sprintf("inspect native theme: %v", err)
+		item.Status, item.Outcome = "error", "failed"
+	case found && port.Kind != "native" && port.Kind != "official":
+		item.Error = fmt.Sprintf("adapter returned invalid native port kind %q", port.Kind)
+		item.Status, item.Outcome = "error", "failed"
+	case found:
+		item.Status, item.Port = port.Kind, &port
+	default:
+		item.Status, item.Outcome = "unsupported", "skipped"
+		item.Reason = unsupportedReason(adapter.ID, theme)
+		item.Warnings = append(item.Warnings, "no verified native or official theme available", "no registered custom port; settings unchanged")
+	}
+	return item
 }
 
 func unsupportedReason(tool, theme string) string {

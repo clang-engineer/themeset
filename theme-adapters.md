@@ -2,13 +2,12 @@
 
 This is the per-tool implementation reference for themeset's
 **registered source → fetch current asset → activate with the tool's own mechanism**
-lifecycle. Official sources provide Catppuccin/btop themes, btop's own
-Dracula/Gruvbox Dark/Nord files, eza's Dracula/Gruvbox Dark YAML,
-Starship's Catppuccin Mocha/Gruvbox Dark palettes, and Yazi's Dracula flavor.
-Complete independently installed Yazi Gruvbox/Nord/Moonfly flavors are selected
-without downloading. Other adapters inspect installed providers, fetch current
-official files, or apply explicitly registered native files. No plugin manager
-or arbitrary installer script is invoked.
+lifecycle. Verified upstream sources provide Catppuccin flavors for btop,
+Starship, Atuin, eza, Ghostty, Yazi and others; application-maintained sources
+include btop's Dracula/Gruvbox Dark/Nord files and Yazi's Dracula flavor.
+Installed native themes remain preferred. Other adapters inspect installed
+providers, fetch current official files, or apply explicitly registered native
+files. No plugin manager or arbitrary installer script is invoked.
 See [current integrations](README.md#integrations) and
 [official source notices](THIRD_PARTY_NOTICES.md).
 
@@ -89,10 +88,12 @@ roots and existing package managers; do not hardcode a developer's home path.
   referenced by the existing adapter. This collection is not a promise that each
   theme's original author maintains its port.
 - **Detect / acquire:** inspect `ghostty +list-themes` for the exact native name.
-  Shipped themes need no download. Otherwise retrieve a registered Ghostty-format
-  file, not the entire collection.
-- **Placement:** `$XDG_CONFIG_HOME/ghostty/themes/<name>` or
-  `~/.config/ghostty/themes/<name>`; an absolute theme asset path is also valid.
+  Shipped themes need no download. Otherwise fetch a registered Ghostty-format
+  source only after exact catalog verification; accept only hex color settings
+  and all 16 palette colors, never arbitrary Ghostty configuration.
+- **Placement:** managed files go beside the effective Ghostty config under
+  `themes/themeset-<name>`; select the absolute path so macOS alternative
+  config locations and explicit `paths.ghostty` work.
 - **Activate:** edit `theme = <native-name-or-absolute-path>` in the effective
   Ghostty config or an already included theme selector file. On macOS, when
   Ghostty is running and `--home` refers to the current user's home, use its
@@ -108,9 +109,9 @@ roots and existing package managers; do not hardcode a developer's home path.
   Never automate `SIGUSR2`: on Ghostty 1.4.0 its hard reload can desynchronize
   attached tmux mouse/paste modes
   ([upstream report](https://github.com/ghostty-org/ghostty/discussions/15101)).
-- **Current / target gap:** installed names are selected but missing themes
-  are not retrieved. No safe noninteractive GUI reload has been verified on
-  Linux, and some options require a fresh window.
+- **Current / target gap:** registered missing theme-author colors are fetched;
+  unregistered sources are not. No safe noninteractive GUI reload has been
+  verified on Linux, and some options require a fresh window.
 
 ## neovim
 
@@ -186,22 +187,21 @@ roots and existing package managers; do not hardcode a developer's home path.
   [Dracula installation](https://draculatheme.com/delta), and
   [dracula/delta](https://github.com/dracula/delta).
 - **Detect / acquire:** distinguish a syntax theme from a whole delta feature.
-  `delta --list-syntax-themes` probes syntax themes. A named feature is a separate
-  Gitconfig settings group. Dracula's official repository supplies
-  `dracula.gitconfig`; acquire it only when the registered feature file is absent.
-- **Placement / activate:** keep the retrieved feature file at an owned stable
-  path, include it using Git's `[include] path`, and select its name through
-  `[delta] features`. Syntax-only selection uses `[delta] syntax-theme` instead.
-  Installing a bat syntax theme may also supply delta's syntax highlighting;
-  verify delta's own list rather than assuming cache/environment parity.
+  `delta --list-syntax-themes` probes native syntax themes. A verified
+  Dracula, Catppuccin, or Rosé Pine Gitconfig source supplies a named feature;
+  only the selected feature section is imported, not other variants or include
+  instructions. Missing native themes use the verified feature if present.
+- **Placement / activate:** parse the selected feature from an isolated temporary
+  Gitconfig file, retain only theme-related settings, and edit the effective
+  `.gitconfig` with Git's own parser; select its name through `[delta] features`.
+  Native syntax-only selection uses `[delta] syntax-theme` instead. Installing a
+  bat syntax theme may also supply delta syntax highlighting; inspect delta's
+  actual list rather than assuming cache parity.
 - **Effect / preserve:** next delta/Git invocation. Retain Git identity, aliases,
   pager setup, navigation, layout, non-theme features and existing includes.
-  Replace a previous managed theme feature, not the entire user feature list.
   Project Git config, command options and environment can override global values.
-- **Current / target gap:** current native resolution checks syntax themes and
-  edits `syntax-theme`; custom Gitconfig imports supported theme keys. It does
-  not acquire official feature repositories/files at runtime or automatically
-  install missing syntax assets. Syntax-only selection is not full-port activation.
+- **Current / target gap:** missing native syntax assets are not installed;
+  verified feature files are fetched on apply rather than installed as plugins.
 
 ## starship
 
@@ -220,9 +220,10 @@ roots and existing package managers; do not hardcode a developer's home path.
   present. Keep prompt formats, modules, symbols and unrelated palettes. Modules
   with hardcoded colors do not become themed merely by selecting a palette;
   styles must reference its semantic color names.
-- **Current / target gap:** current code fetches official Dracula/Moonfly and
-  Catppuccin Mocha/Gruvbox Dark palettes or selects an existing one. It imports
-  only a palette, never a preset's prompt modules/layout.
+- **Current / target gap:** current code fetches registered Dracula/Moonfly,
+  Catppuccin flavors, Rosé Pine variants, and Gruvbox Dark palettes or selects
+  an existing one. It imports only a palette, never a preset's prompt
+  modules/layout.
   A palette selector alone cannot recolor modules with hardcoded styles;
   `paths.starship` is supported but `STARSHIP_CONFIG` is not detected automatically.
 
@@ -248,8 +249,8 @@ roots and existing package managers; do not hardcode a developer's home path.
   options on the author's web generator require 0.73.0+. Record requirements per
   artifact. Author-site presets are not automatically licensed by the fzf
   repository; current Gruvbox/Nord provenance limitations are in the notices.
-- **Current / target gap:** current code fetches color data for the seven
-  catalog themes and writes only color options; shell integration is external.
+- **Current / target gap:** current code fetches color data for the registered
+  fzf themes and writes only color options; shell integration is external.
 
 ## harlequin
 
@@ -303,11 +304,12 @@ roots and existing package managers; do not hardcode a developer's home path.
   installed compatible flavors remain native; themeset-owned flavors refresh.
   Independently installed complete Gruvbox, Nord and Moonfly flavors can be
   selected without network access; the application-maintained collection does
-  not ship these three. Its Gruvbox/Nord README links lead to independent
-  community ports, not registered automatic recipes. Previously managed
-  Catppuccin styles are removed only when the managed syntax path establishes
-  ownership and individual values still match. No `ya` command or package
-  manager registration is performed.
+  not ship these three. Community Gruvbox/Nord flavors are not bundled as
+  verified official ports. Moonfly's published flavor still uses legacy
+  manager keys and is not fetched. Previously managed Catppuccin styles are
+  removed only when the managed syntax path establishes ownership and
+  individual values still match.
+  No `ya` command or package manager registration is performed.
 
 ## atuin
 
@@ -317,8 +319,8 @@ roots and existing package managers; do not hardcode a developer's home path.
   and [Catppuccin Atuin](https://github.com/catppuccin/atuin).
 - **Detect / acquire:** builtins need no download. Other themes need their named
   TOML file, valid `[theme]` / `[colors]`, and any declared parent theme. Fetch the
-  registered asset if missing. Catppuccin Mocha/Mauve's native name is
-  `catppuccin-mocha-mauve`, not the catalog alias `catppuccin-mocha`.
+  registered asset if missing. Each Catppuccin flavor's native name is
+  `catppuccin-<flavor>-mauve`, not its catalog alias.
 - **Placement:** use the loader's effective themes directory. Current upstream
   prioritizes absolute `ATUIN_HOME`, existing `~/.atuin/themes`, deprecated
   `ATUIN_THEME_DIR`, existing `ATUIN_CONFIG_DIR/themes`, then legacy XDG paths;
@@ -396,7 +398,7 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Preserve:** truecolor/background options, boxes/layout, graphs, process sort,
   intervals and filters. Avoid competing with a running UI saving its settings.
 - **Current / target gap:** installed complete themes take priority. Otherwise
-  Catppuccin Mocha is fetched from `catppuccin/btop`, while Dracula, Gruvbox
+  Catppuccin flavors are fetched from `catppuccin/btop`, while Dracula, Gruvbox
   Dark and Nord come from btop's own current upstream theme files. Each file is
   format-validated before the user theme is written.
   Applying a theme still does not reload an already-running btop UI.

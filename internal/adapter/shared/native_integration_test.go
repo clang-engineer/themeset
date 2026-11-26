@@ -75,8 +75,8 @@ func TestNativeListedCandidatesRequireExactInstalledTheme(t *testing.T) {
 	}
 	t.Setenv("PATH", bin)
 	resolver := ghostty.Adapter().Resolve
-	if _, ok, err := resolver(app.DefaultPort("dracula", "ghostty"), env); err != nil || ok {
-		t.Fatalf("uninstalled exact theme: ok=%v err=%v", ok, err)
+	if port, ok, err := resolver(app.DefaultPort("dracula", "ghostty"), env); err != nil || !ok || port.Kind != "official" {
+		t.Fatalf("similar installed theme should use verified official fallback: %#v, %v", port, err)
 	}
 	port, ok, err := resolver(app.DefaultPort("nord", "ghostty"), env)
 	if err != nil || !ok || port.Name != "Nord" || port.Source == "" {

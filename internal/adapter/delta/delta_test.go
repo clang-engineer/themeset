@@ -21,8 +21,19 @@ func TestDeltaFeatureIsolatesSelectedSection(t *testing.T) {
 	if want := "[delta \"rose-pine\"]\n\tdark = true\n\tfile-style = \"#123456\" bold\n"; string(main) != want {
 		t.Fatalf("imported unintended sections: %q", main)
 	}
-	if _, err := nativeDeltaFeature(asset, "rose-pine-moon"); err == nil {
-		t.Fatal("accepted asset whose first section is not the selected feature")
+	moon, err := nativeDeltaFeature(asset, "rose-pine-moon")
+	if err != nil || string(moon) != "[delta \"rose-pine-moon\"]\n\tfile-style = \"#abcdef\"\n" {
+		t.Fatalf("failed to select middle feature without importing neighbors: %q, %v", moon, err)
+	}
+}
+
+func TestDeltaFeatureAcceptsCommentedSourceAndSpaceIndentedStyle(t *testing.T) {
+	asset := []byte("# Upstream install instructions\n# [include]\n" +
+		"[delta \"dracula\"]\n    dark = true\n    file-style = \"#f8f8f2\"\n" +
+		"[delta \"other\"]\n    file-style = red\n")
+	main, err := nativeDeltaFeature(asset, "dracula")
+	if err != nil || string(main) != "[delta \"dracula\"]\n    dark = true\n    file-style = \"#f8f8f2\"\n" {
+		t.Fatalf("failed to isolate Dracula feature from instructions and other themes: %q, %v", main, err)
 	}
 }
 
@@ -32,9 +43,9 @@ func TestDeltaFeatureRejectsMalformedOrOtherSource(t *testing.T) {
 	}{
 		{"rose-pine", "[delta \"other\"]\n\tfile-style = blue\n"},
 		{"rose-pine", "[delta \"rose-pine\"]\n\tdark = true\n[delta \"other\"]\n\tfile-style = blue\n"},
-		{"other", "[delta \"rose-pine\"]\n\tfile-style = blue\n[delta \"other\"]\n\tfile-style = red\n"},
+		{"other", "[delta \"rose-pine\"]\n\tfile-style = blue\n[delta \"other\"]\n\tdark = true\n"},
 		{"rose-pine", "[delta \"rose-pine\"]\n\tdark = true\n"},
-		{"rose-pine", "garbage\n[delta \"rose-pine\"]\n\tfile-style = blue\n"},
+		{"rose-pine", "garbage\n[delta \"rose-pine\"]\n\tdark = true\n"},
 	} {
 		if _, err := nativeDeltaFeature([]byte(tc.source), tc.feature); err == nil {
 			t.Fatalf("accepted malformed or unrelated source for %q: %q", tc.feature, tc.source)

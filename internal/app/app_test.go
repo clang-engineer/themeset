@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -59,6 +60,109 @@ func invoke(t *testing.T, args ...string) (int, Result, string) {
 		}
 	}
 	return code, result, stderr.String()
+}
+
+func TestConfiguredFallbackCustomPortThroughCLI(t *testing.T) {
+	installedFixtures(t, "tmux")
+	home, directory := t.TempDir(), t.TempDir()
+	configPath := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "theme.conf"), "set -g status-style bg=blue\n")
+	fixtureFile(t, filepath.Join(home, ".tmux.conf"), "set -g mouse on\n")
+	fixtureConfig(t, configPath, map[string]any{
+		"tools": []string{"tmux"}, "default_theme": "personal",
+		"themes": map[string]any{"personal": map[string]any{"custom": map[string]any{
+			"tmux": map[string]string{"file": "theme.conf"},
+		}}},
+	})
+	code, result, diagnostics := invoke(t, "apply", "nord", "--home", home, "--config", configPath)
+	if code != 0 || len(result.Tools) != 1 || result.Tools[0].FallbackTheme != "personal" ||
+		result.Tools[0].Outcome != "applied" || !strings.Contains(diagnostics, "personal") {
+		t.Fatalf("configured fallback: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".tmux.conf"))
+	if err != nil || !strings.Contains(string(data), filepath.Join(directory, "theme.conf")) {
+		t.Fatalf("fallback did not update tmux: %q, %v", data, err)
+	}
+}
+
+func TestDefaultThemeFallbackSelectionAndApplication(t *testing.T) {
+	installedFixtures(t, "fixture")
+	destination := filepath.Join(t.TempDir(), "applied")
+	custom := filepath.Join(t.TempDir(), "fallback.theme")
+	fixtureFile(t, custom, "theme")
+	env := model.Environment{}
+	resolveCalls := 0
+	adapter := model.Adapter{
+		ID: "fixture", Binary: "fixture",
+		Resolve: func(declaration model.ThemePort, _ model.Environment) (model.Port, bool, error) {
+			resolveCalls++
+			if len(declaration.Native) != 0 {
+				return model.Port{Kind: "native", Name: declaration.Native[0]}, true, nil
+			}
+			return model.Port{}, false, nil
+		},
+		Apply: func(port model.Port, _ model.Environment) error {
+			return os.WriteFile(destination, []byte(port.File), 0600)
+		},
+	}
+	config := model.Config{DefaultTheme: "personal", Themes: map[string]model.Theme{
+		"personal": {Custom: map[string]model.Port{"fixture": {File: custom}}},
+	}}
+	result := plan("requested", config, env, []model.Adapter{adapter}, false)
+	item := result.Tools[0]
+	if item.Status != "custom" || item.FallbackTheme != "personal" || item.Port == nil || item.Port.File != custom ||
+		len(item.Warnings) == 0 || !strings.Contains(item.Warnings[0], "personal") || resolveCalls != 1 {
+		t.Fatalf("fallback selection: %+v; resolver calls=%d", item, resolveCalls)
+	}
+	apply(&result, env, []model.Adapter{adapter})
+	data, err := os.ReadFile(destination)
+	if err != nil || string(data) != custom || result.Tools[0].Outcome != "applied" {
+		t.Fatalf("fallback not applied: %+v, %q, %v", result.Tools[0], data, err)
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil || !strings.Contains(string(encoded), `"fallback_theme":"personal"`) {
+		t.Fatalf("fallback missing from JSON: %s, %v", encoded, err)
+	}
+	config.Themes["requested"] = model.Theme{Custom: map[string]model.Port{"fixture": {Name: "requested-override"}}}
+	result = plan("requested", config, env, []model.Adapter{adapter}, false)
+	if result.Tools[0].Status != "custom" || result.Tools[0].Port.Name != "requested-override" ||
+		result.Tools[0].FallbackTheme != "" || resolveCalls != 1 {
+		t.Fatalf("requested override lost precedence: %+v", result.Tools[0])
+	}
+}
+
+func TestDefaultThemeFallbackOnlyOnUnavailablePort(t *testing.T) {
+	installedFixtures(t, "fixture")
+	inspectionError := errors.New("native inspection failed")
+	calls := 0
+	adapter := model.Adapter{ID: "fixture", Binary: "fixture", Resolve: func(model.ThemePort, model.Environment) (model.Port, bool, error) {
+		calls++
+		return model.Port{}, false, inspectionError
+	}}
+	config := model.Config{DefaultTheme: "personal", Themes: map[string]model.Theme{
+		"personal": {Custom: map[string]model.Port{"fixture": {Name: "fallback"}}},
+	}}
+	result := plan("requested", config, model.Environment{}, []model.Adapter{adapter}, false)
+	if item := result.Tools[0]; item.Status != "error" || item.FallbackTheme != "" || calls != 1 {
+		t.Fatalf("inspection error incorrectly fell back: %+v; calls=%d", item, calls)
+	}
+	adapter.Resolve = func(model.ThemePort, model.Environment) (model.Port, bool, error) {
+		calls++
+		return model.Port{}, false, nil
+	}
+	config.DefaultTheme = "missing"
+	result = plan("requested", config, model.Environment{}, []model.Adapter{adapter}, false)
+	if item := result.Tools[0]; item.Status != "unsupported" || item.Outcome != "skipped" ||
+		item.FallbackTheme != "" || item.Port != nil || calls != 3 {
+		t.Fatalf("missing fallback incorrectly selected: %+v; calls=%d", item, calls)
+	}
+	config.DefaultTheme = "personal"
+	config.Themes["personal"] = model.Theme{Custom: map[string]model.Port{"fixture": {File: filepath.Join(t.TempDir(), "missing.theme")}}}
+	result = plan("requested", config, model.Environment{}, []model.Adapter{adapter}, false)
+	if item := result.Tools[0]; item.Status != "error" || item.FallbackTheme != "personal" ||
+		!strings.Contains(item.Error, "default theme personal") || len(item.Warnings) != 0 {
+		t.Fatalf("invalid fallback should report an error without claiming it was applied: %+v", item)
+	}
 }
 
 func TestCustomPrecedesNativeAndInvalidOverrideDoesNotFallBack(t *testing.T) {

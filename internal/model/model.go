@@ -33,9 +33,10 @@ type Theme struct {
 }
 
 type Config struct {
-	Tools  []string          `json:"tools,omitempty"`
-	Paths  map[string]string `json:"paths,omitempty"`
-	Themes map[string]Theme  `json:"themes,omitempty"`
+	Tools        []string          `json:"tools,omitempty"`
+	Paths        map[string]string `json:"paths,omitempty"`
+	Themes       map[string]Theme  `json:"themes,omitempty"`
+	DefaultTheme string            `json:"default_theme,omitempty"`
 }
 
 type Environment struct {

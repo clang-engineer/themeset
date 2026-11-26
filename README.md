@@ -112,9 +112,10 @@ In Zsh, Homebrew's completion directory must be in `fpath` before `compinit`.
    combination. Invalid overrides fail; they never silently fall back.
 3. Otherwise resolve the installed app's native theme/provider or a registered
    current official port.
-4. If neither exists, warn and skip that tool. Its previous settings remain.
-   Actual inspection/apply failures remain errors; other selected tools are
-   still processed and the command returns nonzero.
+4. If unavailable, try `default_theme` for that tool (built-in default:
+   `catppuccin-mocha`). If the fallback is also unavailable, warn and skip,
+   leaving its settings unchanged. Inspection/apply errors never trigger a
+   fallback; other selected tools continue and the command returns nonzero.
 
 Support is reported as `native`, `official`, `custom`, `unsupported`,
 `not-installed`, or `error`. Application outcomes are separate: `planned`,
@@ -123,12 +124,10 @@ result, including partial failures; it does not assert that every app currently
 matches the last requested theme.
 
 Human-readable results include a per-tool table and a summary of applied, planned,
-skipped, and failed tools. Each skipped row explains whether the executable is
-missing, no compatible installed/registered port exists, a complete Yazi flavor
-is unavailable, or a tmux plugin would alter the existing status layout.
-Normal unsupported tools also produce one aggregate warning; settings stay
-unchanged. JSON results include each tool's `reason` and structured warnings.
-Inspection/apply errors remain visible and make the command fail.
+skipped, and failed tools. A fallback is labeled with its actual theme ID in
+`fallback_theme` and a warning; `current` preserves that metadata. A skipped
+row explains why no compatible port was found. Inspection/apply errors remain
+visible and make the command fail.
 
 Ghostty saves its theme selector and, on macOS, requests `reload_config`
 through Ghostty's native AppleScript API when the app is running for the
@@ -139,11 +138,13 @@ request, not that every window visually refreshed. On Linux, press
 `Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
 used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 
-The bundled catalog in `internal/catalog/defaults.json` defines seven listed
-themes: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, `nord`,
-`rose-pine` (Main), and `tokyo-night` (Night). It declares each tool's
-installed-native candidate names and, where available, a verified upstream
-port. The same listed IDs feed `list`, shell completion, and the interactive
+The bundled catalog in `internal/catalog/defaults.json` lists twelve themes:
+`catppuccin-mocha`, `catppuccin-latte`, `catppuccin-frappe`,
+`catppuccin-macchiato`, `dracula`, `gruvbox`, `moonfly`, `nord`,
+`rose-pine` (Main), `rose-pine-dawn`, `rose-pine-moon`, and
+`tokyo-night` (Night). It declares each tool's installed-native candidate
+names and, where available, a verified upstream port.
+The same listed IDs feed `list`, shell completion, and the interactive
 picker. This shortlist is not a promise that every tool supports each theme.
 Other IDs can be registered under `themes` in the JSON config, including an
 empty entry when a bundled native alias is available. User custom entries
@@ -173,20 +174,20 @@ download guards.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
-| Ghostty | Installed `+list-themes` names | Native Ghostty theme asset |
+| Ghostty | Installed `+list-themes` names or verified theme-author color files | Native Ghostty theme asset |
 | Neovim | Installed colorscheme runtime files | Existing Lua/Vim theme script |
 | tmux | Fetch current Moonfly/Tokyo Night styles; no general native registry | Trusted tmux theme config |
 | bat | Installed syntax-theme list, including Rosé Pine when present | bat config containing `--theme` |
-| delta | Installed syntax-theme list or official Rosé Pine feature | Gitconfig containing delta theme settings |
+| delta | Installed syntax-theme list or registered Dracula, Rosé Pine, and Catppuccin features | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
-| Starship | Existing named palettes or current official Dracula, Moonfly, Catppuccin Mocha, Gruvbox Dark, and Rosé Pine palettes | Selected palette in Starship TOML |
-| fzf | Current official Dracula, Moonfly, Catppuccin Mocha, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night colors | Color-only native options file |
-| Yazi | Installed complete flavors or current official Dracula, Rosé Pine, Tokyo Night, and Catppuccin files | Native `theme.toml` fragment |
-| Atuin | Shipped/installed themes or current official Catppuccin Mocha/Mauve and Rosé Pine files | Native theme TOML asset |
-| lazygit | Current official Dracula, Catppuccin Mocha/Mauve, Rosé Pine, and Tokyo Night settings | `gui.theme` YAML fragment |
-| lazydocker | Current official Dracula settings | `gui.theme` YAML fragment |
-| btop | Installed user/system themes or current official Catppuccin Mocha, Dracula, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night files | Native `.theme` file |
-| eza | Current official Dracula, Gruvbox Dark, Catppuccin Mocha/Mauve, Rosé Pine, and Tokyo Night YAML | Native `theme.yml` fragment |
+| Starship | Existing named palettes or registered Dracula, Moonfly, Catppuccin flavors, Gruvbox Dark, and Rosé Pine palettes | Selected palette in Starship TOML |
+| fzf | Registered Dracula, Moonfly, Catppuccin flavors, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night colors | Color-only native options file |
+| Yazi | Installed complete flavors or registered Dracula, Rosé Pine, Tokyo Night, and Catppuccin files | Native `theme.toml` fragment |
+| Atuin | Shipped/installed themes or registered Catppuccin flavors and Rosé Pine files | Native theme TOML asset |
+| lazygit | Registered Dracula, Catppuccin flavors, Rosé Pine, and Tokyo Night settings | `gui.theme` YAML fragment |
+| lazydocker | Registered Dracula settings | `gui.theme` YAML fragment |
+| btop | Installed user/system themes or registered Catppuccin flavors, Dracula, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night files | Native `.theme` file |
+| eza | Registered Dracula, Gruvbox Dark, Catppuccin flavors, Rosé Pine, and Tokyo Night YAML | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
@@ -202,12 +203,13 @@ for Gruvbox eza/Starship and btop's shipped colors; it is not a claim that
 Gruvbox's theme author maintains those repos. Starship's palette selection
 does not recolor modules that hardcode colors instead of using palette names.
 
-Catppuccin Mocha fzf requires fzf 0.52.0 or newer; resolution and apply report an
+Catppuccin fzf requires fzf 0.52.0 or newer; resolution and apply report an
 error for older versions before writing its options. Gruvbox/Nord use stable
 color option names, not the newer layout options shown in the fzf web generator.
-Catppuccin Atuin installs and selects its declared `catppuccin-mocha-mauve`
-name. Yazi imports only UI style tables and installs the official Catppuccin
-syntax theme; separators, icons, file rules, layouts, and keymaps remain intact.
+Catppuccin Atuin installs and selects each declared `catppuccin-<flavor>-mauve`
+name. Yazi imports only UI style tables and installs the corresponding
+Catppuccin syntax theme; separators, icons, file rules, layouts, and keymaps
+remain intact.
 
 ### Acquiring registered assets
 
@@ -230,23 +232,23 @@ upstream colors. Dry-run does not download.
   YAML, validates the theme structure, and merges styles into `theme.yml`,
   preserving unrelated filename/icon rules. Honors `EZA_CONFIG_DIR` or
   `paths.eza`. Existing `LS_COLORS`/`EZA_COLORS` overrides can affect rendering.
-- **btop:** reuses installed user/system themes; otherwise fetches Catppuccin's
-  Mocha file or btop's Dracula/Gruvbox Dark/Nord files, installs the native
-  `.theme` under the effective user theme directory, then selects it in
+- **btop:** reuses installed user/system themes; otherwise fetches registered
+  Catppuccin flavors or btop's Dracula/Gruvbox Dark/Nord files, installs the
+  native `.theme` under the effective user theme directory, then selects it in
   `btop.conf`. Relaunch btop to see the change.
-- **Starship:** fetches Catppuccin Mocha or Starship's Gruvbox Rainbow preset,
-  imports only the selected palette, then changes `palette`.
-  It never replaces a custom prompt layout or module configuration.
+- **Starship:** fetches a registered Catppuccin or Rosé Pine palette or Starship's
+  Gruvbox Rainbow preset, imports only the selected palette, then changes
+  `palette`. It never replaces a custom prompt layout or module configuration.
 
 Fetch/validation/install failures remain errors and do not change the prior theme
 selection. A conflicting independent Yazi flavor is not silently overwritten;
 themeset-owned flavors carry a source marker and refresh from upstream.
 Yazi Dracula and eza's files are application-maintained, not necessarily
-theme-author ports. Relaunch Yazi; eza and Starship use their new settings on
-the next invocation/prompt.
+theme-author ports. Relaunch Yazi; eza and Starship use their new settings
+on the next invocation/prompt.
 
-Dracula still skips Atuin (no registered verified port) and tmux (full plugin
-installation/layout integration is not implemented).
+Dracula still has no Atuin or tmux official source; where supported, a missing
+Dracula port uses the configured default theme instead.
 
 Changes take effect on the next application launch or prompt/invocation; running
 apps are not forcibly restarted. Neovim's generated selection runs on VimEnter.
@@ -309,6 +311,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
 ```json
 {
   "tools": ["ghostty", "bat", "fzf", "lazygit"],
+  "default_theme": "catppuccin-mocha",
   "paths": {
     "lazygit": "~/Library/Application Support/lazygit/config.yml"
   },
@@ -328,7 +331,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
         }
       }
     }
-}
+  }
 }
 ```
 
@@ -346,6 +349,12 @@ set it explicitly if a Starship file declares a differently named palette.
 For local ports, `name` may select an existing app theme. Omit `tools` for all
 adapters; `"tools": []` means none. Canonical Neovim ID is `neovim`. Unknown
 JSON fields and unknown selected tool IDs are errors.
+
+`default_theme` sets the theme used for a tool only when the requested theme
+has no available native, official, or custom port for that tool. It defaults to
+`catppuccin-mocha`; set it to a bundled or user-defined theme ID to override.
+It is tried once, never after an inspection or apply error. If that theme is
+also unavailable for the tool, the tool is skipped unchanged.
 
 Explicit `themes.<id>.custom.<tool>` entries override even available native or
 official ports. An invalid custom file is an error, not permission to use other

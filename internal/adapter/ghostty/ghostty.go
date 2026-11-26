@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -41,6 +42,32 @@ func nativeGhosttyPath(env model.Environment) string {
 var nativeGhosttyTheme = regexp.MustCompile(`^\s*theme\s*=`)
 
 func nativeApplyGhostty(port model.Port, env model.Environment) error {
+	if port.Kind == "official" {
+		if !catalog.Verified("ghostty", port) {
+			return fmt.Errorf("unregistered Ghostty official theme %q", port.Name)
+		}
+		asset, err := shared.AcquireAsset(env, port.Source)
+		if err != nil {
+			return fmt.Errorf("acquire Ghostty theme %q: %w", port.Name, err)
+		}
+		if err := validateOfficialTheme(asset); err != nil {
+			return fmt.Errorf("invalid Ghostty theme %q: %w", port.Name, err)
+		}
+		// An absolute path also works when Ghostty uses its alternative macOS
+		// configuration directory or a caller supplies a custom config path.
+		path := filepath.Join(filepath.Dir(nativeGhosttyPath(env)), "themes", "themeset-"+port.Name)
+		if info, err := os.Lstat(path); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("Ghostty managed theme must not be a symlink: %s", path)
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		if err := shared.Atomic(path, asset); err != nil {
+			return err
+		}
+		port.File = path
+	}
 	name := port.Name
 	if port.File != "" {
 		name = shared.NativeExpand(port.File, env)

@@ -30,8 +30,12 @@ func filesAtuinThemes(env model.Environment) string {
 }
 
 func filesAtuinBuiltin(name string) bool {
-	candidates := catalog.Port(name, "atuin").Native
-	return len(candidates) == 1 && candidates[0] == name
+	switch name {
+	case "(none)", "autumn", "default", "default-powershell", "marine", "pumpkin":
+		return true
+	default:
+		return false
+	}
 }
 
 func filesAtuinTheme(data []byte) (string, error) {

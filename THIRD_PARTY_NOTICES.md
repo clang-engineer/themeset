@@ -8,17 +8,33 @@ settings. The upstream repositories retain their own licensing terms.
 
 - Dracula: [fzf](https://github.com/dracula/fzf),
   [Starship](https://github.com/dracula/starship),
+  [Ghostty](https://github.com/dracula/ghostty),
   [lazygit](https://github.com/dracula/lazygit), and
   [lazydocker](https://github.com/dracula/lazydocker).
 - Moonfly: [official extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras)
   for fzf, Starship, and tmux. Shell commands, prompt layouts, and tmux status
   layouts are not imported.
-- Catppuccin Mocha/Mauve: [fzf](https://github.com/catppuccin/fzf),
+- Catppuccin Latte, Frappé, Macchiato, and Mocha:
+  [fzf](https://github.com/catppuccin/fzf),
   [lazygit](https://github.com/catppuccin/lazygit),
   [Atuin](https://github.com/catppuccin/atuin),
   [eza](https://github.com/catppuccin/eza),
+  [btop](https://github.com/catppuccin/btop),
+  [delta](https://github.com/catppuccin/delta),
+  [Starship](https://github.com/catppuccin/starship),
+  [Ghostty](https://github.com/catppuccin/ghostty),
   [Yazi](https://github.com/catppuccin/yazi), and
   [Yazi syntax from bat](https://github.com/catppuccin/bat).
+- Rosé Pine Main, Dawn, and Moon:
+  [Atuin](https://github.com/rose-pine/atuin),
+  [btop](https://github.com/rose-pine/btop),
+  [delta](https://github.com/rose-pine/delta),
+  [eza](https://github.com/rose-pine/eza),
+  [fzf](https://github.com/rose-pine/fzf),
+  [Ghostty](https://github.com/rose-pine/ghostty),
+  [lazygit](https://github.com/rose-pine/lazygit),
+  [Starship](https://github.com/rose-pine/starship), and
+  [Yazi](https://github.com/rose-pine/yazi).
 - fzf-author Gruvbox Dark and Nord preset data:
   [fzf color themes](https://junegunn.github.io/fzf/color-themes/).
   Only literal color values are parsed from the author's site source; JavaScript
@@ -41,9 +57,10 @@ licenses do not become official merely by being registered in configuration.
 
 ## Registered downloaded ports
 
-These files are fetched from current official branches during apply, not embedded
-in the executable. Tool adapters validate their formats before changing settings.
-Current upstream content can change between applications; no checksum cache is used.
+These files are fetched from their registered upstream branches during apply, not
+embedded in the executable. Tool adapters validate formats before changing
+settings. Current upstream content can change between applications; no checksum
+cache is used.
 
 - Application-maintained Yazi Dracula flavor:
   https://github.com/yazi-rs/flavors/tree/main/dracula.yazi
@@ -52,15 +69,17 @@ Current upstream content can change between applications; no checksum cache is u
 - Application-maintained eza Dracula and Gruvbox Dark YAML:
   https://github.com/eza-community/eza-themes/tree/main/themes
   The theme is merged into active configuration, retaining unrelated user rules.
-- Theme-author Catppuccin Mocha btop:
-  https://github.com/catppuccin/btop/blob/main/themes/catppuccin_mocha.theme
-  The `.theme` is installed under the effective user theme directory when absent.
+- Theme-author Catppuccin btop flavors:
+  https://github.com/catppuccin/btop/tree/main/themes
+  The selected `.theme` is installed under the effective user theme directory
+  when absent.
 - Application-maintained btop Dracula, Gruvbox Dark, and Nord:
   https://github.com/aristocratos/btop/tree/main/themes
   Already-installed system/user themes are reused instead of downloaded.
-- Theme-author Catppuccin Mocha Starship:
-  https://github.com/catppuccin/starship/blob/main/themes/mocha.toml
-  Only `[palettes.catppuccin_mocha]` is merged, not an example prompt layout.
+- Theme-author Catppuccin Starship flavors:
+  https://github.com/catppuccin/starship/tree/main/themes
+  Only the selected `[palettes.catppuccin_*]` table is merged, not an example
+  prompt layout.
 - Application-maintained Starship Gruvbox Rainbow:
   https://github.com/starship/starship/blob/master/docs/public/presets/toml/gruvbox-rainbow.toml
   Only `[palettes.gruvbox_dark]` is imported, without module or prompt settings.
