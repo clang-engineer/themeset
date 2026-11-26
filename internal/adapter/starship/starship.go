@@ -13,12 +13,10 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "starship", Binary: "starship", Resolve: filesResolveStarship, Apply: filesApplyStarship}
 }
 
-const filesStarshipSource = "https://raw.githubusercontent.com/dracula/starship/master/starship.toml"
-
 func filesResolveStarship(name string, env model.Environment) (model.Port, bool, error) {
 	switch name {
 	case "dracula":
-		return model.Port{Kind: "official", Name: name, Source: filesStarshipSource}, true, nil
+		return model.Port{Kind: "official", Name: name, Source: shared.StarshipDraculaSource}, true, nil
 	case "moonfly":
 		return model.Port{Kind: "official", Name: name, Source: shared.MoonflySource + "moonfly-starship.toml"}, true, nil
 	}
@@ -38,7 +36,7 @@ func filesResolveStarship(name string, env model.Environment) (model.Port, bool,
 	}
 	palettes, _ := config["palettes"].(map[string]any)
 	if palette, ok := palettes[name].(map[string]any); ok && len(palette) > 0 {
-		return model.Port{Kind: "native", Name: name, Source: "https://starship.rs/config/#color-palette"}, true, nil
+		return model.Port{Kind: "native", Name: name, Source: shared.StarshipPalettesSource}, true, nil
 	}
 	return model.Port{}, false, nil
 }
@@ -62,7 +60,7 @@ func filesApplyStarship(port model.Port, env model.Environment) error {
 					return err
 				}
 			case "dracula", "moonfly":
-				source := filesStarshipSource
+				source := shared.StarshipDraculaSource
 				if port.Name == "moonfly" {
 					source = shared.MoonflySource + "moonfly-starship.toml"
 				}

@@ -134,7 +134,7 @@ func filesResolveEzaFamily(name string, _ model.Environment) (model.Port, bool, 
 	if name != "gruvbox" {
 		return model.Port{}, false, nil
 	}
-	return model.Port{Kind: "official", Name: name, Source: filesEzaGruvboxSource}, true, nil
+	return model.Port{Kind: "official", Name: name, Source: shared.EzaGruvboxSource}, true, nil
 }
 
 // Called only on apply, after the resolver has registered an exact source.
@@ -143,14 +143,14 @@ func filesAcquireEzaFamily(name string, env model.Environment) ([]byte, error) {
 	if name != "gruvbox" {
 		return nil, fmt.Errorf("no registered eza family asset for %q", name)
 	}
-	data, err := shared.AcquireAsset(env, filesEzaGruvboxSource)
+	data, err := shared.AcquireAsset(env, shared.EzaGruvboxSource)
 	if err != nil {
 		return nil, fmt.Errorf("acquire eza Gruvbox Dark: %w", err)
 	}
 	if err := filesValidateEzaFamily(data); err != nil {
 		return nil, err
 	}
-	if _, err := shared.AcquireAsset(env, filesEzaFamilyLicenseSource); err != nil {
+	if _, err := shared.AcquireAsset(env, shared.EzaFamilyLicenseSource); err != nil {
 		return nil, fmt.Errorf("acquire eza Gruvbox Dark license: %w", err)
 	}
 	return data, nil
@@ -260,7 +260,7 @@ func filesPortData(port model.Port, env model.Environment) ([]byte, error) {
 				return filesAcquireEzaDracula(env)
 			}
 		case "gruvbox":
-			if port.Source == filesEzaGruvboxSource {
+			if port.Source == shared.EzaGruvboxSource {
 				return filesAcquireEzaFamily(port.Name, env)
 			}
 		default:

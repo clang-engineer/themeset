@@ -19,11 +19,11 @@ var names = map[string][]string{
 }
 
 func Adapter() model.Adapter {
-	listed := shared.ListedResolver("bat", names, "https://github.com/sharkdp/bat/tree/master/assets/themes", "--list-themes", "--color=never")
+	listed := shared.ListedResolver("bat", names, shared.BatThemesSource, "--list-themes", "--color=never")
 	return model.Adapter{ID: "bat", Binary: "bat", Resolve: func(theme string, env model.Environment) (model.Port, bool, error) {
 		port, ok, err := listed(theme, env)
 		if ok && shared.ThemeKey(theme) == "rose-pine" {
-			port.Source = "https://github.com/rose-pine/tm-theme"
+			port.Source = shared.BatRosePineSource
 		}
 		return port, ok, err
 	}, Apply: nativeApplyBat}

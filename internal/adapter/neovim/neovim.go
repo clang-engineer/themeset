@@ -14,44 +14,43 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "neovim", Binary: "nvim", Resolve: nativeResolveNeovim, Apply: nativeApplyNeovim}
 }
 
-type nativeNeovimProvider struct{ Name, Source string }
-
-var nativeNeovimProviders = map[string]nativeNeovimProvider{
-	"dracula":                   {"dracula", "https://github.com/dracula/vim"},
-	"catppuccin-mocha":          {"catppuccin-mocha", "https://github.com/catppuccin/nvim"},
-	"nord":                      {"nord", "https://github.com/nordtheme/vim"},
-	"gruvbox":                   {"gruvbox", "https://github.com/ellisonleao/gruvbox.nvim"},
-	"gruvbox-dark":              {"gruvbox", "https://github.com/ellisonleao/gruvbox.nvim"},
-	"tokyonight":                {"tokyonight-night", "https://github.com/folke/tokyonight.nvim"},
-	"tokyo-night":               {"tokyonight-night", "https://github.com/folke/tokyonight.nvim"},
-	"rose-pine":                 {"rose-pine-main", "https://github.com/rose-pine/neovim"},
-	"kanagawa":                  {"kanagawa-wave", "https://github.com/rebelot/kanagawa.nvim"},
-	"everforest":                {"everforest", "https://github.com/sainnhe/everforest"},
-	"onedark":                   {"onedark", "https://github.com/navarasu/onedark.nvim"},
-	"github-dark":               {"github_dark", "https://github.com/projekt0n/github-nvim-theme"},
-	"github-dark-high-contrast": {"github_dark_high_contrast", "https://github.com/projekt0n/github-nvim-theme"},
-	"moonfly":                   {"moonfly", "https://github.com/bluz71/vim-moonfly-colors"},
-	"vscode-dark":               {"vscode", "https://github.com/Mofiqul/vscode.nvim"},
-	"sonokai":                   {"sonokai", "https://github.com/sainnhe/sonokai"},
-	"cyberdream":                {"cyberdream", "https://github.com/scottmckendry/cyberdream.nvim"},
-	"modus-vivendi":             {"modus_vivendi", "https://github.com/miikanissi/modus-themes.nvim"},
+var nativeNeovimProviders = map[string]string{
+	"dracula":                   "dracula",
+	"catppuccin-mocha":          "catppuccin-mocha",
+	"nord":                      "nord",
+	"gruvbox":                   "gruvbox",
+	"gruvbox-dark":              "gruvbox",
+	"tokyonight":                "tokyonight-night",
+	"tokyo-night":               "tokyonight-night",
+	"rose-pine":                 "rose-pine-main",
+	"kanagawa":                  "kanagawa-wave",
+	"everforest":                "everforest",
+	"onedark":                   "onedark",
+	"github-dark":               "github_dark",
+	"github-dark-high-contrast": "github_dark_high_contrast",
+	"moonfly":                   "moonfly",
+	"vscode-dark":               "vscode",
+	"sonokai":                   "sonokai",
+	"cyberdream":                "cyberdream",
+	"modus-vivendi":             "modus_vivendi",
 }
 
 // Resolve uses on-disk runtime evidence, not a headless launch of the user's
 // init.lua (which can have arbitrary side effects). No plugin is installed.
 func nativeResolveNeovim(theme string, env model.Environment) (model.Port, bool, error) {
-	provider, ok := nativeNeovimProviders[shared.ThemeKey(theme)]
+	key := shared.ThemeKey(theme)
+	name, ok := nativeNeovimProviders[key]
 	if !ok {
 		return model.Port{}, false, nil
 	}
-	root, err := nativeNeovimRuntime(provider.Name, env)
+	root, err := nativeNeovimRuntime(name, env)
 	if err != nil {
 		return model.Port{}, false, err
 	}
 	if root == "" {
 		return model.Port{}, false, nil
 	}
-	return model.Port{Kind: "native", Name: provider.Name, Source: provider.Source}, true, nil
+	return model.Port{Kind: "native", Name: name, Source: shared.NeovimProviderSource(key)}, true, nil
 }
 
 func nativeNeovimRuntime(name string, env model.Environment) (string, error) {

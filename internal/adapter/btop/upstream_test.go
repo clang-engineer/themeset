@@ -27,7 +27,7 @@ func TestBtopOfficialThemesFetchCurrentBranch(t *testing.T) {
 			if err != nil || !ok || port.Kind != "official" {
 				t.Fatalf("resolve %q: %#v, ok=%t err=%v", name, port, ok, err)
 			}
-			license := filesBtopUpstreamLicense
+			license := shared.BtopUpstreamLicense
 			if name == "catppuccin-mocha" {
 				license = shared.BtopCatppuccinLicense
 			}
@@ -83,7 +83,7 @@ func TestBtopOfficialDownloadFailurePreservesSettings(t *testing.T) {
 				if err != nil || !ok || port.Kind != "official" {
 					t.Fatalf("resolve: %#v, ok=%t err=%v", port, ok, err)
 				}
-				license := filesBtopUpstreamLicense
+				license := shared.BtopUpstreamLicense
 				if name == "catppuccin-mocha" {
 					license = shared.BtopCatppuccinLicense
 				}

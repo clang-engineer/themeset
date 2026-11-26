@@ -12,14 +12,6 @@ import (
 // Starship's Gruvbox Rainbow preset is maintained by Starship itself. Its
 // prompt layout and module settings are never imported: only its native palette.
 // Catppuccin's Mocha file is a palette-only official port.
-const (
-	filesPaletteCatBase           = "https://raw.githubusercontent.com/catppuccin/starship/main/"
-	filesPaletteCatSource         = filesPaletteCatBase + "themes/mocha.toml"
-	filesPaletteCatLicenseSource  = filesPaletteCatBase + "LICENSE"
-	filesPaletteGruvBase          = "https://raw.githubusercontent.com/starship/starship/master/"
-	filesPaletteGruvSource        = filesPaletteGruvBase + "docs/public/presets/toml/gruvbox-rainbow.toml"
-	filesPaletteGruvLicenseSource = filesPaletteGruvBase + "LICENSE"
-)
 
 type filesPaletteRecipe struct {
 	source, license, native string
@@ -31,9 +23,9 @@ func filesPaletteFamilyRecipe(id, name string) (filesPaletteRecipe, bool) {
 	}
 	switch name {
 	case "catppuccin-mocha":
-		return filesPaletteRecipe{filesPaletteCatSource, filesPaletteCatLicenseSource, "catppuccin_mocha"}, true
+		return filesPaletteRecipe{shared.StarshipCatppuccinSource, shared.StarshipCatppuccinLicense, "catppuccin_mocha"}, true
 	case "gruvbox":
-		return filesPaletteRecipe{filesPaletteGruvSource, filesPaletteGruvLicenseSource, "gruvbox_dark"}, true
+		return filesPaletteRecipe{shared.StarshipGruvboxSource, shared.StarshipGruvboxLicense, "gruvbox_dark"}, true
 	default:
 		return filesPaletteRecipe{}, false
 	}

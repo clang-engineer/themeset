@@ -15,10 +15,6 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "fzf", Binary: "fzf", Resolve: filesResolveFZF, Apply: filesApplyFZF}
 }
 
-const filesFZFSource = "https://raw.githubusercontent.com/dracula/fzf/master/INSTALL.md"
-const filesFZFCatppuccinSource = "https://raw.githubusercontent.com/catppuccin/fzf/main/themes/catppuccin-fzf-mocha.rc"
-const filesFZFPresetsSource = "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js"
-
 func filesResolveFZF(name string, env model.Environment) (model.Port, bool, error) {
 	if port, found, err := shared.ResolveTokyoNightPort("fzf", name, env); found || err != nil {
 		return port, found, err
@@ -31,11 +27,11 @@ func filesResolveFZF(name string, env model.Environment) (model.Port, bool, erro
 		if err := filesFZFRequireSelectedColors(env); err != nil {
 			return model.Port{}, false, err
 		}
-		return model.Port{Kind: "official", Name: name, Source: filesFZFCatppuccinSource}, true, nil
+		return model.Port{Kind: "official", Name: name, Source: shared.FZFCatppuccinSource}, true, nil
 	case "gruvbox", "nord":
-		return model.Port{Kind: "official", Name: name, Source: filesFZFPresetsSource}, true, nil
+		return model.Port{Kind: "official", Name: name, Source: shared.FZFPresetsSource}, true, nil
 	case "dracula":
-		return model.Port{Kind: "official", Name: name, Source: filesFZFSource}, true, nil
+		return model.Port{Kind: "official", Name: name, Source: shared.FZFDraculaSource}, true, nil
 	case "moonfly":
 		return model.Port{Kind: "official", Name: name, Source: shared.MoonflySource + "moonfly-fzf.sh"}, true, nil
 	default:
@@ -242,11 +238,11 @@ func filesAcquireTokyoNightPort(port model.Port, env model.Environment) ([]byte,
 func filesFZFOfficialSource(name string) string {
 	switch name {
 	case "catppuccin-mocha":
-		return filesFZFCatppuccinSource
+		return shared.FZFCatppuccinSource
 	case "gruvbox", "nord":
-		return filesFZFPresetsSource
+		return shared.FZFPresetsSource
 	case "dracula":
-		return filesFZFSource
+		return shared.FZFDraculaSource
 	case "moonfly":
 		return shared.MoonflySource + "moonfly-fzf.sh"
 	}

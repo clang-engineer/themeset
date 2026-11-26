@@ -7,11 +7,6 @@ import (
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
-const (
-	filesBtopUpstreamBase    = "https://raw.githubusercontent.com/aristocratos/btop/master/"
-	filesBtopUpstreamLicense = filesBtopUpstreamBase + "LICENSE"
-)
-
 // btop itself ships these native theme files. Installed copies always win;
 // this registry only supplies a file when the installed package omits it.
 func filesResolveBtopUpstream(name string) (model.Port, bool, error) {
@@ -25,7 +20,7 @@ func filesResolveBtopUpstream(name string) (model.Port, bool, error) {
 	if asset == "" {
 		return model.Port{}, false, nil
 	}
-	return model.Port{Kind: "official", Name: asset, Source: filesBtopUpstreamBase + "themes/" + asset + ".theme"}, true, nil
+	return model.Port{Kind: "official", Name: asset, Source: shared.BtopUpstreamBase + "themes/" + asset + ".theme"}, true, nil
 }
 
 func filesAcquireBtopUpstream(port model.Port, env model.Environment) ([]byte, error) {
@@ -34,7 +29,7 @@ func filesAcquireBtopUpstream(port model.Port, env model.Environment) ([]byte, e
 	default:
 		return nil, fmt.Errorf("unknown btop official theme %q", port.Name)
 	}
-	if port.Source != filesBtopUpstreamBase+"themes/"+port.Name+".theme" {
+	if port.Source != shared.BtopUpstreamBase+"themes/"+port.Name+".theme" {
 		return nil, fmt.Errorf("unexpected btop official source %q", port.Source)
 	}
 	data, err := shared.AcquireAsset(env, port.Source)
@@ -44,7 +39,7 @@ func filesAcquireBtopUpstream(port model.Port, env model.Environment) ([]byte, e
 	if err := filesBtopTheme(data); err != nil {
 		return nil, fmt.Errorf("invalid btop %s: %w", port.Name, err)
 	}
-	if _, err := shared.AcquireAsset(env, filesBtopUpstreamLicense); err != nil {
+	if _, err := shared.AcquireAsset(env, shared.BtopUpstreamLicense); err != nil {
 		return nil, fmt.Errorf("acquire btop license: %w", err)
 	}
 	return data, nil

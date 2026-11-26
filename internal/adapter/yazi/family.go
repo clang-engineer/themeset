@@ -67,7 +67,7 @@ func filesResolveYaziFamily(name string, env model.Environment) (model.Port, boo
 	return model.Port{
 		Kind: "native", Name: name,
 		File:   filepath.Join(filesYaziFlavorRoot(name, env), "flavor.toml"),
-		Source: filesYaziSource,
+		Source: shared.YaziThemesSource,
 	}, true, nil
 }
 

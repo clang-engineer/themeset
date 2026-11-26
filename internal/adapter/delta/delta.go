@@ -31,13 +31,11 @@ func nativeDeltaThemeKey(key string) bool {
 	return option == "syntax-theme" || option == "features" || option == "dark" || option == "light" || strings.HasSuffix(option, "-style") || strings.HasSuffix(option, "-syntax-theme")
 }
 
-const rosePineDeltaSource = "https://raw.githubusercontent.com/rose-pine/delta/main/dist/rose-pine.gitconfig"
-
 func nativeResolveDelta(theme string, env model.Environment) (model.Port, bool, error) {
 	if theme == "rose-pine" {
-		return model.Port{Kind: "official", Name: theme, Source: rosePineDeltaSource}, true, nil
+		return model.Port{Kind: "official", Name: theme, Source: shared.DeltaRosePineSource}, true, nil
 	}
-	return shared.ListedResolver("delta", names, "https://dandavison.github.io/delta/syntax-highlighting.html", "--list-syntax-themes")(theme, env)
+	return shared.ListedResolver("delta", names, shared.DeltaThemesSource, "--list-syntax-themes")(theme, env)
 }
 
 // Import only the author's main Delta feature. The same upstream file contains
@@ -54,10 +52,10 @@ func nativeRosePineDeltaMain(data []byte) ([]byte, error) {
 }
 
 func nativeApplyRosePineDelta(port model.Port, env model.Environment) error {
-	if port.Kind != "official" || port.Name != "rose-pine" || port.Source != rosePineDeltaSource || port.File != "" {
+	if port.Kind != "official" || port.Name != "rose-pine" || port.Source != shared.DeltaRosePineSource || port.File != "" {
 		return fmt.Errorf("unregistered Rosé Pine Delta feature")
 	}
-	data, err := shared.AcquireAsset(env, rosePineDeltaSource)
+	data, err := shared.AcquireAsset(env, shared.DeltaRosePineSource)
 	if err != nil {
 		return err
 	}

@@ -17,8 +17,6 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "btop", Binary: "btop", Resolve: filesResolveBtop, Apply: filesApplyBtop}
 }
 
-const filesBtopSource = "https://github.com/aristocratos/btop#themes"
-
 func filesBtopDirectories(env model.Environment) []string {
 	directories := []string{filepath.Join(filepath.Dir(shared.Path("btop", env)), "themes")}
 	system := make([]string, 0, 3)
@@ -91,7 +89,7 @@ func filesResolveBtop(name string, env model.Environment) (model.Port, bool, err
 			if err := filesBtopTheme(data); err != nil {
 				return model.Port{}, false, fmt.Errorf("parse %s: %w", path, err)
 			}
-			return model.Port{Kind: "native", Name: candidate, File: path, Source: filesBtopSource}, true, nil
+			return model.Port{Kind: "native", Name: candidate, File: path, Source: shared.BtopThemesSource}, true, nil
 		}
 	}
 	if port, found, err := shared.ResolveTokyoNightPort("btop", name, env); found || err != nil {

@@ -52,7 +52,7 @@ func TestYaziFamilyCompleteNativeFlavorsSelectAndSwitch(t *testing.T) {
 		root := filesTestYaziFamilyInstall(t, name, env)
 		before := testutil.Read(t, filepath.Join(root, "flavor.toml"))
 		port, ok, err := filesResolveYaziFamily(name, env)
-		if err != nil || !ok || port.Kind != "native" || port.Source != filesYaziSource || port.File != filepath.Join(root, "flavor.toml") {
+		if err != nil || !ok || port.Kind != "native" || port.Source != shared.YaziThemesSource || port.File != filepath.Join(root, "flavor.toml") {
 			t.Fatalf("complete native %s not recognized: %#v, %v", name, port, err)
 		}
 		if err := filesApplyYaziFamily(port, env); err != nil {

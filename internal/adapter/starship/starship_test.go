@@ -34,7 +34,7 @@ func filesStarshipTestSource(t *testing.T, sources map[string]*string) {
 
 func TestFilesStarshipOfficialFetchesLatestPaletteOnly(t *testing.T) {
 	for _, tt := range []struct{ name, url, source string }{
-		{"dracula", filesStarshipSource, "palette = 'dracula'\nformat = 'DO NOT COPY'\n[palettes.dracula]\nforeground = '#f8f8f2'\n"},
+		{"dracula", shared.StarshipDraculaSource, "palette = 'dracula'\nformat = 'DO NOT COPY'\n[palettes.dracula]\nforeground = '#f8f8f2'\n"},
 		{"moonfly", shared.MoonflySource + "moonfly-starship.toml", filesStarshipTestMoonfly},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestFilesStarshipOfficialFailedDownloadPreservesConfiguration(t *testing.T)
 	original := "format = '$directory'\n[palettes.keep]\nred = '#123456'\n"
 	testutil.Write(t, path, original)
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != filesStarshipSource {
+		if r.URL.String() != shared.StarshipDraculaSource {
 			t.Fatalf("unexpected source: %s", r.URL)
 		}
 		return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil

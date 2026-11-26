@@ -21,8 +21,8 @@ func TestPaletteFamilyResolveWithoutDownload(t *testing.T) {
 		id, name, source string
 		ok               bool
 	}{
-		{"starship", "catppuccin-mocha", filesPaletteCatSource, true},
-		{"starship", "gruvbox", filesPaletteGruvSource, true},
+		{"starship", "catppuccin-mocha", shared.StarshipCatppuccinSource, true},
+		{"starship", "gruvbox", shared.StarshipGruvboxSource, true},
 		{"starship", "nord", "", false},
 		{"lazygit", "gruvbox", "", false},
 		{"lazygit", "nord", "", false},
@@ -53,9 +53,9 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 		requests++
 		var body []byte
 		switch r.URL.String() {
-		case filesPaletteCatSource:
+		case shared.StarshipCatppuccinSource:
 			body = palette
-		case filesPaletteCatLicenseSource:
+		case shared.StarshipCatppuccinLicense:
 			body = license
 		default:
 			t.Fatalf("unexpected palette request %s", r.URL)
@@ -65,7 +65,7 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	path := shared.Path("starship", env)
 	testutil.Write(t, path, "format = '$directory'\nadd_newline = false\n[directory]\ntruncation_length = 2\n[palettes.keep]\nred = '#112233'\n")
 	port, ok, err := filesResolveStarship("catppuccin-mocha", env)
-	if err != nil || !ok || port.Source != filesPaletteCatSource || requests != 0 {
+	if err != nil || !ok || port.Source != shared.StarshipCatppuccinSource || requests != 0 {
 		t.Fatalf("resolve: %#v, ok=%v err=%v requests=%d", port, ok, err, requests)
 	}
 	if err := filesApplyStarship(port, env); err != nil {
@@ -101,7 +101,7 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	previous := testutil.Read(t, path)
 	// Even a valid palette must not apply if its license cannot be fetched.
 	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() == filesPaletteCatLicenseSource {
+		if r.URL.String() == shared.StarshipCatppuccinLicense {
 			return nil, fmt.Errorf("offline")
 		}
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(palette))), Header: make(http.Header)}, nil
@@ -146,7 +146,7 @@ func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
 	path := shared.Path("starship", env)
 	testutil.Write(t, path, "format = '$directory'\n[directory]\ntruncation_length = 2\n")
 	port, ok, err := filesResolveStarship("gruvbox", env)
-	if err != nil || !ok || port.Source != filesPaletteGruvSource {
+	if err != nil || !ok || port.Source != shared.StarshipGruvboxSource {
 		t.Fatalf("Gruvbox official port: %#v, %v", port, err)
 	}
 	color := "#458588"
@@ -155,9 +155,9 @@ func TestPaletteFamilyGruvboxFetchesCurrentPreset(t *testing.T) {
 		requests++
 		var body string
 		switch r.URL.String() {
-		case filesPaletteGruvSource:
+		case shared.StarshipGruvboxSource:
 			body = "format = 'DO NOT IMPORT'\npalette = 'gruvbox_dark'\n[palettes.gruvbox_dark]\ncolor_blue = '" + color + "'\n"
-		case filesPaletteGruvLicenseSource:
+		case shared.StarshipGruvboxLicense:
 			body = "Official license"
 		default:
 			t.Fatalf("unexpected Gruvbox download %s", r.URL)

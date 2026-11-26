@@ -15,9 +15,6 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "yazi", Binary: "yazi", Resolve: filesResolveYazi, Apply: filesApplyYazi}
 }
 
-const filesYaziSource = "https://yazi-rs.github.io/docs/flavors/overview/"
-const filesYaziCatppuccinSyntaxSource = "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme"
-
 func filesResolveYazi(name string, env model.Environment) (model.Port, bool, error) {
 	if name == "dracula" {
 		return filesResolveYaziDracula(env)
@@ -54,7 +51,7 @@ func filesResolveYazi(name string, env model.Environment) (model.Port, bool, err
 		}
 		return model.Port{}, false, err
 	}
-	return model.Port{Kind: "native", Name: name, File: filepath.Join(root, "flavor.toml"), Source: filesYaziSource}, true, nil
+	return model.Port{Kind: "native", Name: name, File: filepath.Join(root, "flavor.toml"), Source: shared.YaziThemesSource}, true, nil
 }
 
 func filesApplyYazi(port model.Port, env model.Environment) error {
@@ -112,7 +109,7 @@ func filesApplyYazi(port model.Port, env model.Environment) error {
 				return err
 			}
 			themeData = data
-			syntaxData, err = shared.AcquireAsset(env, filesYaziCatppuccinSyntaxSource)
+			syntaxData, err = shared.AcquireAsset(env, shared.YaziCatppuccinSyntaxSource)
 			if err != nil {
 				return fmt.Errorf("acquire Catppuccin Yazi syntax: %w", err)
 			}

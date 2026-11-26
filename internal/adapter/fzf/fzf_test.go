@@ -69,7 +69,7 @@ func filesFZFTestSource(t *testing.T, sources map[string]*string) {
 
 func TestFilesFZFOfficialExtractsCurrentSourceWithoutExecution(t *testing.T) {
 	for _, tt := range []struct{ name, source, initial string }{
-		{"dracula", filesFZFSource, "### Setup\n```sh\nexport FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36 --color=hl:#bd93f9'\n```\n"},
+		{"dracula", shared.FZFDraculaSource, "### Setup\n```sh\nexport FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36 --color=hl:#bd93f9'\n```\n"},
 		{"moonfly", shared.MoonflySource + "moonfly-fzf.sh", filesFZFTestMoonfly},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,8 +118,8 @@ func TestFilesFZFNewOfficialPortsPreserveShellOptions(t *testing.T) {
 			catppuccin := "--color=bg+:#313244,bg:#1E1E2E,spinner:#F5E0DC,hl:#F38BA8\n--color=fg:#CDD6F4,header:#F38BA8,info:#CBA6F7,pointer:#F5E0DC\n--color=marker:#B4BEFE,fg+:#CDD6F4,prompt:#CBA6F7,hl+:#F38BA8\n--color=selected-bg:#45475A\n--color=border:#6C7086,label:#CDD6F4\n"
 			presets := filesFZFTestPresets
 			filesFZFTestSource(t, map[string]*string{
-				filesFZFCatppuccinSource: &catppuccin,
-				filesFZFPresetsSource:    &presets,
+				shared.FZFCatppuccinSource: &catppuccin,
+				shared.FZFPresetsSource:    &presets,
 			})
 			shell := filepath.Join(env.Home, ".zshrc")
 			ordinary := filepath.Join(env.Home, "ordinary-fzf.opts")
@@ -190,7 +190,7 @@ func TestFilesFZFNewOfficialPortsPreserveShellOptions(t *testing.T) {
 func TestFilesFZFPresetsRejectInvalidOrMissingColorData(t *testing.T) {
 	env := testutil.Env(t)
 	source := filesFZFTestPresets
-	filesFZFTestSource(t, map[string]*string{filesFZFPresetsSource: &source})
+	filesFZFTestSource(t, map[string]*string{shared.FZFPresetsSource: &source})
 	port, ok, err := filesResolveFZF("gruvbox", env)
 	if !ok || err != nil {
 		t.Fatalf("resolve: %#v, %v", port, err)
@@ -225,7 +225,7 @@ func TestFilesFZFCatppuccinFetchesCurrentColorsAndRejectsUnsafeOptions(t *testin
 	env := testutil.Env(t)
 	filesFZFTestBinary(t, env, "0.52.0")
 	source := "--color=fg:#CDD6F4,bg:#1E1E2E,selected-bg:#45475A\n"
-	filesFZFTestSource(t, map[string]*string{filesFZFCatppuccinSource: &source})
+	filesFZFTestSource(t, map[string]*string{shared.FZFCatppuccinSource: &source})
 	port, ok, err := filesResolveFZF("catppuccin-mocha", env)
 	if !ok || err != nil {
 		t.Fatalf("resolve: %#v, %v", port, err)
@@ -274,7 +274,7 @@ func TestFilesFZFIncompatibleVersionRejectsBeforeWriting(t *testing.T) {
 			env := testutil.Env(t)
 			filesFZFTestBinary(t, env, version)
 			presets := filesFZFTestPresets
-			filesFZFTestSource(t, map[string]*string{filesFZFPresetsSource: &presets})
+			filesFZFTestSource(t, map[string]*string{shared.FZFPresetsSource: &presets})
 			if _, ok, err := filesResolveFZF("catppuccin-mocha", env); ok || err == nil || !strings.Contains(err.Error(), "0.52.0") {
 				t.Fatalf("incompatible version resolved: ok=%v, err=%v", ok, err)
 			}

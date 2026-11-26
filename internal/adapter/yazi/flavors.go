@@ -107,7 +107,7 @@ func filesResolveTokyoNightYazi(name string, env model.Environment) (model.Port,
 	if !owned {
 		port.Kind = "native"
 		port.File = filepath.Join(root, "flavor.toml")
-		port.Source = filesYaziSource
+		port.Source = shared.YaziThemesSource
 	}
 	return port, true, nil
 }
@@ -116,7 +116,7 @@ func filesApplyTokyoNightYazi(port model.Port, env model.Environment) error {
 		return errors.New("unregistered Tokyo Night Yazi flavor")
 	}
 	if port.Kind == "native" {
-		if port.File != filepath.Join(filesYaziFlavorRoot(port.Name, env), "flavor.toml") || port.Source != filesYaziSource {
+		if port.File != filepath.Join(filesYaziFlavorRoot(port.Name, env), "flavor.toml") || port.Source != shared.YaziThemesSource {
 			return errors.New("unregistered native Tokyo Night Yazi flavor")
 		}
 		installed, err := filesYaziFlavorInstalled(port.Name, env)

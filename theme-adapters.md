@@ -406,7 +406,8 @@ roots and existing package managers; do not hardcode a developer's home path.
 ## Implementation anchors and verification scope
 
 - [Adapter registry](internal/adapter/shared_registry.go),
-  [shared helpers and official source catalog](internal/adapter/shared/),
+  [central official source URLs](internal/adapter/shared/sources.go),
+  [shared file and native helpers](internal/adapter/shared/),
   [Ghostty](internal/adapter/ghostty/),
   [Neovim](internal/adapter/neovim/),
   [tmux](internal/adapter/tmux/),

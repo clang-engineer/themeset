@@ -33,7 +33,7 @@ func resolve(theme string, env model.Environment) (model.Port, bool, error) {
 	}
 	for _, name := range candidates {
 		if nativeHarlequinHasTheme(out, name) {
-			return model.Port{Kind: "native", Name: name, Source: "https://harlequin.sh/docs/themes"}, true, nil
+			return model.Port{Kind: "native", Name: name, Source: shared.HarlequinThemesSource}, true, nil
 		}
 	}
 	return model.Port{}, false, nil

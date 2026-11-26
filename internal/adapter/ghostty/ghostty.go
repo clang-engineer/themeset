@@ -23,7 +23,7 @@ var names = map[string][]string{
 }
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "ghostty", Binary: "ghostty", Resolve: shared.ListedResolver("ghostty", names, "https://github.com/mbadolato/iTerm2-Color-Schemes/tree/master/ghostty", "+list-themes"), Apply: nativeApplyGhostty}
+	return model.Adapter{ID: "ghostty", Binary: "ghostty", Resolve: shared.ListedResolver("ghostty", names, shared.GhosttyThemesSource, "+list-themes"), Apply: nativeApplyGhostty}
 }
 
 func nativeGhosttyPath(env model.Environment) string {

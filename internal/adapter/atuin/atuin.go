@@ -14,8 +14,6 @@ func Adapter() model.Adapter {
 	return model.Adapter{ID: "atuin", Binary: "atuin", Resolve: filesResolveAtuin, Apply: filesApplyAtuin}
 }
 
-const filesAtuinSource = "https://docs.atuin.sh/latest/guide/theming/"
-
 func filesAtuinThemes(env model.Environment) string {
 	candidates := []string{
 		filepath.Join(env.Home, ".atuin", "themes"),
@@ -65,7 +63,7 @@ func filesResolveAtuin(name string, env model.Environment) (model.Port, bool, er
 		return port, found, err
 	}
 	if filesAtuinBuiltin(name) {
-		return model.Port{Kind: "native", Name: name, Source: filesAtuinSource}, true, nil
+		return model.Port{Kind: "native", Name: name, Source: shared.AtuinThemesSource}, true, nil
 	}
 	if !shared.Name(name) {
 		return model.Port{}, false, nil
@@ -85,7 +83,7 @@ func filesResolveAtuin(name string, env model.Environment) (model.Port, bool, er
 	if actual != name {
 		return model.Port{}, false, fmt.Errorf("Atuin theme %s declares name %q, expected %q", path, actual, name)
 	}
-	return model.Port{Kind: "native", Name: name, File: path, Source: filesAtuinSource}, true, nil
+	return model.Port{Kind: "native", Name: name, File: path, Source: shared.AtuinThemesSource}, true, nil
 }
 
 func filesApplyAtuin(port model.Port, env model.Environment) error {
