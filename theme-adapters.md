@@ -89,8 +89,10 @@ roots and existing package managers; do not hardcode a developer's home path.
   theme's original author maintains its port.
 - **Detect / acquire:** inspect `ghostty +list-themes` for the exact native name.
   Shipped themes need no download. Otherwise fetch a registered Ghostty-format
-  source only after exact catalog verification; accept only hex color settings
-  and all 16 palette colors, never arbitrary Ghostty configuration.
+  source only after exact catalog verification; accept only hex color settings,
+  all 16 base palette colors, and optional extended palette colors (16–255),
+  never arbitrary Ghostty configuration. Nightfox uses the theme author's
+  `nightfox.ghostty` file; a listed ID does not imply ports for every tool.
 - **Placement:** managed files go beside the effective Ghostty config under
   `themes/themeset-<name>`; select the absolute path so macOS alternative
   config locations and explicit `paths.ghostty` work.
