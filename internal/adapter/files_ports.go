@@ -73,7 +73,13 @@ func filesOfficialPort(id, name string) (model.Port, []byte, bool) {
 }
 
 func filesResolveLazy(id string) func(string, model.Environment) (model.Port, bool, error) {
-	return func(name string, _ model.Environment) (model.Port, bool, error) {
+	return func(name string, env model.Environment) (model.Port, bool, error) {
+		if port, found, err := filesResolveTokyoNightPort(id, name, env); found || err != nil {
+			return port, found, err
+		}
+		if port, found, err := filesResolveRosePinePort(id, name, env); found || err != nil {
+			return port, found, err
+		}
 		port, _, ok := filesOfficialPort(id, name)
 		return port, ok, nil
 	}
@@ -82,6 +88,12 @@ func filesResolveLazy(id string) func(string, model.Environment) (model.Port, bo
 func filesResolveEza(name string, env model.Environment) (model.Port, bool, error) {
 	if name == "dracula" {
 		return model.Port{Kind: "official", Name: name, Source: filesEzaDraculaSource}, true, nil
+	}
+	if port, found, err := filesResolveTokyoNightPort("eza", name, env); found || err != nil {
+		return port, found, err
+	}
+	if port, found, err := filesResolveRosePinePort("eza", name, env); found || err != nil {
+		return port, found, err
 	}
 	if port, found, err := filesResolveEzaFamily(name, env); found || err != nil {
 		return port, found, err
@@ -105,6 +117,12 @@ func filesPortData(id string, port model.Port, env model.Environment) ([]byte, e
 		return filesCustom(port, env)
 	}
 	if port.Kind == "official" {
+		if port.Name == "tokyo-night" {
+			return filesAcquireTokyoNightPort(id, port, env)
+		}
+		if port.Name == "rose-pine" && (id == "lazygit" || id == "atuin" || id == "eza") {
+			return filesAcquireRosePinePort(id, port, env)
+		}
 		if id == "eza" && port.Name == "dracula" {
 			return filesAcquireEzaDracula(env)
 		}

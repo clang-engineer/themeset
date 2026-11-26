@@ -14,7 +14,7 @@ import (
 )
 
 var builtinThemes = []string{
-	"catppuccin-mocha", "dracula", "gruvbox", "moonfly", "nord",
+	"catppuccin-mocha", "dracula", "gruvbox", "moonfly", "nord", "rose-pine", "tokyo-night",
 }
 
 // ToolResult separates support selection from the actual application outcome.

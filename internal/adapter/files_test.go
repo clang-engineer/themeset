@@ -183,10 +183,15 @@ func TestFilesNativeSupportRequiresRealInstalledAssets(t *testing.T) {
 			t.Errorf("%s fabricated support: ok=%v err=%v", id, ok, err)
 		}
 	}
-	for _, name := range []string{"dracula", "nord", "gruvbox", "tokyo-night", "rose-pine", "atom-one-dark"} {
+	for _, name := range []string{"dracula", "nord", "gruvbox", "tokyo-night", "atom-one-dark"} {
 		if _, ok, err := filesResolveAtuin(name, env); ok || err != nil {
 			t.Errorf("Atuin must not conflate Harlequin built-ins: %s, %v, %v", name, ok, err)
 		}
+	}
+	rosePine, ok, err := filesResolveAtuin("rose-pine", env)
+	recipe, _ := rosePineRecipe("atuin")
+	if err != nil || !ok || rosePine.Kind != "official" || rosePine.Source != recipe.url {
+		t.Fatalf("missing registered Rosé Pine Atuin theme: %#v, %v", rosePine, err)
 	}
 	for _, name := range []string{"default", "autumn", "marine", "pumpkin", "default-powershell", "(none)"} {
 		port, ok, err := filesResolveAtuin(name, env)

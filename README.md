@@ -139,8 +139,8 @@ request, not that every window visually refreshed. On Linux, press
 `Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
 used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 
-The default catalog is curated to five themes with broader native/official
-coverage: `catppuccin-mocha`, `dracula`, `gruvbox`, `moonfly`, and `nord`.
+The default catalog contains seven themes: `catppuccin-mocha`, `dracula`,
+`gruvbox`, `moonfly`, `nord`, `rose-pine` (Main), and `tokyo-night` (Night).
 The same catalog feeds `list`, shell completion, and the interactive picker.
 This is a fixed shortlist, not a dynamic filter or a promise that every tool
 supports each theme. Some sources are acquired automatically; otherwise the
@@ -154,26 +154,27 @@ A custom registration is never relabeled as official.
 For each tool's source, installation/placement, activation, reload, preservation
 rules, and current implementation gaps, see the
 [adapter lifecycle reference](theme-adapters.md).
-Missing registered btop, eza, Starship, or Yazi Dracula assets are downloaded
-from pinned HTTPS sources on first apply, checked against SHA-256, and cached.
-Other integrations use installed providers, bundled files, or custom ports.
+Missing registered assets are downloaded from revision-pinned HTTPS sources on
+first apply, checked against SHA-256, and cached. Other integrations use
+installed providers, bundled files, or custom ports. Rosé Pine uses official
+Main-variant assets; Tokyo Night uses official Night-variant assets.
 
 | Tool | Existing support discovery | Custom input |
 |---|---|---|
 | Ghostty | Installed `+list-themes` names | Native Ghostty theme asset |
 | Neovim | Installed colorscheme runtime files | Existing Lua/Vim theme script |
-| tmux | Pinned official Moonfly style commands; no general native registry | Trusted tmux theme config |
-| bat | Installed syntax-theme list | bat config containing `--theme` |
-| delta | Installed syntax-theme list | Gitconfig containing delta theme settings |
+| tmux | Pinned official Moonfly and Tokyo Night style commands; no general native registry | Trusted tmux theme config |
+| bat | Installed syntax-theme list, including Rosé Pine when present | bat config containing `--theme` |
+| delta | Installed syntax-theme list or official Rosé Pine feature | Gitconfig containing delta theme settings |
 | Harlequin | Installed CLI's supported theme names | Native TOML theme/profile settings |
-| Starship | Existing named palettes; bundled Dracula/Moonfly; acquire Catppuccin Mocha or Starship's Gruvbox Dark palette | Selected palette in Starship TOML |
-| fzf | Pinned Dracula, Moonfly, Catppuccin Mocha ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
-| Yazi | Installed complete flavors (including user-installed Gruvbox/Nord/Moonfly); acquire Dracula flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
-| Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve | Native theme TOML asset |
-| lazygit | Bundled Dracula and Catppuccin Mocha/Mauve | `gui.theme` YAML fragment |
+| Starship | Existing named palettes; bundled Dracula/Moonfly; acquire official Catppuccin Mocha, Gruvbox Dark, or Rosé Pine palette | Selected palette in Starship TOML |
+| fzf | Pinned official Dracula, Moonfly, Catppuccin Mocha, Rosé Pine, and Tokyo Night ports; fzf-author Gruvbox Dark and Nord presets | Color-only native options file |
+| Yazi | Installed complete flavors; acquire Dracula, Rosé Pine, or Tokyo Night flavor; bundled Catppuccin styles/syntax | Native `theme.toml` fragment |
+| Atuin | Shipped/installed themes; bundled Catppuccin Mocha/Mauve; acquire Rosé Pine | Native theme TOML asset |
+| lazygit | Bundled Dracula and Catppuccin Mocha/Mauve; acquire Rosé Pine or Tokyo Night | `gui.theme` YAML fragment |
 | lazydocker | Bundled Dracula | `gui.theme` YAML fragment |
-| btop | Installed user/system themes, otherwise acquire Catppuccin Mocha or btop-maintained Dracula/Gruvbox Dark/Nord | Native `.theme` file |
-| eza | Acquire/cache Dracula or Gruvbox Dark YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
+| btop | Installed user/system themes; acquire official Catppuccin Mocha, Dracula, Gruvbox Dark, Nord, Rosé Pine, or Tokyo Night | Native `.theme` file |
+| eza | Acquire official Dracula, Gruvbox Dark, Rosé Pine, or Tokyo Night YAML; bundled Catppuccin Mocha/Mauve | Native `theme.yml` fragment |
 
 Atuin does not ship all of Harlequin's similarly named Textual themes. tmux does
 not have a standard built-in family-name selector. These cases are reported
