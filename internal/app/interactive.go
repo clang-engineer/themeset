@@ -33,8 +33,8 @@ func previewCommand(executable string, opts options) string {
 	for i := range words {
 		words[i] = shellQuote(words[i])
 	}
-	// fzf quotes its placeholder independently; never interpolate a selected name ourselves.
-	return strings.Join(words, " ") + " {}"
+	// fzf quotes its placeholder independently; {1} is the theme ID before the tab label.
+	return strings.Join(words, " ") + " {1}"
 }
 
 // pickContext receives command words without the executable and with the current
@@ -78,9 +78,12 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 	var input bytes.Buffer
 	for _, name := range names {
 		input.WriteString(name)
+		if catalog.IsLight(name) {
+			input.WriteString("\t[light]")
+		}
 		input.WriteByte(0)
 	}
-	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=Enter: "+action+" | Esc: cancel | colors represent the named source app only", "--preview="+previewCommand(executable, opts), "--preview-window=right,65%,wrap")
+	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--delimiter=\t", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=[light] = light theme | Enter: "+action+" | Esc: cancel | preview colors reflect source app", "--preview="+previewCommand(executable, opts), "--preview-window=right,65%,wrap")
 	command.Stdin = &input
 	command.Stderr = terminal
 	// User picker defaults may bind Enter to other actions. Keep this picker isolated;
@@ -103,13 +106,19 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 	if len(output) == 0 || output[len(output)-1] != 0 {
 		return "", false, errors.New("theme picker returned an invalid selection")
 	}
-	theme := string(output[:len(output)-1])
+	row := string(output[:len(output)-1])
+	theme, _, _ := strings.Cut(row, "\t")
 	known := false
 	for _, name := range names {
-		if theme == name {
-			known = true
-			break
+		if theme != name {
+			continue
 		}
+		if catalog.IsLight(name) {
+			known = row == name+"\t[light]"
+		} else {
+			known = row == name
+		}
+		break
 	}
 	if !known {
 		return "", false, errors.New("theme picker returned an unknown theme")

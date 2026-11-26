@@ -74,7 +74,8 @@ declared tool IDs, and a known upstream support site (`-` when absent). Only
 explicitly identified light themes show `light`: `catppuccin-latte`,
 `rose-pine-dawn`, and the hidden `solarized-light`. `-` means unspecified, not
 necessarily dark; custom theme appearance is not guessed. The interactive
-picker preview also labels these themes as light without changing their IDs.
+picker marks light entries with `[light]` in its selection list and
+`Appearance: light` in the preview; the selected value remains the exact ID.
 `--json` keeps the existing string array without `--details`; with it, each
 entry has `id`, `listed`, `tools`, and optional `appearance` and `support_site`
 fields. Declared tools are catalog/config metadata, not proof that the app or

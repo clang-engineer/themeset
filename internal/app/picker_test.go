@@ -147,6 +147,25 @@ func TestPickSelectionOnlyWithRedirectedStdin(t *testing.T) {
 	}
 }
 
+func TestPickerShowsLightLabelsButReturnsExactThemeID(t *testing.T) {
+	result, directory := pickerProcess(t, []string{"__pick", "apply", ""}, map[string]string{
+		"THEMESET_PICKER_THEME": "catppuccin-latte\t[light]",
+	}, true)
+	if result.Code != 0 || result.Stdout != "catppuccin-latte\n" || result.Stderr != "" {
+		t.Fatalf("picker result=%+v", result)
+	}
+	rows, err := os.ReadFile(filepath.Join(directory, "rows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(rows, []byte("catppuccin-latte\t[light]\x00")) ||
+		!bytes.Contains(rows, []byte("rose-pine-dawn\t[light]\x00")) ||
+		!bytes.Contains(rows, []byte("catppuccin-mocha\x00")) ||
+		bytes.Contains(rows, []byte("catppuccin-mocha\t[light]")) {
+		t.Fatalf("incorrect picker labels: %q", rows)
+	}
+}
+
 func TestPickCancellationAndErrorsDoNotWrite(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -247,7 +266,7 @@ func pickerProcess(t *testing.T, words []string, values map[string]string, redir
 	}
 	if values["THEMESET_PICKER_MISSING_FZF"] != "1" {
 		fixtureFile(t, filepath.Join(bin, "fzf"), `#!/bin/sh
-	/bin/cat >/dev/null
+	/bin/cat > "$THEMESET_PICKER_CAPTURE/rows"
 if [ -n "$THEMESET_PICKER_EXIT" ]; then exit "$THEMESET_PICKER_EXIT"; fi
 case "$THEMESET_PICKER_MODE" in
     invalid) printf '%s' "$THEMESET_PICKER_THEME" ;;
