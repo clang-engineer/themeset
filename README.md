@@ -146,9 +146,14 @@ The bundled catalog in `internal/catalog/defaults.json` lists twelve themes:
 names and, where available, a verified upstream port.
 The same listed IDs feed `list`, shell completion, and the interactive
 picker. This shortlist is not a promise that every tool supports each theme.
-Other IDs can be registered under `themes` in the JSON config, including an
-empty entry when a bundled native alias is available. User custom entries
-replace the bundled declaration for that theme and tool; declarations for
+Without a `listed` override, IDs registered under `themes` in the user config
+are added to this shortlist. A user `listed` array replaces the displayed
+shortlist exactly; `list` and the picker preserve its order, while completion
+sorts suggestions. `[]` hides every discovery entry.
+Hidden IDs remain usable with `apply THEME` and may still serve as
+`default_theme`. `listed` changes discovery only, not bundled ports or sources.
+Use an empty theme object to register an extra ID without custom ports.
+User custom entries replace the bundled declaration for that theme and tool;
 other tools remain unchanged. Custom URLs are never labeled official.
 
 Bundled entries are grouped by `themes.<theme>.<tool>` so each theme's
@@ -311,6 +316,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
 ```json
 {
   "tools": ["ghostty", "bat", "fzf", "lazygit"],
+  "listed": ["dracula", "catppuccin-mocha", "my-mocha"],
   "default_theme": "catppuccin-mocha",
   "paths": {
     "lazygit": "~/Library/Application Support/lazygit/config.yml"
@@ -349,6 +355,12 @@ set it explicitly if a Starship file declares a differently named palette.
 For local ports, `name` may select an existing app theme. Omit `tools` for all
 adapters; `"tools": []` means none. Canonical Neovim ID is `neovim`. Unknown
 JSON fields and unknown selected tool IDs are errors.
+
+`listed` optionally replaces the built-in discovery list for `themeset list`,
+completion, and the picker. It is **not** a source declaration or a restriction
+on explicit `apply THEME`. If omitted, the built-in shortlist plus IDs in
+`themes` is used. If present, include custom IDs explicitly to display them;
+`"listed": []` displays none. `list tools` is unchanged.
 
 `default_theme` sets the theme used for a tool only when the requested theme
 has no available native, official, or custom port for that tool. It defaults to

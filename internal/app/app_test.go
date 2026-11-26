@@ -397,6 +397,47 @@ func TestListThemes(t *testing.T) {
 	}
 }
 
+func TestListedOverrideControlsDiscoveryWithoutRestrictingApply(t *testing.T) {
+	installedFixtures(t, "fzf")
+	home, directory := t.TempDir(), t.TempDir()
+	config := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "hidden.opts"), "--color=fg:#112233,bg:#000000\n")
+	fixtureConfig(t, config, map[string]any{
+		"listed": []string{"rose-pine", "my-theme"},
+		"themes": map[string]any{"hidden": map[string]any{"custom": map[string]any{
+			"fzf": map[string]string{"file": "hidden.opts"},
+		}}},
+	})
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"list", "--config", config, "--home", home}, &stdout, &stderr); code != 0 ||
+		stdout.String() != "rose-pine\nmy-theme\n" || stderr.Len() != 0 {
+		t.Fatalf("listed override did not replace the displayed themes: %d %q %q", code, stdout.String(), stderr.String())
+	}
+	if got := completeWords([]string{"--config", config, "--home", home, "apply", ""}, adapter.All()); !reflect.DeepEqual(got, []string{"my-theme", "rose-pine"}) {
+		t.Fatalf("completion did not follow the visible themes: %q", got)
+	}
+	code, result, diagnostics := invoke(t, "--config", config, "--home", home, "--tools", "fzf", "apply", "hidden")
+	data, err := os.ReadFile(filepath.Join(home, ".config", "themeset", "fzf.opts"))
+	if code != 0 || len(result.Tools) != 1 || result.Tools[0].Outcome != "applied" ||
+		err != nil || string(data) != "--color=fg:#112233,bg:#000000\n" {
+		t.Fatalf("hidden custom theme cannot be applied directly: %d %+v %q %v %s", code, result, data, err, diagnostics)
+	}
+}
+
+func TestEmptyListedOverrideHidesPickerEntriesWithoutDisablingDirectApply(t *testing.T) {
+	home := t.TempDir()
+	config := filepath.Join(t.TempDir(), "config.json")
+	fixtureConfig(t, config, map[string]any{"listed": []string{}})
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"list", "--config", config, "--home", home, "--json"}, &stdout, &stderr); code != 0 ||
+		stdout.String() != "[]\n" || stderr.Len() != 0 {
+		t.Fatalf("empty listed override did not hide themes: %d %q %q", code, stdout.String(), stderr.String())
+	}
+	if code := Run([]string{"apply", "dracula", "--tools", "", "--config", config, "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("explicit apply was blocked by an empty discovery list: %d %s", code, stderr.String())
+	}
+}
+
 func TestListToolsIncludesInstalledAndMissingAdapters(t *testing.T) {
 	installedFixtures(t, "alpha-bin")
 	home := t.TempDir()

@@ -36,6 +36,9 @@ type Result struct {
 }
 
 func themeIDs(config model.Config) []string {
+	if config.Listed != nil {
+		return config.Listed
+	}
 	set := make(map[string]bool, len(builtinThemes)+len(config.Themes))
 	for _, name := range builtinThemes {
 		set[name] = true
@@ -49,6 +52,24 @@ func themeIDs(config model.Config) []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// Discovery can hide a theme without revoking explicitly requested applications.
+func knownTheme(theme string, config model.Config) bool {
+	if _, ok := config.Themes[theme]; ok {
+		return true
+	}
+	for _, name := range builtinThemes {
+		if name == theme {
+			return true
+		}
+	}
+	for _, name := range config.Listed {
+		if name == theme {
+			return true
+		}
+	}
+	return false
 }
 
 func selectTools(ids []string, adapters []model.Adapter) ([]model.Adapter, error) {
