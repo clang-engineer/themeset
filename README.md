@@ -31,6 +31,8 @@ belongs to CI and application-specific testing.
 
 ```sh
 themeset list
+themeset list --all
+themeset list --all --details
 themeset list tools
 themeset apply
 themeset apply dracula --dry-run
@@ -64,10 +66,17 @@ samples are not a promise of editor syntax colors. No palette is generated and
 apps can differ. Missing source assets explicitly show **Preview unavailable**.
 Browsing only inspects support/assets; it never applies a theme.
 
-Core commands are `apply`, `list`, and `current`. `list` shows theme IDs;
-`list tools` shows registered tools and installation status. The former `check`
-and top-level `tools` commands have been removed: use `apply THEME --dry-run`
-and `list tools`, respectively.
+Core commands are `apply`, `list`, and `current`. `list` shows the curated
+theme IDs; `list --all` also shows hidden bundled and configured IDs that can
+be passed explicitly to `apply`. Neither option adds themes to the picker or
+shell completion. `list --details` adds a `listed`/`hidden` marker, declared
+tool IDs, and a known upstream support site (`-` when absent). `--json` keeps
+the existing string array without `--details`; with it, each entry has
+`id`, `listed`, `tools`, and optional `support_site` fields. Declared tools are
+catalog/config metadata, not proof that the app or theme is installed.
+`list tools` shows registered tools and installation status. The former
+`check` and top-level `tools` commands have been removed: use
+`apply THEME --dry-run` and `list tools`, respectively.
 
 ## Shell completion
 
@@ -154,7 +163,8 @@ are added to this shortlist. A user `listed` array replaces the displayed
 shortlist exactly; `list` and the picker preserve its order, while completion
 sorts suggestions. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
-`default_theme`. `listed` changes discovery only, not bundled ports or sources.
+`default_theme`; find their exact names with `list --all`. `listed` changes
+default discovery only, not bundled ports or sources.
 For example, `cyberdream` is hidden from the default picker but has installed
 native candidates for bat and Neovim and verified upstream ports for btop,
 Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a

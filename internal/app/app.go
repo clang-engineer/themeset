@@ -23,7 +23,7 @@ const usage = `Usage: themeset [flags] COMMAND [flags] [THEME]
 Commands:
   apply [THEME] Apply a theme, or preview and select interactively when omitted
   current       Show the last apply result (including skips and failures)
-  list          List built-in theme identifiers and configured theme keys
+  list          List recommended theme IDs; --all includes hidden registered IDs
   list tools    List registered tool IDs and whether each app is installed
   completion SHELL  Print Bash, Zsh, or Fish completion definitions
   help          Show this help
@@ -36,6 +36,8 @@ Flags (accepted before or after the command or theme):
                     Explicit paths overrides still apply; not a security sandbox
   --tools IDS       Comma-separated IDs overriding config tools; empty means none
   --json            Emit JSON to stdout; diagnostics remain on stderr
+  --all            With list only: include hidden bundled and configured IDs
+  --details        With list only: show declared tools and known support sites
   --dry-run         With apply only: inspect a plan, change no files or state
   --help, -h        Show help
   --version         Show version
@@ -64,6 +66,8 @@ type options struct {
 	tools       string
 	toolsSet    bool
 	json        bool
+	all         bool
+	details     bool
 	dryRun      bool
 	help        bool
 	version     bool
@@ -79,6 +83,8 @@ func parse(args []string) (options, error) {
 	flags.StringVar(&opts.home, "home", "", "")
 	flags.StringVar(&opts.tools, "tools", "", "")
 	flags.BoolVar(&opts.json, "json", false, "")
+	flags.BoolVar(&opts.all, "all", false, "")
+	flags.BoolVar(&opts.details, "details", false, "")
 	flags.BoolVar(&opts.dryRun, "dry-run", false, "")
 	flags.BoolVar(&opts.help, "help", false, "")
 	flags.BoolVar(&opts.help, "h", false, "")
@@ -163,6 +169,10 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		fmt.Fprintln(stderr, "error: --dry-run is only valid with apply")
 		return 2
 	}
+	if (opts.all || opts.details) && (command != "list" || len(opts.positionals) != 1) {
+		fmt.Fprintln(stderr, "error: --all and --details require list without a subcommand")
+		return 2
+	}
 	if command == "help" {
 		_, err := io.WriteString(stdout, usage)
 		if err != nil {
@@ -243,6 +253,37 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 	env.Paths = config.Paths
 	if command == "list" && len(opts.positionals) == 1 {
 		names := themeIDs(config)
+		if opts.all {
+			names = allThemeIDs(config)
+		}
+		if opts.details {
+			details := themeDetails(names, config)
+			if opts.json {
+				return emitJSON(stdout, stderr, details)
+			}
+			if _, err := fmt.Fprintln(stdout, "THEME\tDISCOVERY\tDECLARED TOOLS\tSUPPORT SITE"); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
+			}
+			for _, item := range details {
+				status := "hidden"
+				if item.Listed {
+					status = "listed"
+				}
+				tools, site := strings.Join(item.Tools, ","), item.SupportSite
+				if tools == "" {
+					tools = "-"
+				}
+				if site == "" {
+					site = "-"
+				}
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", item.ID, status, tools, site); err != nil {
+					fmt.Fprintln(stderr, "error:", err)
+					return 1
+				}
+			}
+			return 0
+		}
 		if opts.json {
 			return emitJSON(stdout, stderr, names)
 		}

@@ -100,6 +100,9 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 			if command == "apply" {
 				candidates = append(candidates, "--dry-run")
 			}
+			if command == "list" && len(opts.positionals) == 1 {
+				candidates = append(candidates, "--all", "--details")
+			}
 		}
 		switch len(opts.positionals) {
 		case 0:

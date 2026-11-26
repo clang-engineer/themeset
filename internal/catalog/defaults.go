@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/clang-engineer/themeset/internal/model"
 )
@@ -53,6 +54,37 @@ func Listed() []string {
 func Registered(theme string) bool {
 	_, ok := defaults.Themes[theme]
 	return ok
+}
+
+// ThemeIDs returns every bundled theme ID, including entries omitted from the
+// default picker. The caller owns the returned sorted slice.
+func ThemeIDs() []string {
+	ids := make([]string, 0, len(defaults.Themes))
+	for id := range defaults.Themes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func SupportSite(theme string) string {
+	for _, entry := range defaults.Listed {
+		if entry.ID == theme {
+			return entry.SupportSite
+		}
+	}
+	return ""
+}
+
+// Tools lists declared tool ports, not installed or currently applicable tools.
+func Tools(theme string) []string {
+	ports := defaults.Themes[theme]
+	ids := make([]string, 0, len(ports))
+	for id := range ports {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 var verifiedPorts = func() map[string]map[model.Port]struct{} {

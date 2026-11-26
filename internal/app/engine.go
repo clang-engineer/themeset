@@ -54,6 +54,65 @@ func themeIDs(config model.Config) []string {
 	return ids
 }
 
+// allThemeIDs exposes the full bundled registry as well as names supplied by
+// config, even when a listed override hides all default discovery entries.
+func allThemeIDs(config model.Config) []string {
+	ids := catalog.ThemeIDs()
+	seen := make(map[string]bool, len(ids)+len(config.Themes)+len(config.Listed))
+	for _, id := range ids {
+		seen[id] = true
+	}
+	for id := range config.Themes {
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
+		}
+	}
+	for _, id := range config.Listed {
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+type themeDetail struct {
+	ID          string   `json:"id"`
+	Listed      bool     `json:"listed"`
+	Tools       []string `json:"tools"`
+	SupportSite string   `json:"support_site,omitempty"`
+}
+
+func themeDetails(ids []string, config model.Config) []themeDetail {
+	visible := make(map[string]bool)
+	for _, id := range themeIDs(config) {
+		visible[id] = true
+	}
+	details := make([]themeDetail, 0, len(ids))
+	for _, id := range ids {
+		tools := catalog.Tools(id)
+		if custom := config.Themes[id].Custom; len(custom) != 0 {
+			set := make(map[string]bool, len(tools)+len(custom))
+			for _, tool := range tools {
+				set[tool] = true
+			}
+			for tool := range custom {
+				if !set[tool] {
+					tools = append(tools, tool)
+				}
+			}
+			sort.Strings(tools)
+		}
+		if tools == nil {
+			tools = []string{}
+		}
+		details = append(details, themeDetail{id, visible[id], tools, catalog.SupportSite(id)})
+	}
+	return details
+}
+
 // Discovery can hide a theme without revoking explicitly requested applications.
 func knownTheme(theme string, config model.Config) bool {
 	if _, ok := config.Themes[theme]; ok {

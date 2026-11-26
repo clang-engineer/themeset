@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/clang-engineer/themeset/internal/adapter"
+	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -394,6 +396,92 @@ func TestListThemes(t *testing.T) {
 				t.Fatalf("got %q; want %q; decode error=%v", got, want, err)
 			}
 		})
+	}
+}
+
+func TestListAllDiscoversHiddenBundledAndCustomThemes(t *testing.T) {
+	home := t.TempDir()
+	config := filepath.Join(t.TempDir(), "config.json")
+	fixtureConfig(t, config, map[string]any{
+		"listed": []string{"dracula", "my-theme"},
+		"themes": map[string]any{"my-theme": map[string]any{}, "private": map[string]any{}},
+	})
+	var stdout, stderr bytes.Buffer
+	args := []string{"list", "--all", "--json", "--home", home, "--config", config}
+	if code := Run(args, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("list --all: code=%d stderr=%s", code, stderr.String())
+	}
+	var got []string
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := append(catalog.ThemeIDs(), "my-theme", "private")
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("full discovery: got %q, want %q", got, want)
+	}
+	stdout.Reset()
+	if code := Run([]string{"list", "--json", "--home", home, "--config", config}, &stdout, &stderr); code != 0 || stdout.String() != "[\n  \"dracula\",\n  \"my-theme\"\n]\n" {
+		t.Fatalf("default discovery changed: code=%d output=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	fixtureConfig(t, config, map[string]any{"listed": []string{}})
+	stdout.Reset()
+	if code := Run(args, &stdout, &stderr); code != 0 {
+		t.Fatalf("list --all with hidden discovery failed: %d %s", code, stderr.String())
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || len(got) != len(catalog.ThemeIDs()) {
+		t.Fatalf("empty listed override hid registered IDs: %v, %q", err, got)
+	}
+}
+
+func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
+	home, directory := t.TempDir(), t.TempDir()
+	config := filepath.Join(directory, "config.json")
+	fixtureFile(t, filepath.Join(directory, "mine.opts"), "--color=fg:#112233\n")
+	fixtureConfig(t, config, map[string]any{
+		"listed": []string{"dracula", "my-theme"},
+		"themes": map[string]any{
+			"my-theme": map[string]any{"custom": map[string]any{"fzf": map[string]string{"file": "mine.opts"}}},
+		},
+	})
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"list", "--all", "--details", "--json", "--home", home, "--config", config}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("list details: code=%d diagnostics=%s", code, stderr.String())
+	}
+	var got []themeDetail
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	byID := make(map[string]themeDetail, len(got))
+	for _, entry := range got {
+		byID[entry.ID] = entry
+	}
+	if !byID["dracula"].Listed || byID["dracula"].SupportSite != "https://draculatheme.com/" ||
+		!reflect.DeepEqual(byID["my-theme"].Tools, []string{"fzf"}) || !byID["my-theme"].Listed ||
+		byID["kanagawa"].Listed || byID["kanagawa"].SupportSite != "" ||
+		!slices.Contains(byID["kanagawa"].Tools, "eza") || !slices.Contains(byID["kanagawa"].Tools, "yazi") {
+		t.Fatalf("incorrect listed state, metadata, or declared ports: %#v", byID)
+	}
+	stdout.Reset()
+	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 ||
+		!strings.HasPrefix(stdout.String(), "THEME\tDISCOVERY\tDECLARED TOOLS\tSUPPORT SITE\n") ||
+		!strings.Contains(stdout.String(), "kanagawa\thidden\t") || !strings.Contains(stdout.String(), "dracula\tlisted\t") {
+		t.Fatalf("details text omitted heading or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestListOnlyFlagsRejectOtherCommands(t *testing.T) {
+	for _, args := range [][]string{
+		{"list", "tools", "--all"},
+		{"list", "tools", "--details"},
+		{"apply", "dracula", "--all"},
+		{"current", "--details"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := Run(args, &stdout, &stderr); code != 2 || stdout.Len() != 0 ||
+			!strings.Contains(stderr.String(), "require list without a subcommand") {
+			t.Fatalf("accepted list-only flag for %q: code=%d out=%q err=%q", args, code, stdout.String(), stderr.String())
+		}
 	}
 }
 
