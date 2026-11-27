@@ -72,43 +72,49 @@ and errors; fallback rows name the theme actually used without repeating
 warnings. The review makes no changes until `[y/N]` is confirmed. JSON and
 recorded result metadata retain individual statuses and warnings.
 
-Core commands are `apply`, `list`, and `current`. `list` shows the curated
-theme IDs with their Radar ranks (`-` for an unranked theme); `list --all`
-also shows hidden bundled and configured IDs that can be passed explicitly to
-`apply`. Neither option adds themes to the picker or shell completion.
-`list --details` adds a `listed`/`hidden` marker, appearance, declared tool
-IDs, and a known upstream support site (`-` when absent). Only explicitly
-identified light themes show `light`: `ayu-light`, `catppuccin-latte`,
-`flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`, `solarized-light`, and
-`tokyo-night-day`. Unspecified appearance does not necessarily mean dark;
-custom theme appearance is not guessed. The All picker view shows the rank
-first and marks light themes with `[light]`; Dark, Light, and Other remain
-available as separate groups. The rank is display metadata: selection still
-returns the exact theme ID and does not change which tools can apply it.
+Core commands are `apply`, `list`, and `current`. `list` shows curated
+theme IDs with their associated GitHub project Stars (`-` for themes without a
+Radar association); `list --all` also shows hidden bundled and configured IDs
+that can be passed explicitly to `apply`. Neither option adds themes to the
+picker or shell completion. `list --details` adds a `listed`/`hidden` marker,
+appearance, declared tool IDs, and a known upstream support site (`-` when
+absent). Only explicitly identified light themes show `light`: `ayu-light`,
+`catppuccin-latte`, `flexoki-light`, `kanagawa-lotus`, `onehalf-light`,
+`rose-pine-dawn`, `solarized-light`, `tokyo-night-day`, and `tomorrow`.
+Unspecified appearance does not necessarily mean dark; custom theme
+appearance is not guessed. The All picker view shows `` followed by the
+GitHub Stars count, with an explicit sort label, and marks light themes with
+`[light]`; Dark, Light, and Other remain available as separate groups. The
+GitHub glyph requires a Nerd Font; Stars and sort direction remain readable
+in text without it. Stars are display metadata: selection still returns the
+exact theme ID and does not change which tools can apply it.
 `--json` keeps the existing string array without `--details`; with it, each
 entry has `id`, `listed`, `tools`, optional `appearance` and `support_site`,
-and, when ranked, `radar_rank` and `radar_updated_at`. Declared tools are
-catalog/config metadata, not proof that an app or theme is installed.
+and, when mapped, `radar_stars`, `radar_rank`, and `radar_updated_at`. Declared
+tools are catalog/config metadata, not proof that an app or theme is installed.
 `list tools` shows registered tools and installation status. The former
 `check` and top-level `tools` commands have been removed: use
 `apply THEME --dry-run` and `list tools`, respectively.
 
-Ranks come from the [Radar Developer Color Themes ranking](https://clang-engineer.github.io/data/rankings.json)
-(GitHub Stars, all-time). The bundled offline snapshot contains the full
-category, not only the top 30; for example, Rosé Pine is #32, Moonfly #38,
-and Ayu #61 in the 2026-11-27 snapshot. When a valid cache is younger than
-24 hours, `list` does not fetch again; otherwise it checks for updated data
-(three-second timeout). The last valid category is cached under
-`~/.cache/themeset/radar-ranks.json`. Interactive `apply` only reads that cache;
-neither previews nor `--home` targeting another home fetch it. Without a
-usable network/cache, the bundled snapshot is used. The displayed date is the
-source data's update date, not the time themeset checked it. Ranks can shift
-when Radar updates; gaps include ranked projects without a curated theme ID,
-and several variants can share one family rank. Bundled project associations
-live alongside the entries in `internal/catalog/defaults.json`'s `listed`
-array. Hidden bundled IDs are not mapped and show `-` under `list --all` unless
-the user supplies `themes.<id>.radar_repo`. A name alone does not establish a
-shared source (e.g. `vscode-dark` is not assigned an unrelated port's rank).
+Stars come from the [Radar Developer Color Themes ranking](https://clang-engineer.github.io/data/rankings.json)
+(GitHub Stars, all-time). They are counts for the associated GitHub project,
+not separate counts for each theme variant. The bundled offline snapshot
+contains the full category, not only the top 30; older registered themes
+such as Rosé Pine, Moonfly, and Ayu remain usable by explicit ID and appear
+under `list --all`, but are hidden from the default shortlist. When a valid
+cache is younger than 24 hours, `list` does not fetch again; otherwise it
+checks for updated data (three-second timeout). The last valid category is
+cached under `~/.cache/themeset/radar-ranks.json`. Interactive `apply` only
+reads that cache; neither previews nor `--home` targeting another home fetch
+it. Without a usable network/cache, the bundled snapshot is used. The
+displayed date is the source data's update date, not the time themeset checked
+it. Counts and order can change when Radar updates; some projects are ports
+of already listed families and others target unsupported applications.
+Bundled project associations live alongside the entries in
+`internal/catalog/defaults.json`'s `listed` array. Hidden bundled IDs are
+not mapped and show `-` under `list --all` unless the user supplies
+`themes.<id>.radar_repo`. A name alone does not establish a shared source
+(e.g. `vscode-dark` is not assigned an unrelated port's Stars).
 
 ## Shell completion
 
@@ -179,10 +185,25 @@ request, not that every window visually refreshed. On Linux, press
 `Ctrl+Shift+,` or open a new window. Automatic `SIGUSR2` hard reload is not
 used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 
-The bundled discovery list in `internal/catalog/defaults.json` includes the
-Dracula, Catppuccin, Gruvbox, Tokyo Night, Nord, Kanagawa, Everforest, Rose
-Pine, Solarized Light, and Nightfox families, alongside other supported IDs.
-`github-dark` and `vscode-dark` also appear in the default list. Nightfox
+The bundled registry in `internal/catalog/defaults.json` includes Dracula,
+Catppuccin, Gruvbox, Tokyo Night, Nord, Kanagawa, Everforest, Rose Pine,
+Solarized Light, Nightfox, and One Dark, alongside other supported IDs.
+The curated default shortlist consists of supported themes associated with
+Radar's top 30 projects; outside it, Rose Pine, Moonfly, Ayu Light, and
+VS Code Dark remain registered for explicit use and `list --all`. Among the
+top 30, Tomorrow (day/night), Molokai, Night Owl, PaperColor, Iceberg, OneHalf
+(dark/light), Jellybeans, and Seoul256 have registered installed-native
+candidates. Ghostty supplies the matching Tomorrow, Molokai, Night Owl,
+Iceberg, and Jellybeans themes; bat supplies OneHalf Dark/Light. Neovim
+candidates require an independently installed colorscheme; themeset does
+not install executable editor plugins. Unsupported tools still follow the
+configured fallback. Additional ranked repositories such as Catppuccin
+Neovim/tmux, Gruvbox Neovim, Nord Vim, and Vim One are ports of already listed
+families, not new selectable themes. Islands Dark targets VS Code-compatible
+editors, Spacegray targets Sublime Text UI, and Material Design targets
+iTerm2; none has a verified themeset tool port. These projects do not get
+an unrelated same-named theme ID.
+`github-dark` is in the default list. Nightfox
 declares upstream Ghostty, Starship palette-only, and tmux color-style-only
 ports, plus the installed Neovim `nightfox` colorscheme. Other tools use the
 configured fallback where no Nightfox port exists. Catppuccin Latte, Frappé,
@@ -197,15 +218,16 @@ and, where available, a verified upstream port. Listed IDs feed `list`, shell
 completion, and the interactive picker; the shortlist is not a promise that
 every tool supports each theme.
 Without a `listed` override, IDs registered under `themes` in the user config
-are added to this shortlist. A user `listed` array replaces the displayed
-shortlist exactly. By default (`theme_sort: "listed"`), `list` preserves its
-order and the picker groups curated dark, light, and other entries, preserving
-order within each group. Use `theme_sort: "rank"` or `list --sort rank` and
-`apply --sort rank` for global rank order in the All group; unranked IDs follow
-ranked IDs in their original order. Use `name` for alphabetical order or
-`--sort listed` to temporarily restore the shortlist order. Sorting does not
-change visibility or application; group-specific views keep only their group.
-Completion sorts suggestions independently. `[]` hides every discovery entry.
+are added to the built-in shortlist. The default `list` and All picker view
+sort by Radar rank, with unranked IDs last; tied ranks keep the original
+discovery order. A user `listed` array replaces the displayed shortlist exactly
+and preserves its order by default. `theme_sort` can explicitly choose `rank`,
+`listed`, or `name` in either case; `--sort` overrides it for one `list` or
+interactive `apply`. The `listed` mode groups dark, light, and other entries
+in the All picker view, preserving order within each group. The `rank` and
+`name` modes order that view globally; group-specific views still show only
+their group. Sorting never changes visibility or application. Completion
+sorts suggestions independently. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
 `default_theme`; find their exact names with `list --all`. `listed` changes
 default discovery only, not bundled ports or sources.

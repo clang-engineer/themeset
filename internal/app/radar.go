@@ -25,20 +25,23 @@ const radarCategory = "developer-color-themes"
 //go:embed radar_snapshot.json
 var radarSnapshot []byte
 
+type radarItem struct {
+	ID    string `json:"id"`
+	Stars int    `json:"stars"`
+}
+
 type radarData struct {
-	UpdatedAt string   `json:"updatedAt"`
-	Items     []string `json:"items"`
+	UpdatedAt string      `json:"updatedAt"`
+	Items     []radarItem `json:"items"`
 }
 
 type radarFeed struct {
 	UpdatedAt     string `json:"updatedAt"`
 	DefaultPeriod int    `json:"defaultPeriod"`
 	Categories    []struct {
-		ID     string `json:"id"`
-		Metric string `json:"metric"`
-		Items  []struct {
-			ID string `json:"id"`
-		} `json:"items"`
+		ID     string      `json:"id"`
+		Metric string      `json:"metric"`
+		Items  []radarItem `json:"items"`
 	} `json:"categories"`
 }
 
@@ -47,11 +50,11 @@ func validRadar(data radarData) bool {
 		return false
 	}
 	seen := make(map[string]bool, len(data.Items))
-	for _, id := range data.Items {
-		if !validRadarRepo(id) || seen[strings.ToLower(id)] {
+	for _, item := range data.Items {
+		if !validRadarRepo(item.ID) || item.Stars <= 0 || seen[strings.ToLower(item.ID)] {
 			return false
 		}
-		seen[strings.ToLower(id)] = true
+		seen[strings.ToLower(item.ID)] = true
 	}
 	return true
 }
@@ -81,10 +84,7 @@ func decodeRadarFeed(reader io.Reader) (radarData, error) {
 		if category.ID != radarCategory || category.Metric != "stars" || len(category.Items) == 0 {
 			continue
 		}
-		data := radarData{UpdatedAt: feed.UpdatedAt, Items: make([]string, len(category.Items))}
-		for i := range data.Items {
-			data.Items[i] = category.Items[i].ID
-		}
+		data := radarData{UpdatedAt: feed.UpdatedAt, Items: category.Items}
 		if validRadar(data) {
 			return data, nil
 		}
@@ -150,25 +150,67 @@ func refreshRadar(path string, current radarData, cacheCurrent bool) radarData {
 	return fresh
 }
 
+type radarStanding struct {
+	Rank  int
+	Stars int
+}
+
 type radarRanks struct {
 	UpdatedAt string
-	byRepo    map[string]int
+	byRepo    map[string]radarStanding
 }
 
 func ranksFor(data radarData) radarRanks {
-	ranks := radarRanks{UpdatedAt: data.UpdatedAt, byRepo: make(map[string]int, len(data.Items))}
-	for i, repo := range data.Items {
-		ranks.byRepo[strings.ToLower(repo)] = i + 1
+	ranks := radarRanks{UpdatedAt: data.UpdatedAt, byRepo: make(map[string]radarStanding, len(data.Items))}
+	for i, item := range data.Items {
+		ranks.byRepo[strings.ToLower(item.ID)] = radarStanding{Rank: i + 1, Stars: item.Stars}
 	}
 	return ranks
 }
 
-func (r radarRanks) rank(theme string, config model.Config) int {
+func (r radarRanks) standing(theme string, config model.Config) radarStanding {
 	repo := config.Themes[theme].RadarRepo
 	if repo == "" {
 		repo = catalog.RadarRepo(theme)
 	}
 	return r.byRepo[strings.ToLower(repo)]
+}
+
+func (r radarRanks) rank(theme string, config model.Config) int {
+	return r.standing(theme, config).Rank
+}
+
+func (r radarRanks) stars(theme string, config model.Config) int {
+	return r.standing(theme, config).Stars
+}
+func formatStars(value int) string {
+	var digits [32]byte
+	index := len(digits)
+	for count := 0; ; count++ {
+		if count > 0 && count%3 == 0 {
+			index--
+			digits[index] = ','
+		}
+		index--
+		digits[index] = byte('0' + value%10)
+		value /= 10
+		if value == 0 {
+			return string(digits[index:])
+		}
+	}
+}
+
+func discoverySort(config model.Config, override string) string {
+	if override != "" {
+		return override
+	}
+	if config.ThemeSort != "" {
+		return config.ThemeSort
+	}
+	if config.Listed != nil {
+		return "listed"
+	}
+	return "rank"
 }
 
 func sortedThemes(ids []string, mode string, config model.Config, ranks radarRanks) []string {

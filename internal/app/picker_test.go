@@ -138,7 +138,7 @@ func TestPickSelectionOnlyWithRedirectedStdin(t *testing.T) {
 	fixtureFile(t, filepath.Join(home, ".config", "themeset", "state.json"), "existing state\n")
 	before := pickerSnapshot(t, home)
 	args := []string{"__pick", "--config", config, "apply", "--home", home, "--tools", "tmux", "--json", "--dry-run", "dr"}
-	result, directory := pickerProcess(t, args, map[string]string{"THEMESET_PICKER_GROUP": "other", "THEMESET_PICKER_THEME": "custom theme\t-    custom theme"}, true)
+	result, directory := pickerProcess(t, args, map[string]string{"THEMESET_PICKER_GROUP": "other", "THEMESET_PICKER_THEME": "custom theme\t        -  custom theme"}, true)
 	if result.Code != 0 || result.Stdout != "custom theme\n" || result.Stderr != "" {
 		t.Fatalf("selection result=%+v", result)
 	}
@@ -146,7 +146,7 @@ func TestPickSelectionOnlyWithRedirectedStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(rows, []byte("custom theme\t-    custom theme\x00")) {
+	if !bytes.Equal(rows, []byte("custom theme\t        -  custom theme\x00")) {
 		t.Fatalf("other group contains unexpected themes: %q", rows)
 	}
 	if after := pickerSnapshot(t, home); !reflect.DeepEqual(before, after) {
@@ -156,7 +156,7 @@ func TestPickSelectionOnlyWithRedirectedStdin(t *testing.T) {
 
 func TestPickerGroupsAppearanceAndReturnsExactThemeID(t *testing.T) {
 	result, directory := pickerProcess(t, []string{"__pick", "apply", ""}, map[string]string{
-		"THEMESET_PICKER_THEME": "catppuccin-latte\t#02  catppuccin-latte  [light]",
+		"THEMESET_PICKER_THEME": "catppuccin-latte\t  19,981  catppuccin-latte  [light]",
 	}, true)
 	if result.Code != 0 || result.Stdout != "catppuccin-latte\n" || result.Stderr != "" {
 		t.Fatalf("picker result=%+v", result)
@@ -165,10 +165,12 @@ func TestPickerGroupsAppearanceAndReturnsExactThemeID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(rows, []byte("catppuccin-latte\t#02  catppuccin-latte  [light]\x00")) ||
-		!bytes.Contains(rows, []byte("rose-pine-dawn\t#32  rose-pine-dawn  [light]\x00")) ||
-		!bytes.Contains(rows, []byte("catppuccin-mocha\t#02  catppuccin-mocha\x00")) ||
-		bytes.Index(rows, []byte("catppuccin-mocha\t#02  catppuccin-mocha\x00")) > bytes.Index(rows, []byte("catppuccin-latte\t#02  catppuccin-latte  [light]\x00")) {
+	if !bytes.Contains(rows, []byte("catppuccin-latte\t  19,981  catppuccin-latte  [light]\x00")) ||
+		!bytes.Contains(rows, []byte("catppuccin-mocha\t  19,981  catppuccin-mocha\x00")) ||
+		bytes.Contains(rows, []byte("rose-pine")) || bytes.Contains(rows, []byte("moonfly")) ||
+		bytes.Contains(rows, []byte("ayu-light")) || bytes.Contains(rows, []byte("vscode-dark")) ||
+		bytes.Index(rows, []byte("catppuccin-latte\t  19,981  catppuccin-latte  [light]\x00")) >
+			bytes.Index(rows, []byte("gruvbox\t  15,848  gruvbox\x00")) {
 		t.Fatalf("incorrect picker labels: %q", rows)
 	}
 }
@@ -182,7 +184,7 @@ func TestPickerRankSortAcrossAppearanceKeepsRankedIDAndLightBadge(t *testing.T) 
 		"themes":     map[string]any{"custom": map[string]any{}},
 	})
 	result, directory := pickerProcess(t, []string{"__pick", "--home", home, "--config", config, "apply", ""}, map[string]string{
-		"THEMESET_PICKER_THEME": "catppuccin-latte\t#02  catppuccin-latte  [light]",
+		"THEMESET_PICKER_THEME": "catppuccin-latte\t  19,981  catppuccin-latte  [light]",
 	}, true)
 	if result.Code != 0 || result.Stdout != "catppuccin-latte\n" || result.Stderr != "" {
 		t.Fatalf("picker selection failed: %+v", result)
@@ -191,8 +193,8 @@ func TestPickerRankSortAcrossAppearanceKeepsRankedIDAndLightBadge(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, second, third, unranked := []byte("dracula\t#01  dracula\x00"), []byte("catppuccin-latte\t#02  catppuccin-latte  [light]\x00"),
-		[]byte("tokyo-night\t#07  tokyo-night\x00"), []byte("custom\t-    custom\x00")
+	first, second, third, unranked := []byte("dracula\t  23,620  dracula\x00"), []byte("catppuccin-latte\t  19,981  catppuccin-latte  [light]\x00"),
+		[]byte("tokyo-night\t   8,300  tokyo-night\x00"), []byte("custom\t        -  custom\x00")
 	if a, b, c, d := bytes.Index(rows, first), bytes.Index(rows, second), bytes.Index(rows, third), bytes.Index(rows, unranked); a < 0 || b < a || c < b || d < c {
 		t.Fatalf("rank sort lost global order or appearance labels: %q", rows)
 	}
@@ -202,23 +204,23 @@ func TestPickerSortFlagOverridesConfiguredRank(t *testing.T) {
 	home := t.TempDir()
 	config := filepath.Join(t.TempDir(), "config.json")
 	fixtureConfig(t, config, map[string]any{
-		"listed":     []string{"z-custom", "dracula", "ayu-light"},
+		"listed":     []string{"z-custom", "dracula", "tomorrow"},
 		"theme_sort": "rank",
 		"themes":     map[string]any{"z-custom": map[string]any{}},
 	})
 	result, directory := pickerProcess(t, []string{"__pick", "--sort", "name", "--home", home, "--config", config, "apply", ""}, map[string]string{
-		"THEMESET_PICKER_THEME": "ayu-light\t#61  ayu-light  [light]",
+		"THEMESET_PICKER_THEME": "tomorrow\t  13,978  tomorrow  [light]",
 	}, true)
-	if result.Code != 0 || result.Stdout != "ayu-light\n" || result.Stderr != "" {
+	if result.Code != 0 || result.Stdout != "tomorrow\n" || result.Stderr != "" {
 		t.Fatalf("sort override selection failed: %+v", result)
 	}
 	rows, err := os.ReadFile(filepath.Join(directory, "rows"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, d, z := bytes.Index(rows, []byte("ayu-light\t#61  ayu-light  [light]\x00")),
-		bytes.Index(rows, []byte("dracula\t#01  dracula\x00")),
-		bytes.Index(rows, []byte("z-custom\t-    z-custom\x00"))
+	a, d, z := bytes.Index(rows, []byte("dracula\t  23,620  dracula\x00")),
+		bytes.Index(rows, []byte("tomorrow\t  13,978  tomorrow  [light]\x00")),
+		bytes.Index(rows, []byte("z-custom\t        -  z-custom\x00"))
 	if a < 0 || d < a || z < d {
 		t.Fatalf("name override did not sort all appearances: %q", rows)
 	}
@@ -228,8 +230,8 @@ func TestPickerCategorySelection(t *testing.T) {
 	for _, test := range []struct {
 		group, theme, want, absent string
 	}{
-		{"dark", "dracula\t#01  dracula", "dracula\t#01  dracula\x00", "ayu-light\t#61  ayu-light\x00"},
-		{"light", "ayu-light\t#61  ayu-light", "ayu-light\t#61  ayu-light\x00", "dracula\t#01  dracula\x00"},
+		{"dark", "dracula\t  23,620  dracula", "dracula\t  23,620  dracula\x00", "tomorrow\t  13,978  tomorrow\x00"},
+		{"light", "tomorrow\t  13,978  tomorrow", "tomorrow\t  13,978  tomorrow\x00", "dracula\t  23,620  dracula\x00"},
 	} {
 		t.Run(test.group, func(t *testing.T) {
 			result, directory := pickerProcess(t, []string{"__pick", "apply", ""}, map[string]string{
@@ -399,7 +401,7 @@ esac
 	environment := map[string]string{
 		"PATH": bin, "THEMESET_PICKER_HELPER": "1", "THEMESET_PICKER_WORDS": string(encoded),
 		"THEMESET_PICKER_RESULT": filepath.Join(directory, "result.json"), "THEMESET_PICKER_CAPTURE": directory,
-		"THEMESET_PICKER_THEME": "dracula\t#01  dracula", "THEMESET_PICKER_EXIT": "", "THEMESET_PICKER_MODE": "",
+		"THEMESET_PICKER_THEME": "dracula\t  23,620  dracula", "THEMESET_PICKER_EXIT": "", "THEMESET_PICKER_MODE": "",
 		"THEMESET_PICKER_GROUP": "all", "THEMESET_PICKER_FAIL_OUTPUT": "", "THEMESET_PICKER_REDIRECT_STDIN": "0",
 		"FZF_DEFAULT_OPTS": "--bind=enter:abort", "FZF_DEFAULT_OPTS_FILE": "/nonexistent/options", "SHELL": "/bin/sh",
 	}

@@ -73,12 +73,12 @@ func pickerCategory(theme string, bundled map[string]bool) string {
 	return "other"
 }
 
-func pickerRow(name, group string, rank int, showGroup bool) string {
-	label := "-"
-	if rank != 0 {
-		label = fmt.Sprintf("#%02d", rank)
+func pickerRow(name, group string, stars int, showGroup bool) string {
+	icon, value := "  ", "-"
+	if stars > 0 {
+		icon, value = " ", formatStars(stars)
 	}
-	row := name + "\t" + fmt.Sprintf("%-5s%s", label, name)
+	row := name + "\t" + fmt.Sprintf("%s%7s  %s", icon, value, name)
 	if showGroup && group == "light" {
 		row += "  [light]"
 	}
@@ -133,10 +133,7 @@ func selectTheme(opts options, config model.Config, ranks radarRanks, terminal *
 	default:
 		return "", false, errors.New("theme picker returned an unknown group")
 	}
-	mode := opts.sort
-	if mode == "" {
-		mode = config.ThemeSort
-	}
+	mode := discoverySort(config, opts.sort)
 	names := sortedThemes(themeIDs(config), mode, config, ranks)
 	bundled := make(map[string]bool)
 	for _, name := range catalog.Listed() {
@@ -156,14 +153,21 @@ func selectTheme(opts options, config model.Config, ranks radarRanks, terminal *
 			if group != "all" && appearance != group {
 				continue
 			}
-			input.WriteString(pickerRow(name, appearance, ranks.rank(name, config), category == "all"))
+			input.WriteString(pickerRow(name, appearance, ranks.stars(name, config), category == "all"))
 			input.WriteByte(0)
 		}
+	}
+	order := "GitHub Stars ↓"
+	switch mode {
+	case "name":
+		order = "Name A–Z"
+	case "listed":
+		order = "Listed order"
 	}
 	row, selected, err := runPicker(fzf, terminal, input.Bytes(),
 		"--no-multi", "--no-sort", "--read0", "--print0", "--delimiter=\t", "--with-nth=2",
 		"--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query,
-		"--header=Group: "+category+" | Radar rank · Theme | Enter: "+action+" | Esc: cancel",
+		"--header=Group: "+category+" | Sort: "+order+" | Enter: "+action+" | Esc: cancel",
 		"--preview="+previewCommand(executable, opts), "--preview-window=right,60%,wrap")
 	if err != nil || !selected {
 		return "", false, err
@@ -176,7 +180,7 @@ func selectTheme(opts options, config model.Config, ranks radarRanks, terminal *
 		if category != "all" && pickerCategory(name, bundled) != category {
 			break
 		}
-		expected := pickerRow(name, pickerCategory(name, bundled), ranks.rank(name, config), category == "all")
+		expected := pickerRow(name, pickerCategory(name, bundled), ranks.stars(name, config), category == "all")
 		if row == expected {
 			return theme, true, nil
 		}
@@ -252,8 +256,8 @@ func printPreview(theme string, config model.Config, ranks radarRanks, env model
 	if catalog.IsLight(theme) {
 		fmt.Fprintln(stdout, "Appearance: light")
 	}
-	if rank := ranks.rank(theme, config); rank != 0 {
-		fmt.Fprintf(stdout, "Radar: #%02d (as of %s)\n", rank, ranks.UpdatedAt[:10])
+	if stars := ranks.stars(theme, config); stars > 0 {
+		fmt.Fprintf(stdout, "GitHub Stars: %s (Radar as of %s)\n", formatStars(stars), ranks.UpdatedAt[:10])
 	}
 	if err := renderVisualPreview(theme, config, env, stdout); err != nil {
 		fmt.Fprintln(stderr, "preview:", err)

@@ -266,13 +266,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 1
 	}
 	env.Paths = config.Paths
-	sortMode := opts.sort
-	if sortMode == "" {
-		sortMode = config.ThemeSort
-	}
-	if sortMode == "" {
-		sortMode = "listed"
-	}
+	sortMode := discoverySort(config, opts.sort)
 	var ranks radarRanks
 	if command == "__preview" || picking || command == "apply" && len(opts.positionals) == 1 ||
 		command == "list" && len(opts.positionals) == 1 {
@@ -289,7 +283,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			if opts.json {
 				return emitJSON(stdout, stderr, details)
 			}
-			if _, err := fmt.Fprintf(stdout, "THEME\tRADAR RANK (%s)\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
+			if _, err := fmt.Fprintf(stdout, "THEME\tGITHUB STARS (%s)\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -308,14 +302,18 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 				if site == "" {
 					site = "-"
 				}
-				rank := "-"
+				stars := "-"
 				if item.RadarRank != 0 {
-					rank = fmt.Sprintf("#%02d", item.RadarRank)
+					stars = formatStars(item.RadarStars)
 				}
-				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, rank, status, appearance, tools, site); err != nil {
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, stars, status, appearance, tools, site); err != nil {
 					fmt.Fprintln(stderr, "error:", err)
 					return 1
 				}
+			}
+			if _, err := fmt.Fprintln(stdout, "\nStars: Radar's GitHub project counts, not theme-specific stars. Missing projects may be ports of listed families or target unsupported apps; '-' has no linked Radar project. Use --all for hidden registered themes."); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
 			}
 			return 0
 		}
@@ -326,7 +324,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			rank := ranks.rank(name, config)
 			label := "-"
 			if rank != 0 {
-				label = fmt.Sprintf("#%02d", rank)
+				label = formatStars(ranks.stars(name, config))
 			}
 			if _, err := fmt.Fprintf(stdout, "%s\t%s\n", name, label); err != nil {
 				fmt.Fprintln(stderr, "error:", err)

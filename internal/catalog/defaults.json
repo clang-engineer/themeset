@@ -1,6 +1,5 @@
 {
   "listed": [
-    {"id": "ayu-light", "support_site": "https://ayutheme.com/", "radar_repo": "ayu-theme/ayu-colors"},
     {"id": "catppuccin-mocha", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
     {"id": "catppuccin-latte", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
     {"id": "catppuccin-frappe", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
@@ -10,23 +9,67 @@
     {"id": "flexoki-light", "support_site": "https://github.com/kepano/flexoki", "radar_repo": "kepano/flexoki"},
     {"id": "github-dark", "radar_repo": "projekt0n/github-nvim-theme"},
     {"id": "gruvbox", "support_site": "https://github.com/morhetz/gruvbox-contrib", "radar_repo": "morhetz/gruvbox"},
+    {"id": "iceberg", "support_site": "https://github.com/cocopon/iceberg.vim", "radar_repo": "cocopon/iceberg.vim"},
+    {"id": "jellybeans", "support_site": "https://github.com/nanotech/jellybeans.vim", "radar_repo": "nanotech/jellybeans.vim"},
     {"id": "kanagawa", "support_site": "https://github.com/rebelot/kanagawa.nvim", "radar_repo": "rebelot/kanagawa.nvim"},
     {"id": "kanagawa-lotus", "support_site": "https://github.com/rebelot/kanagawa.nvim", "radar_repo": "rebelot/kanagawa.nvim"},
-    {"id": "moonfly", "radar_repo": "bluz71/vim-moonfly-colors"},
+    {"id": "molokai", "support_site": "https://github.com/tomasr/molokai", "radar_repo": "tomasr/molokai"},
+    {"id": "night-owl", "support_site": "https://github.com/sdras/night-owl-vscode-theme", "radar_repo": "sdras/night-owl-vscode-theme"},
     {"id": "nightfox", "support_site": "https://github.com/EdenEast/nightfox.nvim", "radar_repo": "EdenEast/nightfox.nvim"},
     {"id": "nord", "support_site": "https://www.nordtheme.com/ports", "radar_repo": "nordtheme/nord"},
-    {"id": "rose-pine", "support_site": "https://rosepinetheme.com/themes/", "radar_repo": "rose-pine/rose-pine-theme"},
-    {"id": "rose-pine-dawn", "support_site": "https://rosepinetheme.com/themes/", "radar_repo": "rose-pine/rose-pine-theme"},
-    {"id": "rose-pine-moon", "support_site": "https://rosepinetheme.com/themes/", "radar_repo": "rose-pine/rose-pine-theme"},
+    {"id": "onedark", "support_site": "https://github.com/joshdick/onedark.vim", "radar_repo": "joshdick/onedark.vim"},
+    {"id": "onehalf-dark", "support_site": "https://github.com/sonph/onehalf", "radar_repo": "sonph/onehalf"},
+    {"id": "onehalf-light", "support_site": "https://github.com/sonph/onehalf", "radar_repo": "sonph/onehalf"},
+    {"id": "papercolor", "support_site": "https://github.com/NLKNguyen/papercolor-theme", "radar_repo": "NLKNguyen/papercolor-theme"},
+    {"id": "seoul256", "support_site": "https://github.com/junegunn/seoul256.vim", "radar_repo": "junegunn/seoul256.vim"},
     {"id": "solarized-light", "support_site": "https://ethanschoonover.com/solarized/", "radar_repo": "altercation/solarized"},
     {"id": "tokyo-night", "radar_repo": "folke/tokyonight.nvim"},
     {"id": "tokyo-night-day", "support_site": "https://github.com/folke/tokyonight.nvim", "radar_repo": "folke/tokyonight.nvim"},
-    {"id": "vscode-dark"}
+    {"id": "tomorrow", "support_site": "https://github.com/chriskempson/tomorrow-theme", "radar_repo": "chriskempson/tomorrow-theme"},
+    {"id": "tomorrow-night", "support_site": "https://github.com/chriskempson/tomorrow-theme", "radar_repo": "chriskempson/tomorrow-theme"}
   ],
-  "light": ["ayu-light", "catppuccin-latte", "flexoki-light", "kanagawa-lotus", "rose-pine-dawn", "solarized-light", "tokyo-night-day"],
+  "light": ["ayu-light", "catppuccin-latte", "flexoki-light", "kanagawa-lotus", "onehalf-light", "rose-pine-dawn", "solarized-light", "tokyo-night-day", "tomorrow"],
   "themes": {
     "ayu-light": {
       "ghostty": {"native": ["Ayu Light"]}
+    },
+    "iceberg": {
+      "ghostty": {"native": ["Iceberg Dark"]},
+      "neovim": {"native": ["iceberg"]}
+    },
+    "jellybeans": {
+      "ghostty": {"native": ["Jellybeans"]},
+      "neovim": {"native": ["jellybeans"]}
+    },
+    "molokai": {
+      "ghostty": {"native": ["Molokai"]},
+      "neovim": {"native": ["molokai"]}
+    },
+    "night-owl": {
+      "ghostty": {"native": ["Night Owl"]},
+      "neovim": {"native": ["night-owl"]}
+    },
+    "onehalf-dark": {
+      "bat": {"native": ["OneHalfDark"]},
+      "neovim": {"native": ["onehalfdark"]}
+    },
+    "onehalf-light": {
+      "bat": {"native": ["OneHalfLight"]},
+      "neovim": {"native": ["onehalflight"]}
+    },
+    "papercolor": {
+      "neovim": {"native": ["PaperColor"]}
+    },
+    "seoul256": {
+      "neovim": {"native": ["seoul256"]}
+    },
+    "tomorrow": {
+      "ghostty": {"native": ["Tomorrow"]},
+      "neovim": {"native": ["Tomorrow"]}
+    },
+    "tomorrow-night": {
+      "ghostty": {"native": ["Tomorrow Night"]},
+      "neovim": {"native": ["Tomorrow-Night"]}
     },
     "flexoki-light": {
       "ghostty": {"native": ["Flexoki Light"]}

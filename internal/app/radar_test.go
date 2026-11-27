@@ -25,41 +25,24 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 		t.Fatalf("family rank overwritten by a port repository: %d", got)
 	}
 	ranks := ranksFor(bundled)
-	if ranks.rank("rose-pine", model.Config{}) != 32 ||
-		ranks.rank("moonfly", model.Config{}) != 38 || ranks.rank("ayu-light", model.Config{}) != 61 {
-		t.Fatalf("bundled ranking missing supported themes beyond top 30")
+	if len(bundled.Items) <= 30 || ranks.rank("seoul256", model.Config{}) != 30 {
+		t.Fatalf("full Radar category or top-thirty theme missing")
 	}
 	for _, id := range catalog.Listed() {
-		if id != "vscode-dark" && ranks.rank(id, model.Config{}) == 0 {
+		if ranks.rank(id, model.Config{}) == 0 {
 			t.Fatalf("listed theme %q lacks a Radar project association", id)
 		}
 	}
-	items := append([]string(nil), bundled.Items...)
+	items := append([]radarItem(nil), bundled.Items...)
 	items[0], items[1] = items[1], items[0]
+	items[0].Stars = 31415
 	const updated = "2027-01-01T00:00:00Z"
-	feed := struct {
-		UpdatedAt  string `json:"updatedAt"`
-		Categories []struct {
-			ID     string `json:"id"`
-			Metric string `json:"metric"`
-			Items  []struct {
-				ID string `json:"id"`
-			} `json:"items"`
-		} `json:"categories"`
-	}{UpdatedAt: updated}
-	feed.Categories = append(feed.Categories, struct {
-		ID     string `json:"id"`
-		Metric string `json:"metric"`
-		Items  []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}{ID: radarCategory, Metric: "stars"})
-	for _, id := range items {
-		feed.Categories[0].Items = append(feed.Categories[0].Items, struct {
-			ID string `json:"id"`
-		}{id})
-	}
-	body, err := json.Marshal(feed)
+	body, err := json.Marshal(map[string]any{
+		"updatedAt": updated,
+		"categories": []any{map[string]any{
+			"id": radarCategory, "metric": "stars", "items": items,
+		}},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +56,9 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 	t.Cleanup(func() { radarSource, radarClient = oldSource, oldClient; server.Close() })
 	path := filepath.Join(t.TempDir(), "cache", "ranks.json")
 	fresh := refreshRadar(path, bundled, false)
-	if fresh.UpdatedAt != updated || requests != 1 || ranksFor(fresh).rank("catppuccin-mocha", model.Config{}) != 1 {
+	if fresh.UpdatedAt != updated || requests != 1 ||
+		ranksFor(fresh).rank("catppuccin-mocha", model.Config{}) != 1 ||
+		ranksFor(fresh).stars("catppuccin-mocha", model.Config{}) != 31415 {
 		t.Fatalf("new ranking not adopted: %+v requests=%d", fresh, requests)
 	}
 	if got := refreshRadar(path, fresh, true); got.UpdatedAt != updated || requests != 1 {
@@ -93,6 +78,10 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 	if _, err := decodeRadarFeed(bytes.NewReader(wrongPeriod)); err == nil {
 		t.Fatal("non-all-time ranking accepted as cumulative ranks")
 	}
+	missingStars := bytes.Replace(body, []byte(`"stars":31415`), []byte(`"stars":0`), 1)
+	if _, err := decodeRadarFeed(bytes.NewReader(missingStars)); err == nil {
+		t.Fatal("Radar feed with absent or zero Stars accepted")
+	}
 }
 
 func TestBundledRadarSupersedesSameDateShortCache(t *testing.T) {
@@ -109,6 +98,16 @@ func TestBundledRadarSupersedesSameDateShortCache(t *testing.T) {
 	fixtureFile(t, filepath.Join(home, ".cache", "themeset", "radar-ranks.json"), string(data))
 	if got := loadRadar(model.Environment{Home: home}, false); len(got.Items) != len(bundled.Items) {
 		t.Fatalf("short cache masked full bundled category: %d entries", len(got.Items))
+	}
+	legacy, err := json.Marshal(map[string]any{
+		"updatedAt": bundled.UpdatedAt, "items": []string{bundled.Items[0].ID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtureFile(t, filepath.Join(home, ".cache", "themeset", "radar-ranks.json"), string(legacy))
+	if got := loadRadar(model.Environment{Home: home}, false); len(got.Items) != len(bundled.Items) || got.Items[0].Stars != bundled.Items[0].Stars {
+		t.Fatalf("legacy rank-only cache masked bundled Stars: %+v", got)
 	}
 }
 
@@ -131,11 +130,12 @@ func TestRadarSortingPreservesGapsAndCustomOrder(t *testing.T) {
 	if got := sortedThemes(ids, "name", config, ranks); !reflect.DeepEqual(got, []string{"catppuccin-latte", "catppuccin-mocha", "dracula", "tokyo-night", "tomorrow", "unranked-a", "unranked-b"}) {
 		t.Fatalf("name sorting failed: %q", got)
 	}
-	if ranks.rank("rose-pine", config) != 32 || ranks.rank("rose-pine-dawn", config) != 32 ||
-		ranks.rank("moonfly", config) != 38 || ranks.rank("ayu-light", config) != 61 ||
+	if ranks.rank("seoul256", config) != 30 || ranks.rank("onedark", config) != 14 ||
+		ranks.rank("rose-pine", config) != 0 || ranks.rank("rose-pine-dawn", config) != 0 ||
+		ranks.rank("moonfly", config) != 0 || ranks.rank("ayu-light", config) != 0 ||
 		ranks.rank("cyberdream", config) != 0 || ranks.rank("gruvbox-dark", config) != 0 ||
 		ranks.rank("vscode-dark", config) != 0 {
-		t.Fatal("listed rank, hidden theme or unrelated VS Code port received an incorrect rank")
+		t.Fatal("curated rank, hidden theme or unrelated VS Code port received an incorrect rank")
 	}
 	config.Themes["dracula"] = model.Theme{RadarRepo: "rose-pine/rose-pine-theme"}
 	if got := ranks.rank("dracula", config); got != 32 {
@@ -143,5 +143,19 @@ func TestRadarSortingPreservesGapsAndCustomOrder(t *testing.T) {
 	}
 	if !strings.Contains(bundled.UpdatedAt, "2026-11-27") {
 		t.Fatal("bundled provenance absent")
+	}
+}
+
+func TestFormatStarsGroupsDigits(t *testing.T) {
+	for _, test := range []struct {
+		count int
+		want  string
+	}{
+		{0, "0"}, {999, "999"}, {1000, "1,000"}, {23620, "23,620"},
+		{1000000, "1,000,000"},
+	} {
+		if got := formatStars(test.count); got != test.want {
+			t.Errorf("formatStars(%d) = %q, want %q", test.count, got, test.want)
+		}
 	}
 }

@@ -85,6 +85,7 @@ type themeDetail struct {
 	SupportSite    string   `json:"support_site,omitempty"`
 	Appearance     string   `json:"appearance,omitempty"`
 	RadarRank      int      `json:"radar_rank,omitempty"`
+	RadarStars     int      `json:"radar_stars,omitempty"`
 	RadarUpdatedAt string   `json:"radar_updated_at,omitempty"`
 }
 
@@ -111,7 +112,8 @@ func themeDetails(ids []string, config model.Config, ranks radarRanks) []themeDe
 		if tools == nil {
 			tools = []string{}
 		}
-		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id), RadarRank: ranks.rank(id, config)}
+		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id),
+			RadarRank: ranks.rank(id, config), RadarStars: ranks.stars(id, config)}
 		if catalog.IsLight(id) {
 			detail.Appearance = "light"
 		}
