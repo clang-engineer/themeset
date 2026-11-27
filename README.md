@@ -42,9 +42,9 @@ and tests run in CI, while application-specific Linux behavior may vary.
 ### Quick reference
 
 ```sh
-themeset list                    # curated themes and GitHub project Stars
+themeset list                    # curated themes, project Stars and dates
 themeset list --sort name        # alphabetical instead of default Stars order
-themeset list --all --details    # hidden themes, appearance, declared ports
+themeset list --all --details    # hidden themes in an aligned comparison table
 themeset list tools              # installed tool status
 themeset apply                   # select a theme and review the plan
 themeset apply dracula --dry-run # inspect without applying
