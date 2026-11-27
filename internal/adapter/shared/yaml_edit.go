@@ -128,10 +128,15 @@ func MergeYAMLMap(dst *yaml.Node, values map[string]any) error {
 	if err := source.Encode(values); err != nil {
 		return err
 	}
-	if len(source.Content) != 1 {
-		return errors.New("could not encode YAML theme mapping")
+	switch source.Kind {
+	case yaml.MappingNode:
+		return mergeYAMLNode(dst, &source)
+	case yaml.DocumentNode:
+		if len(source.Content) == 1 && source.Content[0].Kind == yaml.MappingNode {
+			return mergeYAMLNode(dst, source.Content[0])
+		}
 	}
-	return mergeYAMLNode(dst, source.Content[0])
+	return errors.New("could not encode YAML theme mapping")
 }
 
 func yamlPath(mapping *yaml.Node, key string) (*yaml.Node, error) {
