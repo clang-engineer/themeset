@@ -91,7 +91,7 @@ that configured destinations also point into it.
 |---|---|
 | `list` | Curated IDs, associated GitHub project Stars, project creation date, and last code-push date (`-` when unavailable). |
 | `list --all` | Also includes hidden bundled/configured IDs usable by exact `apply THEME`; it does **not** add them to the picker or shell completion. |
-| `list --details` | Adds `listed`/`hidden`, appearance, declared tool IDs, and known upstream support site (`-` when absent). Declared tools do not prove installation. |
+| `list --details` | Aligned comparison table with `listed`/`hidden` discovery status. For appearance, declared tools and support sites, use `list --details --json`; declared tools do not prove installation. |
 | `list tools` | Registered tools and installation status. |
 | `current` | Last recorded application result, not a live audit. |
 

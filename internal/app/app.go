@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/clang-engineer/themeset/internal/adapter"
 	"github.com/clang-engineer/themeset/internal/model"
@@ -37,7 +38,7 @@ Flags (accepted before or after the command or theme):
   --tools IDS       Comma-separated IDs overriding config tools; empty means none
   --json            Emit JSON to stdout; diagnostics remain on stderr
   --all            With list only: include hidden bundled and configured IDs
-  --details        With list only: show ranks, tools and known support sites
+  --details        With list only: show discovery status; JSON includes full metadata
   --sort MODE      With list or interactive apply: listed, rank, or name
   --dry-run         With apply only: inspect a plan, change no files or state
   --help, -h        Show help
@@ -283,7 +284,8 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			if opts.json {
 				return emitJSON(stdout, stderr, details)
 			}
-			if _, err := fmt.Fprintf(stdout, "THEME\tGITHUB STARS (%s)\tPROJECT CREATED\tLAST PUSH\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
+			table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
+			if _, err := fmt.Fprintln(table, "THEME\tSTARS\tCREATED\tLAST PUSH\tDISCOVERY"); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -292,27 +294,21 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 				if item.Listed {
 					status = "listed"
 				}
-				appearance, tools, site := item.Appearance, strings.Join(item.Tools, ","), item.SupportSite
-				if appearance == "" {
-					appearance = "-"
-				}
-				if tools == "" {
-					tools = "-"
-				}
-				if site == "" {
-					site = "-"
-				}
 				stars := "-"
 				if item.RadarRank != 0 {
 					stars = formatStars(item.RadarStars)
 				}
-				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, stars,
-					projectDate(item.ProjectCreatedAt), projectDate(item.ProjectPushedAt), status, appearance, tools, site); err != nil {
+				if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", item.ID, stars,
+					projectDate(item.ProjectCreatedAt), projectDate(item.ProjectPushedAt), status); err != nil {
 					fmt.Fprintln(stderr, "error:", err)
 					return 1
 				}
 			}
-			if _, err := fmt.Fprintln(stdout, "\nStars and dates belong to the associated Radar GitHub project, not necessarily the theme variant. Last push is code activity, not GitHub metadata updates. Missing projects may be ports of listed families or target unsupported apps; '-' means unavailable. Use --all for hidden registered themes."); err != nil {
+			if err := table.Flush(); err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 1
+			}
+			if _, err := fmt.Fprintf(stdout, "\nRadar GitHub projects (%s): Stars, repository creation and last code push; variants may share dates.\n'-' means unavailable. Use --all for hidden registered themes; --details --json for tools and support sites.\n", ranks.UpdatedAt[:10]); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}

@@ -541,13 +541,41 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 		t.Fatalf("incorrect light appearance labels: %#v", byID)
 	}
 	stdout.Reset()
-	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 ||
-		!strings.Contains(strings.SplitN(stdout.String(), "\n", 2)[0], "PROJECT CREATED\tLAST PUSH") ||
-		!strings.Contains(stdout.String(), "kanagawa\t6,461\t2021-12-20\t2026-05-10\thidden\t-\t") ||
-		!strings.Contains(stdout.String(), "dracula\t23,620\t2013-10-27\t2026-11-01\tlisted\t-\t") ||
-		!strings.Contains(stdout.String(), "my-theme\t-\t-\t-\tlisted\t-\t") ||
-		!strings.Contains(stdout.String(), "Missing projects may be ports of listed families or target unsupported apps") {
-		t.Fatalf("details text omitted project dates or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
+	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 {
+		t.Fatalf("details text: code=%d diagnostics=%s", code, stderr.String())
+	}
+	text := stdout.String()
+	lines := strings.Split(text, "\n")
+	if !strings.Contains(lines[0], "THEME") || !strings.Contains(lines[0], "LAST PUSH") ||
+		!strings.Contains(text, "Radar GitHub projects (") ||
+		strings.Contains(text, "https://") || strings.Contains(text, "bat,btop") {
+		t.Fatalf("details table contains verbose metadata or lacks provenance: %q", text)
+	}
+	seenRows := make(map[string]bool)
+	for _, row := range lines[1:] {
+		fields := strings.Fields(row)
+		if len(fields) == 0 {
+			continue
+		}
+		seenRows[fields[0]] = true
+		switch fields[0] {
+		case "dracula":
+			if !reflect.DeepEqual(fields, []string{"dracula", "23,620", "2013-10-27", "2026-11-01", "listed"}) ||
+				strings.Index(row, "23,620") != strings.Index(lines[0], "STARS") {
+				t.Fatalf("ranked project row or column alignment wrong: %q", row)
+			}
+		case "my-theme":
+			if !reflect.DeepEqual(fields, []string{"my-theme", "-", "-", "-", "listed"}) {
+				t.Fatalf("unknown project dates misrepresented: %q", row)
+			}
+		case "kanagawa":
+			if !reflect.DeepEqual(fields, []string{"kanagawa", "6,461", "2021-12-20", "2026-05-10", "hidden"}) {
+				t.Fatalf("hidden theme metadata lost: %q", row)
+			}
+		}
+	}
+	if !seenRows["dracula"] || !seenRows["my-theme"] || !seenRows["kanagawa"] {
+		t.Fatalf("details table dropped ranked, custom or hidden rows: %q", text)
 	}
 }
 
