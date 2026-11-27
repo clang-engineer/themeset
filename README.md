@@ -33,6 +33,7 @@ belongs to CI and application-specific testing.
 themeset list
 themeset list --all
 themeset list --all --details
+themeset list --sort rank
 themeset list tools
 themeset apply
 themeset apply dracula --dry-run
@@ -72,26 +73,42 @@ warnings. The review makes no changes until `[y/N]` is confirmed. JSON and
 recorded result metadata retain individual statuses and warnings.
 
 Core commands are `apply`, `list`, and `current`. `list` shows the curated
-theme IDs; `list --all` also shows hidden bundled and configured IDs that can
-be passed explicitly to `apply`. Neither option adds themes to the picker or
-shell completion. `list --details` adds a `listed`/`hidden` marker, appearance,
-declared tool IDs, and a known upstream support site (`-` when absent). Only
-explicitly identified light themes show `light`: `ayu-light`,
-`catppuccin-latte`, `flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`,
-`solarized-light`, and `tokyo-night-day`. `-` means unspecified,
-not necessarily dark; custom theme appearance is not guessed. The interactive
-picker groups curated dark themes, light themes, then other configured themes
-in the All view, preserving order within each group. Only the All view shows
-`[dark]`, `[light]`, or `[other]` beside each theme; the individual group views
-show just theme IDs. Light previews also show `Appearance: light`.
-Selection returns the exact ID.
+theme IDs with their Radar ranks (`-` for an unranked theme); `list --all`
+also shows hidden bundled and configured IDs that can be passed explicitly to
+`apply`. Neither option adds themes to the picker or shell completion.
+`list --details` adds a `listed`/`hidden` marker, appearance, declared tool
+IDs, and a known upstream support site (`-` when absent). Only explicitly
+identified light themes show `light`: `ayu-light`, `catppuccin-latte`,
+`flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`, `solarized-light`, and
+`tokyo-night-day`. Unspecified appearance does not necessarily mean dark;
+custom theme appearance is not guessed. The All picker view shows the rank
+first and marks light themes with `[light]`; Dark, Light, and Other remain
+available as separate groups. The rank is display metadata: selection still
+returns the exact theme ID and does not change which tools can apply it.
 `--json` keeps the existing string array without `--details`; with it, each
-entry has `id`, `listed`, `tools`, and optional `appearance` and `support_site`
-fields. Declared tools are catalog/config metadata, not proof that the app or
-theme is installed.
+entry has `id`, `listed`, `tools`, optional `appearance` and `support_site`,
+and, when ranked, `radar_rank` and `radar_updated_at`. Declared tools are
+catalog/config metadata, not proof that an app or theme is installed.
 `list tools` shows registered tools and installation status. The former
 `check` and top-level `tools` commands have been removed: use
 `apply THEME --dry-run` and `list tools`, respectively.
+
+Ranks come from the [Radar Developer Color Themes ranking](https://clang-engineer.github.io/data/rankings.json)
+(GitHub Stars, all-time). The bundled offline snapshot contains the full
+category, not only the top 30; for example, Rosé Pine is #32, Moonfly #38,
+and Ayu #61 in the 2026-11-27 snapshot. When a valid cache is younger than
+24 hours, `list` does not fetch again; otherwise it checks for updated data
+(three-second timeout). The last valid category is cached under
+`~/.cache/themeset/radar-ranks.json`. Interactive `apply` only reads that cache;
+neither previews nor `--home` targeting another home fetch it. Without a
+usable network/cache, the bundled snapshot is used. The displayed date is the
+source data's update date, not the time themeset checked it. Ranks can shift
+when Radar updates; gaps include ranked projects without a curated theme ID,
+and several variants can share one family rank. Bundled project associations
+live alongside the entries in `internal/catalog/defaults.json`'s `listed`
+array. Hidden bundled IDs are not mapped and show `-` under `list --all` unless
+the user supplies `themes.<id>.radar_repo`. A name alone does not establish a
+shared source (e.g. `vscode-dark` is not assigned an unrelated port's rank).
 
 ## Shell completion
 
@@ -171,9 +188,9 @@ ports, plus the installed Neovim `nightfox` colorscheme. Other tools use the
 configured fallback where no Nightfox port exists. Catppuccin Latte, Frappé,
 and Macchiato select their matching Neovim colorscheme when the plugin is
 installed; themeset does not install it. Each bundled `listed` entry has an
-`id` and, where available, a
-`support_site` pointing to the theme project's port directory.
-The separate `light` metadata includes both curated and hidden bundled IDs.
+`id` and, where available, a `support_site` pointing to the project's port
+directory and `radar_repo` identifying its family in Radar. The separate
+`light` metadata includes both curated and hidden bundled IDs.
 These links are reference metadata, not verified themeset ports or download
 sources. The catalog also declares each tool's installed-native candidate names
 and, where available, a verified upstream port. Listed IDs feed `list`, shell
@@ -181,9 +198,14 @@ completion, and the interactive picker; the shortlist is not a promise that
 every tool supports each theme.
 Without a `listed` override, IDs registered under `themes` in the user config
 are added to this shortlist. A user `listed` array replaces the displayed
-shortlist exactly; `list` preserves its order, while the picker groups curated
-dark, light, and other entries and preserves order within each group. Completion
-sorts suggestions. `[]` hides every discovery entry.
+shortlist exactly. By default (`theme_sort: "listed"`), `list` preserves its
+order and the picker groups curated dark, light, and other entries, preserving
+order within each group. Use `theme_sort: "rank"` or `list --sort rank` and
+`apply --sort rank` for global rank order in the All group; unranked IDs follow
+ranked IDs in their original order. Use `name` for alphabetical order or
+`--sort listed` to temporarily restore the shortlist order. Sorting does not
+change visibility or application; group-specific views keep only their group.
+Completion sorts suggestions independently. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
 `default_theme`; find their exact names with `list --all`. `listed` changes
 default discovery only, not bundled ports or sources.
@@ -408,6 +430,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
 {
   "tools": ["ghostty", "bat", "fzf", "lazygit"],
   "listed": ["dracula", "catppuccin-mocha", "my-mocha"],
+  "theme_sort": "rank",
   "default_theme": "catppuccin-mocha",
   "paths": {
     "lazygit": "~/Library/Application Support/lazygit/config.yml"
@@ -422,6 +445,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
       }
     },
     "my-mocha": {
+      "radar_repo": "catppuccin/catppuccin",
       "custom": {
         "fzf": {
           "url": "https://raw.githubusercontent.com/catppuccin/fzf/main/themes/catppuccin-fzf-mocha.rc"
@@ -462,6 +486,13 @@ completion, and the picker. It is **not** a source declaration or a restriction
 on explicit `apply THEME`. If omitted, the built-in shortlist plus IDs in
 `themes` is used. If present, include custom IDs explicitly to display them;
 `"listed": []` displays none. `list tools` is unchanged.
+
+`themes.<id>.radar_repo` optionally identifies the exact `owner/repo` in Radar
+for a user-defined theme. It only supplies rank metadata: it never downloads
+ports or grants tool support. Use it only for the same theme family, not a
+similar-looking palette. Bundled `listed` entries already map to their
+upstream projects; an explicitly configured `radar_repo` overrides that
+association.
 
 `default_theme` sets the theme used for a tool only when the requested theme
 has no available native, official, or custom port for that tool. It defaults to

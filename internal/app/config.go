@@ -93,6 +93,9 @@ func loadConfig(path string, env model.Environment) (model.Config, string, error
 		}
 		return model.Config{}, path, fmt.Errorf("decode config %s: %w", path, err)
 	}
+	if err := themeSort(config.ThemeSort); err != nil {
+		return model.Config{}, path, fmt.Errorf("config %s: %w", path, err)
+	}
 	base := filepath.Dir(path)
 	for id, value := range config.Paths {
 		resolved, err := localPath(value, env.Home, base)
@@ -102,6 +105,9 @@ func loadConfig(path string, env model.Environment) (model.Config, string, error
 		config.Paths[id] = resolved
 	}
 	for theme, definition := range config.Themes {
+		if definition.RadarRepo != "" && !validRadarRepo(definition.RadarRepo) {
+			return model.Config{}, path, fmt.Errorf("config %s: themes.%s.radar_repo must be a GitHub owner/repo", path, theme)
+		}
 		for id, port := range definition.Custom {
 			if port.Format != "" || port.Variant != "" || port.LicenseURL != "" || port.AssetURL != "" || port.LicenseSyntaxURL != "" || port.StyleKeys != "" || port.RequiredStyleKeys != "" {
 				return model.Config{}, path, fmt.Errorf("themes.%s.custom.%s: format, variant and bundled asset/style metadata are reserved for bundled declarations", theme, id)

@@ -73,6 +73,18 @@ func pickerCategory(theme string, bundled map[string]bool) string {
 	return "other"
 }
 
+func pickerRow(name, group string, rank int, showGroup bool) string {
+	label := "-"
+	if rank != 0 {
+		label = fmt.Sprintf("#%02d", rank)
+	}
+	row := name + "\t" + fmt.Sprintf("%-5s%s", label, name)
+	if showGroup && group == "light" {
+		row += "  [light]"
+	}
+	return row
+}
+
 // runPicker isolates user fzf defaults for both selection stages.
 func runPicker(fzf string, terminal *os.File, input []byte, args ...string) (string, bool, error) {
 	command := exec.Command(fzf, args...)
@@ -101,7 +113,7 @@ func runPicker(fzf string, terminal *os.File, input []byte, args ...string) (str
 
 // selectTheme only selects a known identifier. Planning, confirmation, and
 // application belong to its caller, not to the shared fzf invocation.
-func selectTheme(opts options, config model.Config, terminal *os.File, query, action string) (string, bool, error) {
+func selectTheme(opts options, config model.Config, ranks radarRanks, terminal *os.File, query, action string) (string, bool, error) {
 	fzf, err := exec.LookPath("fzf")
 	if err != nil {
 		return "", false, errors.New("theme picker requires fzf; install fzf or use apply THEME")
@@ -121,31 +133,37 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 	default:
 		return "", false, errors.New("theme picker returned an unknown group")
 	}
-	names := themeIDs(config)
+	mode := opts.sort
+	if mode == "" {
+		mode = config.ThemeSort
+	}
+	names := sortedThemes(themeIDs(config), mode, config, ranks)
 	bundled := make(map[string]bool)
 	for _, name := range catalog.Listed() {
 		bundled[name] = true
 	}
 	var input bytes.Buffer
-	for _, group := range []string{"dark", "light", "other"} {
+	groups := []string{"dark", "light", "other"}
+	if category == "all" && mode != "" && mode != "listed" {
+		groups = []string{"all"}
+	}
+	for _, group := range groups {
 		if category != "all" && category != group {
 			continue
 		}
 		for _, name := range names {
-			if pickerCategory(name, bundled) != group {
+			appearance := pickerCategory(name, bundled)
+			if group != "all" && appearance != group {
 				continue
 			}
-			input.WriteString(name)
-			if category == "all" {
-				fmt.Fprintf(&input, "\t[%s]", group)
-			}
+			input.WriteString(pickerRow(name, appearance, ranks.rank(name, config), category == "all"))
 			input.WriteByte(0)
 		}
 	}
 	row, selected, err := runPicker(fzf, terminal, input.Bytes(),
-		"--no-multi", "--no-sort", "--read0", "--print0", "--delimiter=\t",
+		"--no-multi", "--no-sort", "--read0", "--print0", "--delimiter=\t", "--with-nth=2",
 		"--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query,
-		"--header=Group: "+category+" | Enter: "+action+" | Esc: cancel",
+		"--header=Group: "+category+" | Radar rank · Theme | Enter: "+action+" | Esc: cancel",
 		"--preview="+previewCommand(executable, opts), "--preview-window=right,60%,wrap")
 	if err != nil || !selected {
 		return "", false, err
@@ -158,10 +176,7 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 		if category != "all" && pickerCategory(name, bundled) != category {
 			break
 		}
-		expected := name
-		if category == "all" {
-			expected += "\t[" + pickerCategory(name, bundled) + "]"
-		}
+		expected := pickerRow(name, pickerCategory(name, bundled), ranks.rank(name, config), category == "all")
 		if row == expected {
 			return theme, true, nil
 		}
@@ -170,14 +185,14 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 	return "", false, errors.New("theme picker returned an unknown theme")
 }
 
-func printPickedTheme(opts options, config model.Config, query string, stdout, stderr io.Writer) int {
+func printPickedTheme(opts options, config model.Config, ranks radarRanks, query string, stdout, stderr io.Writer) int {
 	terminal, err := pickerTerminal()
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
 	defer terminal.Close()
-	theme, selected, err := selectTheme(opts, config, terminal, query, "insert theme")
+	theme, selected, err := selectTheme(opts, config, ranks, terminal, query, "insert theme")
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
@@ -192,7 +207,7 @@ func printPickedTheme(opts options, config model.Config, query string, stdout, s
 	return 0
 }
 
-func chooseTheme(opts options, config model.Config, env model.Environment, selected []model.Adapter, stdout, stderr io.Writer) (string, bool, error) {
+func chooseTheme(opts options, config model.Config, ranks radarRanks, env model.Environment, selected []model.Adapter, stdout, stderr io.Writer) (string, bool, error) {
 	if opts.json {
 		return "", false, errors.New("--json requires an explicit theme: use apply THEME --dry-run --json")
 	}
@@ -204,7 +219,7 @@ func chooseTheme(opts options, config model.Config, env model.Environment, selec
 		return "", false, err
 	}
 	defer terminal.Close()
-	theme, proceed, err := selectTheme(opts, config, terminal, "", "review plan")
+	theme, proceed, err := selectTheme(opts, config, ranks, terminal, "", "review plan")
 	if err != nil || !proceed {
 		return "", false, err
 	}
@@ -233,9 +248,12 @@ func chooseTheme(opts options, config model.Config, env model.Environment, selec
 	}
 }
 
-func printPreview(theme string, config model.Config, env model.Environment, selected []model.Adapter, stdout, stderr io.Writer) int {
+func printPreview(theme string, config model.Config, ranks radarRanks, env model.Environment, selected []model.Adapter, stdout, stderr io.Writer) int {
 	if catalog.IsLight(theme) {
 		fmt.Fprintln(stdout, "Appearance: light")
+	}
+	if rank := ranks.rank(theme, config); rank != 0 {
+		fmt.Fprintf(stdout, "Radar: #%02d (as of %s)\n", rank, ranks.UpdatedAt[:10])
 	}
 	if err := renderVisualPreview(theme, config, env, stdout); err != nil {
 		fmt.Fprintln(stderr, "preview:", err)

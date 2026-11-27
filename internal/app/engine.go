@@ -79,14 +79,16 @@ func allThemeIDs(config model.Config) []string {
 }
 
 type themeDetail struct {
-	ID          string   `json:"id"`
-	Listed      bool     `json:"listed"`
-	Tools       []string `json:"tools"`
-	SupportSite string   `json:"support_site,omitempty"`
-	Appearance  string   `json:"appearance,omitempty"`
+	ID             string   `json:"id"`
+	Listed         bool     `json:"listed"`
+	Tools          []string `json:"tools"`
+	SupportSite    string   `json:"support_site,omitempty"`
+	Appearance     string   `json:"appearance,omitempty"`
+	RadarRank      int      `json:"radar_rank,omitempty"`
+	RadarUpdatedAt string   `json:"radar_updated_at,omitempty"`
 }
 
-func themeDetails(ids []string, config model.Config) []themeDetail {
+func themeDetails(ids []string, config model.Config, ranks radarRanks) []themeDetail {
 	visible := make(map[string]bool)
 	for _, id := range themeIDs(config) {
 		visible[id] = true
@@ -109,9 +111,12 @@ func themeDetails(ids []string, config model.Config) []themeDetail {
 		if tools == nil {
 			tools = []string{}
 		}
-		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id)}
+		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id), RadarRank: ranks.rank(id, config)}
 		if catalog.IsLight(id) {
 			detail.Appearance = "light"
+		}
+		if detail.RadarRank != 0 {
+			detail.RadarUpdatedAt = ranks.UpdatedAt
 		}
 		details = append(details, detail)
 	}

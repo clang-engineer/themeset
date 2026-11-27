@@ -49,14 +49,14 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 	pending := ""
 	if !literal && len(prior) > 0 {
 		switch prior[len(prior)-1] {
-		case "--config", "--home", "--tools", "-config", "-home", "-tools":
+		case "--config", "--home", "--tools", "--sort", "-config", "-home", "-tools", "-sort":
 			pending = strings.TrimLeft(prior[len(prior)-1], "-")
 			prior = prior[:len(prior)-1]
 		}
 	}
 	prefix := ""
 	if !literal && pending == "" {
-		for _, flag := range []string{"--config=", "--home=", "--tools="} {
+		for _, flag := range []string{"--config=", "--home=", "--tools=", "--sort="} {
 			if strings.HasPrefix(current, flag) {
 				pending = strings.TrimSuffix(strings.TrimPrefix(flag, "--"), "=")
 				prefix = flag
@@ -71,6 +71,15 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 	}
 	var candidates []string
 	if pending != "" {
+		if pending == "sort" {
+			for _, mode := range []string{"listed", "rank", "name"} {
+				if strings.HasPrefix(mode, current) {
+					candidates = append(candidates, prefix+mode)
+				}
+			}
+			sort.Strings(candidates)
+			return candidates
+		}
 		if pending != "tools" {
 			return nil
 		}
@@ -97,6 +106,9 @@ func completeWords(words []string, adapters []model.Adapter) []string {
 		}
 		if !literal && strings.HasPrefix(current, "-") {
 			candidates = append(candidates, "--config", "--home", "--tools", "--json", "--help", "--version")
+			if command == "apply" || command == "list" && len(opts.positionals) == 1 {
+				candidates = append(candidates, "--sort")
+			}
 			if command == "apply" {
 				candidates = append(candidates, "--dry-run")
 			}

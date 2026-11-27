@@ -29,7 +29,8 @@ type ThemePort struct {
 }
 
 type Theme struct {
-	Custom map[string]Port `json:"custom,omitempty"`
+	Custom    map[string]Port `json:"custom,omitempty"`
+	RadarRepo string          `json:"radar_repo,omitempty"`
 }
 
 type Config struct {
@@ -38,6 +39,7 @@ type Config struct {
 	Themes       map[string]Theme  `json:"themes,omitempty"`
 	DefaultTheme string            `json:"default_theme,omitempty"`
 	Listed       []string          `json:"listed,omitempty"`
+	ThemeSort    string            `json:"theme_sort,omitempty"`
 }
 
 type Environment struct {

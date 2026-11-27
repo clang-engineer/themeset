@@ -357,6 +357,8 @@ func TestInvalidSelectedToolRejectsBeforeWrites(t *testing.T) {
 func TestStrictConfigErrors(t *testing.T) {
 	for _, contents := range []string{
 		`{"unknown":true}`,
+		`{"theme_sort":"something-else"}`,
+		`{"themes":{"my-theme":{"radar_repo":"not-a-repository"}}}`,
 		`{"themes":{"fixture":{"custom":{"tmux":{"command":"unsafe"}}}}}`,
 		`{"tools":"tmux"}`,
 		`{"tools":[]} {}`,
@@ -405,7 +407,16 @@ func TestListThemes(t *testing.T) {
 				t.Fatalf("code=%d diagnostics=%s", code, stderr.String())
 			}
 			if !jsonOutput {
-				if got := stdout.String(); got != strings.Join(want, "\n")+"\n" {
+				rows := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+				got := make([]string, 0, len(rows))
+				for _, row := range rows {
+					id, _, ok := strings.Cut(row, "\t")
+					if !ok {
+						t.Fatalf("missing rank column: %q", row)
+					}
+					got = append(got, id)
+				}
+				if !reflect.DeepEqual(got, want) {
 					t.Fatalf("got %q; want themes %q", got, want)
 				}
 				return
@@ -492,10 +503,52 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 	}
 	stdout.Reset()
 	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 ||
-		!strings.HasPrefix(stdout.String(), "THEME\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n") ||
-		!strings.Contains(stdout.String(), "solarized-light\thidden\tlight\t") ||
-		!strings.Contains(stdout.String(), "kanagawa\thidden\t-\t") || !strings.Contains(stdout.String(), "dracula\tlisted\t-\t") {
+		!strings.HasPrefix(stdout.String(), "THEME\tRADAR RANK (") ||
+		!strings.Contains(stdout.String(), "solarized-light\t#03\thidden\tlight\t") ||
+		!strings.Contains(stdout.String(), "kanagawa\t#11\thidden\t-\t") || !strings.Contains(stdout.String(), "dracula\t#01\tlisted\t-\t") {
 		t.Fatalf("details text omitted heading or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestConfiguredRadarSortAndOverrideKeepListedAsVisibilityFilter(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(t.TempDir(), "config.json")
+	listed := []string{"unranked", "tokyo-night", "tomorrow", "dracula", "catppuccin-latte"}
+	fixtureConfig(t, path, map[string]any{
+		"listed": listed, "theme_sort": "rank",
+		"themes": map[string]any{"tomorrow": map[string]any{"radar_repo": "chriskempson/tomorrow-theme"}},
+	})
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"list", "--json", "--home", home, "--config", path}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("rank list failed: code=%d %s", code, stderr.String())
+	}
+	var got []string
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || !reflect.DeepEqual(got, []string{"dracula", "catppuccin-latte", "tomorrow", "tokyo-night", "unranked"}) {
+		t.Fatalf("rank order or listed filter wrong: %q, %v", stdout.String(), err)
+	}
+	stdout.Reset()
+	if code := Run([]string{"list", "--json", "--sort", "listed", "--home", home, "--config", path}, &stdout, &stderr); code != 0 {
+		t.Fatalf("listed override failed: %d %s", code, stderr.String())
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || !reflect.DeepEqual(got, listed) {
+		t.Fatalf("listed order not restored: %q, %v", stdout.String(), err)
+	}
+	stdout.Reset()
+	if code := Run([]string{"list", "--json", "--sort", "name", "--home", home, "--config", path}, &stdout, &stderr); code != 0 {
+		t.Fatalf("name override failed: %d %s", code, stderr.String())
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil || !reflect.DeepEqual(got, []string{"catppuccin-latte", "dracula", "tokyo-night", "tomorrow", "unranked"}) {
+		t.Fatalf("name ordering failed: %s, %v", stdout.String(), err)
+	}
+	stdout.Reset()
+	if code := Run([]string{"list", "--details", "--json", "--home", home, "--config", path}, &stdout, &stderr); code != 0 {
+		t.Fatalf("rank details failed: %d %s", code, stderr.String())
+	}
+	var details []themeDetail
+	if err := json.Unmarshal(stdout.Bytes(), &details); err != nil || len(details) != len(listed) || details[0].RadarRank != 1 ||
+		details[1].RadarRank != 2 || details[2].RadarRank != 5 || details[3].RadarRank != 7 ||
+		details[4].RadarRank != 0 || details[2].RadarUpdatedAt == "" {
+		t.Fatalf("rank gaps or provenance lost: %q, %v", stdout.String(), err)
 	}
 }
 
@@ -587,6 +640,20 @@ func TestListOnlyFlagsRejectOtherCommands(t *testing.T) {
 	}
 }
 
+func TestSortFlagRejectsCommandsWithoutDiscovery(t *testing.T) {
+	for _, args := range [][]string{
+		{"list", "tools", "--sort", "rank"},
+		{"apply", "dracula", "--sort", "name"},
+		{"current", "--sort", "rank"},
+		{"list", "--sort", "unsupported"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := Run(args, &stdout, &stderr); code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "sort") {
+			t.Fatalf("invalid sort accepted: %q code=%d out=%q err=%q", args, code, stdout.String(), stderr.String())
+		}
+	}
+}
+
 func TestListedOverrideControlsDiscoveryWithoutRestrictingApply(t *testing.T) {
 	installedFixtures(t, "fzf")
 	home, directory := t.TempDir(), t.TempDir()
@@ -600,7 +667,7 @@ func TestListedOverrideControlsDiscoveryWithoutRestrictingApply(t *testing.T) {
 	})
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"list", "--config", config, "--home", home}, &stdout, &stderr); code != 0 ||
-		stdout.String() != "rose-pine\nmy-theme\n" || stderr.Len() != 0 {
+		stdout.String() != "rose-pine\t#32\nmy-theme\t-\n" || stderr.Len() != 0 {
 		t.Fatalf("listed override did not replace the displayed themes: %d %q %q", code, stdout.String(), stderr.String())
 	}
 	if got := completeWords([]string{"--config", config, "--home", home, "apply", ""}, adapter.All()); !reflect.DeepEqual(got, []string{"my-theme", "rose-pine"}) {

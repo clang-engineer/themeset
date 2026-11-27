@@ -15,6 +15,7 @@ var bundledThemeData []byte
 type listedTheme struct {
 	ID          string `json:"id"`
 	SupportSite string `json:"support_site,omitempty"`
+	RadarRepo   string `json:"radar_repo,omitempty"`
 }
 
 type bundledThemes struct {
@@ -72,6 +73,17 @@ func SupportSite(theme string) string {
 	for _, entry := range defaults.Listed {
 		if entry.ID == theme {
 			return entry.SupportSite
+		}
+	}
+	return ""
+}
+
+// RadarRepo identifies the family project used by Radar for a listed theme.
+// It is ranking metadata, not a source for application theme assets.
+func RadarRepo(theme string) string {
+	for _, entry := range defaults.Listed {
+		if entry.ID == theme {
+			return entry.RadarRepo
 		}
 	}
 	return ""

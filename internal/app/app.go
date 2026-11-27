@@ -37,22 +37,25 @@ Flags (accepted before or after the command or theme):
   --tools IDS       Comma-separated IDs overriding config tools; empty means none
   --json            Emit JSON to stdout; diagnostics remain on stderr
   --all            With list only: include hidden bundled and configured IDs
-  --details        With list only: show declared tools and known support sites
+  --details        With list only: show ranks, tools and known support sites
+  --sort MODE      With list or interactive apply: listed, rank, or name
   --dry-run         With apply only: inspect a plan, change no files or state
   --help, -h        Show help
-  --version         Show version
 
 Without THEME, apply requires interactive input and fzf. It previews themes,
 then shows the selected plan and asks for confirmation before writing.
 Use an explicit THEME with --json or from scripts.
 
 Config supports tools, paths, themes, a default_theme ID (catppuccin-mocha
-when omitted), and an optional listed array that replaces the discovery list
-without restricting explicit apply. Omitted tools selects all adapters;
-tools: [] selects none. Relative paths and custom file references resolve
-against the config directory; ~/ uses --home. Explicit custom ports take
-precedence over native/official ports. Invalid custom ports fail rather than
-silently falling back. If the requested theme is unavailable for a tool, its
+when omitted), optional listed discovery IDs, and theme_sort (listed, rank,
+or name). --sort overrides theme_sort for list or interactive apply without
+changing which themes are listed or applied. A theme's radar_repo only
+identifies its Radar ranking project; it is not a theme download source.
+Omitted tools selects all adapters; tools: [] selects none. Relative paths
+and custom file references resolve against the config directory; ~/ uses
+--home. Explicit custom ports take precedence over native/official ports.
+Invalid custom ports fail rather than silently falling back. If the requested
+theme is unavailable for a tool, its
 default theme is tried once; uninstalled apps and tools without an available
 fallback are skipped unchanged.
 Errors are visible and return a nonzero exit status.
@@ -64,6 +67,7 @@ type options struct {
 	config      string
 	home        string
 	tools       string
+	sort        string
 	toolsSet    bool
 	json        bool
 	all         bool
@@ -82,6 +86,7 @@ func parse(args []string) (options, error) {
 	flags.StringVar(&opts.config, "config", "", "")
 	flags.StringVar(&opts.home, "home", "", "")
 	flags.StringVar(&opts.tools, "tools", "", "")
+	flags.StringVar(&opts.sort, "sort", "", "")
 	flags.BoolVar(&opts.json, "json", false, "")
 	flags.BoolVar(&opts.all, "all", false, "")
 	flags.BoolVar(&opts.details, "details", false, "")
@@ -173,6 +178,16 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		fmt.Fprintln(stderr, "error: --all and --details require list without a subcommand")
 		return 2
 	}
+	if opts.sort != "" {
+		if err := themeSort(opts.sort); err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 2
+		}
+		if (command != "list" || len(opts.positionals) != 1) && (command != "apply" || len(opts.positionals) != 1) {
+			fmt.Fprintln(stderr, "error: --sort requires list or interactive apply")
+			return 2
+		}
+	}
 	if command == "help" {
 		_, err := io.WriteString(stdout, usage)
 		if err != nil {
@@ -251,17 +266,30 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 1
 	}
 	env.Paths = config.Paths
+	sortMode := opts.sort
+	if sortMode == "" {
+		sortMode = config.ThemeSort
+	}
+	if sortMode == "" {
+		sortMode = "listed"
+	}
+	var ranks radarRanks
+	if command == "__preview" || picking || command == "apply" && len(opts.positionals) == 1 ||
+		command == "list" && len(opts.positionals) == 1 {
+		ranks = ranksFor(loadRadar(env, command == "list"))
+	}
 	if command == "list" && len(opts.positionals) == 1 {
 		names := themeIDs(config)
 		if opts.all {
 			names = allThemeIDs(config)
 		}
+		names = sortedThemes(names, sortMode, config, ranks)
 		if opts.details {
-			details := themeDetails(names, config)
+			details := themeDetails(names, config, ranks)
 			if opts.json {
 				return emitJSON(stdout, stderr, details)
 			}
-			if _, err := fmt.Fprintln(stdout, "THEME\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE"); err != nil {
+			if _, err := fmt.Fprintf(stdout, "THEME\tRADAR RANK (%s)\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -280,7 +308,11 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 				if site == "" {
 					site = "-"
 				}
-				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\n", item.ID, status, appearance, tools, site); err != nil {
+				rank := "-"
+				if item.RadarRank != 0 {
+					rank = fmt.Sprintf("#%02d", item.RadarRank)
+				}
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, rank, status, appearance, tools, site); err != nil {
 					fmt.Fprintln(stderr, "error:", err)
 					return 1
 				}
@@ -291,7 +323,12 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			return emitJSON(stdout, stderr, names)
 		}
 		for _, name := range names {
-			if _, err := fmt.Fprintln(stdout, name); err != nil {
+			rank := ranks.rank(name, config)
+			label := "-"
+			if rank != 0 {
+				label = fmt.Sprintf("#%02d", rank)
+			}
+			if _, err := fmt.Fprintf(stdout, "%s\t%s\n", name, label); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -344,12 +381,12 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 2
 	}
 	if picking {
-		return printPickedTheme(opts, config, query, stdout, stderr)
+		return printPickedTheme(opts, config, ranks, query, stdout, stderr)
 	}
 	var theme string
 	if command == "apply" && len(opts.positionals) == 1 {
 		var proceed bool
-		theme, proceed, err = chooseTheme(opts, config, env, selected, stdout, stderr)
+		theme, proceed, err = chooseTheme(opts, config, ranks, env, selected, stdout, stderr)
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)
 			return 1
@@ -365,7 +402,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 2
 	}
 	if command == "__preview" {
-		return printPreview(theme, config, env, selected, stdout, stderr)
+		return printPreview(theme, config, ranks, env, selected, stdout, stderr)
 	}
 	result := plan(theme, config, env, selected, opts.dryRun)
 	stateError := false
