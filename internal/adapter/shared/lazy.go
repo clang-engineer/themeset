@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/clang-engineer/themeset/internal/model"
+	"gopkg.in/yaml.v3"
 )
 
 func ApplyLazy(id string, port model.Port, env model.Environment, data []byte) error {
@@ -20,17 +21,16 @@ func ApplyLazy(id string, port model.Port, env model.Environment, data []byte) e
 	if !ok || len(theme) == 0 {
 		return fmt.Errorf("%s custom file must contain a nonempty gui.theme mapping", id)
 	}
-	return EditYAML(Path(id, env), func(config map[string]any) error {
-		gui, err := Table(config, "gui")
+	return EditYAML(Path(id, env), func(config *yaml.Node) error {
+		gui, err := yamlPath(config, "gui")
 		if err != nil {
 			return err
 		}
-		existing, err := Table(gui, "theme")
+		existing, err := yamlPath(gui, "theme")
 		if err != nil {
 			return err
 		}
-		Merge(existing, theme)
-		return nil
+		return MergeYAMLMap(existing, theme)
 	})
 }
 

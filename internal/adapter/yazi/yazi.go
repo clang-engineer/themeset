@@ -14,7 +14,12 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "yazi", Binary: "yazi", Remote: true, Resolve: filesResolveYazi, Apply: filesApplyYazi}
+	return model.Adapter{
+		ID: "yazi", Binary: "yazi", Remote: true, Resolve: filesResolveYazi, Apply: filesApplyYazi,
+		UnsupportedReason: func(string) string {
+			return "no complete compatible installed flavor or pinned official flavor recipe"
+		},
+	}
 }
 
 func filesResolveYazi(spec model.ThemePort, env model.Environment) (model.Port, bool, error) {

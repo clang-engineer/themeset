@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/clang-engineer/themeset/internal/adapter"
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
 )
@@ -84,6 +85,42 @@ func TestConfiguredFallbackCustomPortThroughCLI(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(home, ".tmux.conf"))
 	if err != nil || !strings.Contains(string(data), filepath.Join(directory, "theme.conf")) {
 		t.Fatalf("fallback did not update tmux: %q, %v", data, err)
+	}
+}
+
+func TestPerToolFallbackOverridesDefaultTheme(t *testing.T) {
+	installedFixtures(t, "fixture")
+	config := model.Config{
+		DefaultTheme: "global-default",
+		Fallbacks:    map[string]string{"fixture": "tool-default"},
+		Themes: map[string]model.Theme{
+			"tool-default": {Custom: map[string]model.Port{"fixture": {File: filepath.Join(t.TempDir(), "theme")}}},
+		},
+	}
+	fixtureFile(t, config.Themes["tool-default"].Custom["fixture"].File, "theme")
+	adapter := model.Adapter{ID: "fixture", Binary: "fixture", Resolve: func(spec model.ThemePort, _ model.Environment) (model.Port, bool, error) {
+		return model.Port{}, false, nil
+	}}
+	result := plan("requested", config, model.Environment{}, []model.Adapter{adapter}, false)
+	if len(result.Tools) != 1 || result.Tools[0].FallbackTheme != "tool-default" || result.Tools[0].Port == nil {
+		t.Fatalf("per-tool fallback ignored: %+v", result.Tools)
+	}
+}
+
+func TestRollbackCommandRestoresBackedUpConfig(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".config", "tool", "config.toml")
+	fixtureFile(t, path, "before\n")
+	if err := shared.Atomic(path, []byte("after\n")); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"rollback", "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("rollback failed: code=%d stderr=%s", code, stderr.String())
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "before\n" {
+		t.Fatalf("rollback left config as %q: %v", data, err)
 	}
 }
 

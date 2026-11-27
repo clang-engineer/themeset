@@ -10,6 +10,7 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/catalog"
 	"github.com/clang-engineer/themeset/internal/model"
+	"gopkg.in/yaml.v3"
 )
 
 func Adapter() model.Adapter {
@@ -33,9 +34,8 @@ func filesApplyEza(port model.Port, env model.Environment) error {
 	if len(incoming) == 0 {
 		return errors.New("eza theme file is empty")
 	}
-	return shared.EditYAML(shared.Path("eza", env), func(config map[string]any) error {
-		shared.Merge(config, incoming)
-		return nil
+	return shared.EditYAML(shared.Path("eza", env), func(config *yaml.Node) error {
+		return shared.MergeYAMLMap(config, incoming)
 	})
 }
 

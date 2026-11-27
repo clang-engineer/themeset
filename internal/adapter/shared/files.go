@@ -7,10 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/clang-engineer/themeset/internal/model"
 	"github.com/pelletier/go-toml/v2"
+	tomledit "github.com/pelletier/go-toml/v2/unstable/edit"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,55 +32,6 @@ func ConfigHome(env model.Environment) string {
 		return Expand(env.ConfigHome, env)
 	}
 	return filepath.Join(env.Home, ".config")
-}
-
-func Path(id string, env model.Environment) string {
-	if path := env.Paths[id]; path != "" {
-		return Expand(path, env)
-	}
-	root := ConfigHome(env)
-	switch id {
-	case "starship":
-		return filepath.Join(root, "starship.toml")
-	case "fzf":
-		return filepath.Join(root, "themeset", "fzf.opts")
-	case "yazi":
-		if directory, ok := os.LookupEnv("YAZI_CONFIG_HOME"); ok {
-			return filepath.Join(directory, "theme.toml")
-		}
-		return filepath.Join(root, id, "theme.toml")
-	case "atuin":
-		modern := filepath.Join(env.Home, ".atuin", "config.toml")
-		legacy := filepath.Join(root, id, "config.toml")
-		if _, err := os.Lstat(modern); !errors.Is(err, os.ErrNotExist) {
-			return modern
-		}
-		if _, err := os.Lstat(legacy); !errors.Is(err, os.ErrNotExist) {
-			return legacy
-		}
-		return modern
-	case "lazygit", "lazydocker":
-		if env.OS == "darwin" && !env.ConfigHomeExplicit {
-			root = filepath.Join(env.Home, "Library", "Application Support")
-			legacy := filepath.Join(root, "jesseduffield", id)
-			if _, err := os.Stat(legacy); !errors.Is(err, os.ErrNotExist) {
-				return filepath.Join(legacy, "config.yml")
-			}
-		}
-		return filepath.Join(root, id, "config.yml")
-	case "btop":
-		return filepath.Join(root, id, "btop.conf")
-	case "eza":
-		if directory, ok := os.LookupEnv("EZA_CONFIG_DIR"); ok {
-			return filepath.Join(directory, "theme.yml")
-		}
-		if env.OS == "darwin" && !env.ConfigHomeExplicit {
-			root = filepath.Join(env.Home, "Library", "Application Support")
-		}
-		return filepath.Join(root, id, "theme.yml")
-	default:
-		panic("unknown file adapter: " + id)
-	}
 }
 
 // Read only regular files, following symlinks rather than replacing them. In
@@ -102,6 +56,10 @@ func Read(path string, optional bool) ([]byte, error) {
 // objects are retained; new files are private until explicitly shared by users.
 func Atomic(path string, data []byte) error {
 	mode := os.FileMode(0600)
+	newFile := false
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
 	info, err := os.Lstat(path)
 	if err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {
@@ -118,13 +76,170 @@ func Atomic(path string, data []byte) error {
 			return fmt.Errorf("%s is not a regular file", path)
 		}
 		mode = info.Mode().Perm()
+		if err := preserveBackup(path, mode); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	} else {
+		newFile = true
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".themeset-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Chmod(mode); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if newFile {
+		createdMarker, err := preserveCreatedMarker(path)
+		if err != nil {
+			return err
+		}
+		if err := os.Rename(f.Name(), path); err != nil {
+			if createdMarker {
+				os.Remove(path + ".themeset.bak.new")
+			}
+			return err
+		}
+		return nil
+	}
+	return os.Rename(f.Name(), path)
+}
+
+func preserveCreatedMarker(path string) (bool, error) {
+	marker := path + ".themeset.bak.new"
+	f, err := os.OpenFile(marker, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, f.Close()
+}
+
+func preserveBackup(path string, mode os.FileMode) error {
+	backup := path + ".themeset.bak"
+	if info, err := os.Lstat(backup); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return fmt.Errorf("refusing to replace unsafe backup %s", backup)
+		}
+		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := writeNewFile(backup, original, mode); err != nil {
+		return fmt.Errorf("backup %s: %w", path, err)
+	}
+	return nil
+}
+
+func writeNewFile(path string, data []byte, mode os.FileMode) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(path)
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(path)
+		return err
+	}
+	return f.Close()
+}
+
+// Rollback restores all regular-file backups beneath root. Symlinks are not
+// traversed; unsafe backup entries are reported and left untouched.
+func Rollback(root string) (int, error) {
+	count := 0
+	var failures []error
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if errors.Is(walkErr, os.ErrPermission) || errors.Is(walkErr, os.ErrNotExist) {
+				return nil
+			}
+			failures = append(failures, walkErr)
+			return nil
+		}
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".themeset.bak") && !strings.HasSuffix(entry.Name(), ".themeset.bak.new") {
+			return nil
+		}
+		info, err := os.Lstat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			failures = append(failures, fmt.Errorf("unsafe backup %s", path))
+			return nil
+		}
+		created := strings.HasSuffix(path, ".themeset.bak.new")
+		suffix := ".themeset.bak"
+		if created {
+			suffix = ".themeset.bak.new"
+		}
+		target := strings.TrimSuffix(path, suffix)
+		if info, err := os.Lstat(target); err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular()) {
+			failures = append(failures, fmt.Errorf("refusing to restore over unsafe target %s", target))
+			return nil
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			failures = append(failures, err)
+			return nil
+		}
+		if created {
+			if _, targetErr := os.Lstat(target); targetErr == nil {
+				err = os.Remove(target)
+			} else if errors.Is(targetErr, os.ErrNotExist) {
+				err = nil
+			} else {
+				err = targetErr
+			}
+		} else {
+			var data []byte
+			data, err = os.ReadFile(path)
+			if err == nil {
+				err = AtomicRestore(target, data, info.Mode().Perm())
+			}
+		}
+		if err == nil {
+			err = os.Remove(path)
+		}
+		if err != nil {
+			failures = append(failures, fmt.Errorf("restore %s: %w", target, err))
+			return nil
+		}
+		count++
+		return nil
+	})
+	if err != nil {
+		failures = append(failures, err)
+	}
+	return count, errors.Join(failures...)
+}
+
+func AtomicRestore(path string, data []byte, mode os.FileMode) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".themeset-*")
+	f, err := os.CreateTemp(filepath.Dir(path), ".themeset-rollback-*")
 	if err != nil {
 		return err
 	}
@@ -207,33 +322,71 @@ func EditTOML(path string, change func(map[string]any) error) error {
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
+	original := cloneTOMLMap(config)
 	if err := change(config); err != nil {
 		return err
 	}
-	data, err = toml.Marshal(config)
+	document, err := tomledit.Parse(data)
 	if err != nil {
 		return err
 	}
-	return Atomic(path, data)
+	if err := editTOMLMap(document, original, config, nil); err != nil {
+		return err
+	}
+	return Atomic(path, []byte(document.String()))
 }
 
-func EditYAML(path string, change func(map[string]any) error) error {
-	data, err := Read(path, true)
-	if err != nil {
-		return err
+func cloneTOMLMap(source map[string]any) map[string]any {
+	clone := make(map[string]any, len(source))
+	for key, value := range source {
+		if nested, ok := value.(map[string]any); ok {
+			clone[key] = cloneTOMLMap(nested)
+		} else {
+			clone[key] = value
+		}
 	}
-	config, err := YAML(data)
-	if err != nil {
-		return fmt.Errorf("parse %s: %w", path, err)
+	return clone
+}
+
+func editTOMLMap(document *tomledit.Document, before, after map[string]any, parent []string) error {
+	keys := make([]string, 0, len(before)+len(after))
+	seen := make(map[string]bool, len(before)+len(after))
+	for key := range before {
+		keys = append(keys, key)
+		seen[key] = true
 	}
-	if err := change(config); err != nil {
-		return err
+	for key := range after {
+		if !seen[key] {
+			keys = append(keys, key)
+		}
 	}
-	data, err = yaml.Marshal(config)
-	if err != nil {
-		return err
+	sort.Strings(keys)
+	for _, key := range keys {
+		path := append(append([]string(nil), parent...), key)
+		oldValue, existed := before[key]
+		newValue, remains := after[key]
+		if !remains {
+			if !document.Delete(path) {
+				return fmt.Errorf("TOML key %q disappeared during edit", strings.Join(path, "."))
+			}
+			continue
+		}
+		oldTable, wasTable := oldValue.(map[string]any)
+		newTable, isTable := newValue.(map[string]any)
+		if existed && wasTable && isTable {
+			if err := editTOMLMap(document, oldTable, newTable, path); err != nil {
+				return err
+			}
+			continue
+		}
+		if existed && reflect.DeepEqual(oldValue, newValue) {
+			continue
+		}
+		if err := document.Set(path, newValue); err != nil {
+			return err
+		}
 	}
-	return Atomic(path, data)
+	return nil
 }
 
 func Custom(port model.Port, env model.Environment) ([]byte, error) {
