@@ -65,11 +65,11 @@ theme and remains suitable for scripts.
 Visuals use an installed bat syntax theme or an actual native/custom Ghostty
 asset, labeled with source app and exact variant. Ghostty swatches and ANSI
 samples are not a promise of editor syntax colors. Missing source assets
-explicitly show **Preview unavailable**. Both the preview and the post-selection
-review group tools by requested theme, `default_theme` fallback, skips, and
-errors; fallback rows name the theme actually selected instead of repeating
-warnings. The review makes no changes until `[y/N]` is confirmed. Explicit
-`apply THEME` output and JSON retain their detailed result metadata.
+explicitly show **Preview unavailable**. The preview, confirmation, and human
+apply result group tools by requested theme, `default_theme` fallback, skips,
+and errors; fallback rows name the theme actually used without repeating
+warnings. The review makes no changes until `[y/N]` is confirmed. JSON and
+recorded result metadata retain individual statuses and warnings.
 
 Core commands are `apply`, `list`, and `current`. `list` shows the curated
 theme IDs; `list --all` also shows hidden bundled and configured IDs that can

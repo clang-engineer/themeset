@@ -249,8 +249,8 @@ func printPreview(theme string, config model.Config, env model.Environment, sele
 	return 0
 }
 
-// Selection reports what will actually be used, not just whether a tool has a
-// planned port. The explicit apply/result output and JSON retain full metadata.
+// Group the selected theme's actual ports so the same explanation works in the
+// picker, before confirmation, and after application. JSON keeps full metadata.
 func printSelectionPlan(w io.Writer, result Result) error {
 	direct, fallback, skipped, failures := 0, 0, 0, 0
 	for _, item := range result.Tools {
@@ -265,7 +265,15 @@ func printSelectionPlan(w io.Writer, result Result) error {
 			direct++
 		}
 	}
-	if _, err := fmt.Fprintf(w, "Theme: %s\nPlan: %d requested, %d default fallback, %d skipped, %d errors (no settings changed)\n", result.Theme, direct, fallback, skipped, failures); err != nil {
+	if _, err := fmt.Fprintf(w, "Theme: %s\n", result.Theme); err != nil {
+		return err
+	}
+	applied := result.AppliedAt != ""
+	if applied {
+		if _, err := fmt.Fprintf(w, "Applied at: %s\nResult: %d requested, %d default fallback, %d skipped, %d errors\n", result.AppliedAt, direct, fallback, skipped, failures); err != nil {
+			return err
+		}
+	} else if _, err := fmt.Fprintf(w, "Plan: %d requested, %d default fallback, %d skipped, %d errors (no settings changed)\n", direct, fallback, skipped, failures); err != nil {
 		return err
 	}
 	counts := [...]int{direct, fallback, skipped, failures}

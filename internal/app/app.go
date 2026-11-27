@@ -400,47 +400,27 @@ func emitJSON(stdout, stderr io.Writer, value any) int {
 }
 
 func printResult(stdout, stderr io.Writer, result Result) int {
-	if _, err := fmt.Fprintf(stdout, "Theme: %s\n", result.Theme); err != nil {
+	if err := printSelectionPlan(stdout, result); err != nil {
 		fmt.Fprintln(stderr, "error: write output:", err)
 		return 1
 	}
-	if result.AppliedAt != "" {
-		if _, err := fmt.Fprintf(stdout, "Applied at: %s\n", result.AppliedAt); err != nil {
-			fmt.Fprintln(stderr, "error: write output:", err)
-			return 1
-		}
-	}
-	applied, planned, skipped, failures := 0, 0, 0, 0
+	// Fallbacks and ordinary skips are already visible in the grouped result.
+	// Keep unusual warnings and failures on stderr without repeating each row.
 	for _, item := range result.Tools {
-		switch item.Outcome {
-		case "applied":
-			applied++
-		case "planned":
-			planned++
-		case "skipped":
-			skipped++
+		for _, warning := range item.Warnings {
+			normalSkip := item.Status == "unsupported" && item.Outcome == "skipped" &&
+				(warning == "no verified native or official theme available" || warning == "no registered custom port; settings unchanged")
+			normalFallback := item.FallbackTheme != "" &&
+				warning == fmt.Sprintf("theme %s unavailable for %s; using default theme %s", result.Theme, item.Tool, item.FallbackTheme)
+			if normalSkip || normalFallback {
+				continue
+			}
+			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
 		}
-		if item.Outcome == "failed" || item.Error != "" {
-			failures++
-		}
-	}
-	if _, err := fmt.Fprintf(stdout, "Summary: %d applied, %d planned, %d skipped, %d failed\n", applied, planned, skipped, failures); err != nil {
-		fmt.Fprintln(stderr, "error: write output:", err)
-		return 1
-	}
-	for _, item := range result.Tools {
-		detail := ""
 		if item.Error != "" {
-			detail = "\t" + item.Error
-		} else if item.Reason != "" {
-			detail = "\t" + item.Reason
-		}
-		if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s%s\n", item.Tool, item.Status, item.Outcome, detail); err != nil {
-			fmt.Fprintln(stderr, "error: write output:", err)
-			return 1
+			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
 		}
 	}
-	printDiagnostics(stderr, result)
 	return 0
 }
 

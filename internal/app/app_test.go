@@ -834,18 +834,37 @@ func TestHumanReportingPreservesHistoricalMetadata(t *testing.T) {
 	if err != nil || !bytes.Equal(before, after) {
 		t.Fatalf("report changed historical metadata: %s -> %s (%v)", before, after, err)
 	}
-	// One aggregate skip diagnostic, one custom warning, and both real errors.
-	if strings.Count(stderr.String(), "warning:") != 2 || strings.Count(stderr.String(), "error:") != 2 {
-		t.Fatalf("diagnostics not consolidated or errors lost: %s", stderr.String())
+	// Ordinary skips appear once in the grouped output; real warnings and
+	// failures remain available on stderr and historical metadata is unchanged.
+	if strings.Count(stderr.String(), "warning:") != 1 || strings.Count(stderr.String(), "error:") != 2 ||
+		!strings.Contains(stdout.String(), "Skipped (2):") {
+		t.Fatalf("diagnostics repeated or errors lost: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 	for _, message := range []string{"inspection failure", "application failure"} {
 		if !strings.Contains(stderr.String(), message) {
 			t.Fatalf("lost error %q: %s", message, stderr.String())
 		}
 	}
-	for _, item := range result.Tools {
-		if !strings.Contains(stdout.String(), item.Tool+"\t"+item.Status+"\t"+item.Outcome) {
-			t.Fatalf("missing tool metadata for %s: %s", item.Tool, stdout.String())
-		}
+}
+
+func TestAppliedResultIdentifiesFallbackWithoutRepeatingWarning(t *testing.T) {
+	result := Result{Theme: "everforest", AppliedAt: "2026-11-27T00:00:00Z", Tools: []ToolResult{
+		{Tool: "btop", Status: "native", Outcome: "applied"},
+		{Tool: "starship", Status: "native", Outcome: "applied", FallbackTheme: "catppuccin-mocha",
+			Warnings: []string{"theme everforest unavailable for starship; using default theme catppuccin-mocha"}},
+		{Tool: "tmux", Status: "unsupported", Outcome: "skipped", Reason: "no styles-only port",
+			Warnings: []string{"no verified native or official theme available", "no registered custom port; settings unchanged"}},
+	}}
+	var stdout, stderr bytes.Buffer
+	if code := printResult(&stdout, &stderr, result); code != 0 {
+		t.Fatalf("render applied result: code=%d diagnostics=%s", code, stderr.String())
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "1 requested, 1 default fallback, 1 skipped") ||
+		!strings.Contains(output, "btop (native)") ||
+		!strings.Contains(output, "starship -> catppuccin-mocha (native)") ||
+		!strings.Contains(output, "tmux: no styles-only port") ||
+		strings.Contains(output, "no settings changed") || stderr.Len() != 0 {
+		t.Fatalf("applied result hides fallback or repeats diagnostics: stdout=%s stderr=%s", output, stderr.String())
 	}
 }
