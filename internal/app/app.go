@@ -298,6 +298,12 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			fmt.Fprintln(stderr, "error: rollback:", err)
 			return 1
 		}
+		if count > 0 {
+			if err := os.Remove(statePath(env)); err != nil && !errors.Is(err, os.ErrNotExist) {
+				fmt.Fprintln(stderr, "error: clear apply state after rollback:", err)
+				return 1
+			}
+		}
 		if opts.json {
 			return emitJSON(stdout, stderr, struct {
 				Restored int `json:"restored"`

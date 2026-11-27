@@ -326,7 +326,7 @@ func EditTOML(path string, change func(map[string]any) error) error {
 	if err := change(config); err != nil {
 		return err
 	}
-	document, err := tomledit.Parse(string(data))
+	document, err := tomledit.Parse(data)
 	if err != nil {
 		return err
 	}
@@ -366,8 +366,8 @@ func editTOMLMap(document *tomledit.Document, before, after map[string]any, pare
 		oldValue, existed := before[key]
 		newValue, remains := after[key]
 		if !remains {
-			if err := document.Delete(path...); err != nil {
-				return err
+			if !document.Delete(path) {
+				return fmt.Errorf("TOML key %q disappeared during edit", strings.Join(path, "."))
 			}
 			continue
 		}
@@ -382,11 +382,7 @@ func editTOMLMap(document *tomledit.Document, before, after map[string]any, pare
 		if existed && reflect.DeepEqual(oldValue, newValue) {
 			continue
 		}
-		if existed {
-			if err := document.Set(path, newValue); err != nil {
-				return err
-			}
-		} else if err := document.Insert(path, newValue); err != nil {
+		if err := document.Set(path, newValue); err != nil {
 			return err
 		}
 	}

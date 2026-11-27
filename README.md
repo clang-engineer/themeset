@@ -326,7 +326,7 @@ preservation rules, and implementation gaps, see the
 `themeset rollback` restores the first pre-Themeset version of each changed
 file and removes files first created by Themeset. It searches the selected
 home, XDG config directory, and directories named by `paths`. Backups remain
-available until rollback succeeds.
+available until rollback succeeds; the recorded `current` result is cleared.
 
 ### Acquiring registered assets
 
