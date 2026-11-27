@@ -720,13 +720,13 @@ func TestBundledHiddenThemeAppliesExplicitlyWithoutEnteringDiscovery(t *testing.
 		t.Fatal(err)
 	}
 	for _, id := range ids {
-		if id == "cyberdream" {
+		if id == "rose-pine" {
 			t.Fatal("hidden bundled theme appeared in discovery")
 		}
 	}
-	code, result, diagnostics := invoke(t, "apply", "cyberdream", "--tools", "lazygit", "--dry-run", "--home", home)
-	if code != 0 || result.Theme != "cyberdream" || len(result.Tools) != 1 || result.Tools[0].Status != "official" ||
-		result.Tools[0].Port == nil || result.Tools[0].Port.Name != "cyberdream" ||
+	code, result, diagnostics := invoke(t, "apply", "rose-pine", "--tools", "lazygit", "--dry-run", "--home", home)
+	if code != 0 || result.Theme != "rose-pine" || len(result.Tools) != 1 || result.Tools[0].Status != "official" ||
+		result.Tools[0].Port == nil || result.Tools[0].Port.Name != "rose-pine" ||
 		result.Tools[0].FallbackTheme != "" {
 		t.Fatalf("bundled hidden theme cannot be selected directly: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
 	}

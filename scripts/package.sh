@@ -22,9 +22,11 @@ for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
     -ldflags "-s -w -X github.com/clang-engineer/themeset/internal/app.Version=$version" \
     -o "$stage/$name" ./cmd/themeset
   cp LICENSE README.md "$stage/"
+  mkdir "$stage/docs"
+  cp docs/demo.gif docs/demo.tape "$stage/docs/"
   if [ -f THIRD_PARTY_NOTICES.md ]; then cp THIRD_PARTY_NOTICES.md "$stage/"; fi
   mkdir "$stage/licenses"
-  cp licenses/* internal/adapter/assets/*.LICENSE "$stage/licenses/"
+  cp licenses/* "$stage/licenses/"
   archive="$name-${version#v}-$os-$arch.tar.gz"
   COPYFILE_DISABLE=1 tar -czf "dist/$archive" -C "$stage" .
   rm -rf "$stage"

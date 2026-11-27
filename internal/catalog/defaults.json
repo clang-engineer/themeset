@@ -1,37 +1,79 @@
 {
   "listed": [
     {"id": "catppuccin-mocha", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
+    {"id": "badwolf", "support_site": "https://github.com/sjl/badwolf", "radar_repo": "sjl/badwolf"},
     {"id": "catppuccin-latte", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
     {"id": "catppuccin-frappe", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
     {"id": "catppuccin-macchiato", "support_site": "https://catppuccin.com/ports", "radar_repo": "catppuccin/catppuccin"},
+    {"id": "cyberdream", "support_site": "https://github.com/scottmckendry/cyberdream.nvim", "radar_repo": "scottmckendry/cyberdream.nvim"},
     {"id": "dracula", "support_site": "https://draculatheme.com/", "radar_repo": "dracula/dracula-theme"},
     {"id": "everforest", "support_site": "https://github.com/sainnhe/everforest", "radar_repo": "sainnhe/everforest"},
     {"id": "flexoki-light", "support_site": "https://github.com/kepano/flexoki", "radar_repo": "kepano/flexoki"},
     {"id": "github-dark", "radar_repo": "projekt0n/github-nvim-theme"},
     {"id": "gruvbox", "support_site": "https://github.com/morhetz/gruvbox-contrib", "radar_repo": "morhetz/gruvbox"},
+    {"id": "hybrid", "support_site": "https://github.com/w0ng/vim-hybrid", "radar_repo": "w0ng/vim-hybrid"},
     {"id": "iceberg", "support_site": "https://github.com/cocopon/iceberg.vim", "radar_repo": "cocopon/iceberg.vim"},
     {"id": "jellybeans", "support_site": "https://github.com/nanotech/jellybeans.vim", "radar_repo": "nanotech/jellybeans.vim"},
     {"id": "kanagawa", "support_site": "https://github.com/rebelot/kanagawa.nvim", "radar_repo": "rebelot/kanagawa.nvim"},
     {"id": "kanagawa-lotus", "support_site": "https://github.com/rebelot/kanagawa.nvim", "radar_repo": "rebelot/kanagawa.nvim"},
     {"id": "molokai", "support_site": "https://github.com/tomasr/molokai", "radar_repo": "tomasr/molokai"},
+    {"id": "material", "support_site": "https://github.com/marko-cerovac/material.nvim", "radar_repo": "marko-cerovac/material.nvim"},
     {"id": "night-owl", "support_site": "https://github.com/sdras/night-owl-vscode-theme", "radar_repo": "sdras/night-owl-vscode-theme"},
+    {"id": "monokai", "support_site": "https://github.com/ku1ik/vim-monokai", "radar_repo": "ku1ik/vim-monokai"},
     {"id": "nightfox", "support_site": "https://github.com/EdenEast/nightfox.nvim", "radar_repo": "EdenEast/nightfox.nvim"},
+    {"id": "nordic", "support_site": "https://github.com/AlexvZyl/nordic.nvim", "radar_repo": "AlexvZyl/nordic.nvim"},
     {"id": "nord", "support_site": "https://www.nordtheme.com/ports", "radar_repo": "nordtheme/nord"},
     {"id": "onedark", "support_site": "https://github.com/joshdick/onedark.vim", "radar_repo": "joshdick/onedark.vim"},
     {"id": "onehalf-dark", "support_site": "https://github.com/sonph/onehalf", "radar_repo": "sonph/onehalf"},
     {"id": "onehalf-light", "support_site": "https://github.com/sonph/onehalf", "radar_repo": "sonph/onehalf"},
+    {"id": "oxocarbon", "support_site": "https://github.com/nyoom-engineering/oxocarbon.nvim", "radar_repo": "nyoom-engineering/oxocarbon.nvim"},
     {"id": "papercolor", "support_site": "https://github.com/NLKNguyen/papercolor-theme", "radar_repo": "NLKNguyen/papercolor-theme"},
     {"id": "seoul256", "support_site": "https://github.com/junegunn/seoul256.vim", "radar_repo": "junegunn/seoul256.vim"},
+    {"id": "smyck", "support_site": "https://github.com/hukl/Smyck-Color-Scheme", "radar_repo": "hukl/Smyck-Color-Scheme"},
     {"id": "solarized-light", "support_site": "https://ethanschoonover.com/solarized/", "radar_repo": "altercation/solarized"},
+    {"id": "tender", "support_site": "https://github.com/jacoborus/tender.vim", "radar_repo": "jacoborus/tender.vim"},
     {"id": "tokyo-night", "radar_repo": "folke/tokyonight.nvim"},
     {"id": "tokyo-night-day", "support_site": "https://github.com/folke/tokyonight.nvim", "radar_repo": "folke/tokyonight.nvim"},
     {"id": "tomorrow", "support_site": "https://github.com/chriskempson/tomorrow-theme", "radar_repo": "chriskempson/tomorrow-theme"},
-    {"id": "tomorrow-night", "support_site": "https://github.com/chriskempson/tomorrow-theme", "radar_repo": "chriskempson/tomorrow-theme"}
+    {"id": "tomorrow-night", "support_site": "https://github.com/chriskempson/tomorrow-theme", "radar_repo": "chriskempson/tomorrow-theme"},
+    {"id": "vague", "support_site": "https://github.com/vague-theme/vague.nvim", "radar_repo": "vague-theme/vague.nvim"},
+    {"id": "zenbones", "support_site": "https://github.com/zenbones-theme/zenbones.nvim", "radar_repo": "zenbones-theme/zenbones.nvim"}
   ],
   "light": ["ayu-light", "catppuccin-latte", "flexoki-light", "kanagawa-lotus", "onehalf-light", "rose-pine-dawn", "solarized-light", "tokyo-night-day", "tomorrow"],
   "themes": {
     "ayu-light": {
       "ghostty": {"native": ["Ayu Light"]}
+    },
+    "badwolf": {
+      "neovim": {"native": ["badwolf"]}
+    },
+    "hybrid": {
+      "ghostty": {"native": ["Hybrid"]},
+      "neovim": {"native": ["hybrid"]}
+    },
+    "material": {
+      "neovim": {"native": ["material"]}
+    },
+    "nordic": {
+      "neovim": {"native": ["nordic"]}
+    },
+    "oxocarbon": {
+      "ghostty": {"native": ["Oxocarbon"]},
+      "neovim": {"native": ["oxocarbon"]}
+    },
+    "smyck": {
+      "ghostty": {"native": ["Smyck"]}
+    },
+    "tender": {
+      "neovim": {"native": ["tender"]}
+    },
+    "vague": {
+      "ghostty": {"native": ["Vague"]},
+      "neovim": {"native": ["vague"]}
+    },
+    "zenbones": {
+      "ghostty": {"native": ["Zenbones"]},
+      "neovim": {"native": ["zenbones"]}
     },
     "iceberg": {
       "ghostty": {"native": ["Iceberg Dark"]},
@@ -315,7 +357,8 @@
     },
     "monokai": {
       "btop": {"native": ["monokai"], "official": {"source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/monokai.theme"}},
-      "harlequin": {"native": ["monokai"]}
+      "harlequin": {"native": ["monokai"]},
+      "neovim": {"native": ["monokai"]}
     },
     "onedark": {
       "btop": {"native": ["onedark"], "official": {"source": "https://raw.githubusercontent.com/aristocratos/btop/main/themes/onedark.theme"}},

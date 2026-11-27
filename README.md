@@ -4,42 +4,49 @@ Apply existing application themes together. Use explicitly registered per-tool
 overrides first, otherwise select installed native themes or fetch current
 official ports, and skip unsupported tools without changing their settings.
 
-**No palette generation, approximate substitutions, plugin installation, or
-shell commands from configuration.**
+**No palette generation, approximate substitutions, or shell commands from
+configuration.** Neovim plugins are not installed; registered tmux plugins may
+be cloned when a theme is applied.
+
+![Interactive theme selection, native preview, and dry-run plan](docs/demo.gif)
+
+The [recording script](docs/demo.tape) runs `apply --dry-run` against a scratch
+home. Nothing is applied in the demo.
 
 ## Install
 
-Build locally with Go 1.23 or newer:
+Homebrew (macOS/Linux, arm64/amd64):
+
+```sh
+brew install clang-engineer/tap/themeset
+themeset --version
+```
+
+The formula installs `fzf` for the interactive picker. To upgrade an existing
+installation, run `brew upgrade clang-engineer/tap/themeset`.
+
+Build locally with Go 1.23 or newer instead:
 
 ```sh
 go build -o themeset ./cmd/themeset
 install -m 755 themeset "$HOME/.local/bin/themeset"
 ```
 
-Install the published release through Homebrew:
-
-```sh
-brew install clang-engineer/tap/themeset
-```
-
-The executable does not require Go on the user's machine. Installing it does not
-apply a theme. Supported release targets are macOS/Linux on arm64/amd64; macOS
-runtime behavior has been exercised locally, while Linux runtime validation
-belongs to CI and application-specific testing.
+Installing does not apply a theme. Homebrew binaries do not require Go on the
+user's machine. macOS behavior has been exercised locally; Linux release builds
+and tests run in CI, while application-specific Linux behavior may vary.
 
 ## Use
 
 ```sh
-themeset list
-themeset list --all
-themeset list --all --details
-themeset list --sort rank
-themeset list tools
-themeset apply
-themeset apply dracula --dry-run
-themeset apply dracula
-themeset current
-```
+themeset list                    # curated themes and GitHub project Stars
+themeset list --sort name        # alphabetical instead of default Stars order
+themeset list --all --details    # hidden themes, appearance, declared ports
+themeset list tools              # installed tool status
+themeset apply                   # select a theme and review the plan
+themeset apply dracula --dry-run # inspect without applying
+themeset apply dracula           # review, then confirm changes
+themeset current                 # last recorded result
 
 - `apply --dry-run` inspects without writing app configuration or result state.
 - `--tools ghostty,bat,fzf` restricts the selected tools.
@@ -99,9 +106,10 @@ tools are catalog/config metadata, not proof that an app or theme is installed.
 Stars come from the [Radar Developer Color Themes ranking](https://clang-engineer.github.io/data/rankings.json)
 (GitHub Stars, all-time). They are counts for the associated GitHub project,
 not separate counts for each theme variant. The bundled offline snapshot
-contains the full category, not only the top 30; older registered themes
-such as Rosé Pine, Moonfly, and Ayu remain usable by explicit ID and appear
-under `list --all`, but are hidden from the default shortlist. When a valid
+contains the full category, not just the curated shortlist. Rosé Pine and
+Moonfly remain hidden from default discovery by choice even though they are
+within the top 50; Ayu Light and VS Code Dark also remain available by exact
+ID under `list --all`. A user `listed` override can opt them back in. When a valid
 cache is younger than 24 hours, `list` does not fetch again; otherwise it
 checks for updated data (three-second timeout). The last valid category is
 cached under `~/.cache/themeset/radar-ranks.json`. Interactive `apply` only
@@ -188,16 +196,19 @@ used: on Ghostty 1.4.0 it can desynchronize attached tmux clients.
 The bundled registry in `internal/catalog/defaults.json` includes Dracula,
 Catppuccin, Gruvbox, Tokyo Night, Nord, Kanagawa, Everforest, Rose Pine,
 Solarized Light, Nightfox, and One Dark, alongside other supported IDs.
-The curated default shortlist consists of supported themes associated with
-Radar's top 30 projects; outside it, Rose Pine, Moonfly, Ayu Light, and
-VS Code Dark remain registered for explicit use and `list --all`. Among the
-top 30, Tomorrow (day/night), Molokai, Night Owl, PaperColor, Iceberg, OneHalf
-(dark/light), Jellybeans, and Seoul256 have registered installed-native
-candidates. Ghostty supplies the matching Tomorrow, Molokai, Night Owl,
-Iceberg, and Jellybeans themes; bat supplies OneHalf Dark/Light. Neovim
-candidates require an independently installed colorscheme; themeset does
-not install executable editor plugins. Unsupported tools still follow the
-configured fallback. Additional ranked repositories such as Catppuccin
+The curated default shortlist includes themes with verified native/official
+candidates from Radar's top 50 projects, not every ranked repository. Rosé
+Pine and Moonfly stay hidden per the existing default-list preference; Ayu
+Light and VS Code Dark also remain registered for explicit use and
+`list --all`. Among projects 31–50, Oxocarbon, Hybrid, Monokai, Cyberdream,
+Badwolf, Tender, Vague, Zenbones, Smyck, Material, and Nordic have registered
+native candidates. Ghostty supplies Oxocarbon, Hybrid, Vague, Zenbones, and
+Smyck; Neovim candidates require an independently installed colorscheme.
+themeset does not install executable editor plugins. Unsupported tools still
+follow the configured fallback. Among the top 30, Tomorrow (day/night),
+Molokai, Night Owl, PaperColor, Iceberg, OneHalf (dark/light), Jellybeans,
+and Seoul256 have registered native candidates.
+Additional ranked repositories such as Catppuccin
 Neovim/tmux, Gruvbox Neovim, Nord Vim, and Vim One are ports of already listed
 families, not new selectable themes. Islands Dark targets VS Code-compatible
 editors, Spacegray targets Sublime Text UI, and Material Design targets
@@ -231,11 +242,11 @@ sorts suggestions independently. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
 `default_theme`; find their exact names with `list --all`. `listed` changes
 default discovery only, not bundled ports or sources.
-For example, `cyberdream` is hidden from the default picker but has installed
-native candidates for bat and Neovim and verified upstream ports for btop,
-Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a
-separately installed Bat syntax theme and is not registered as an automatic
-port; unregistered tools retain the documented fallback behavior.
+For example, `cyberdream` is listed with installed-native candidates for bat
+and Neovim and verified upstream ports for btop, Ghostty, lazydocker, lazygit,
+and Yazi. Its Delta upstream feature requires a separately installed Bat
+syntax theme and is not registered as an automatic port; unregistered tools
+retain the documented fallback behavior.
 
 tmux supports upstream plugins for
 [Catppuccin](https://github.com/catppuccin/tmux) (all four flavors),

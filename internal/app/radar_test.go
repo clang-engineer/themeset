@@ -131,10 +131,11 @@ func TestRadarSortingPreservesGapsAndCustomOrder(t *testing.T) {
 		t.Fatalf("name sorting failed: %q", got)
 	}
 	if ranks.rank("seoul256", config) != 30 || ranks.rank("onedark", config) != 14 ||
+		ranks.rank("oxocarbon", config) != 31 || ranks.rank("cyberdream", config) != 37 ||
+		ranks.rank("nordic", config) != 50 ||
 		ranks.rank("rose-pine", config) != 0 || ranks.rank("rose-pine-dawn", config) != 0 ||
 		ranks.rank("moonfly", config) != 0 || ranks.rank("ayu-light", config) != 0 ||
-		ranks.rank("cyberdream", config) != 0 || ranks.rank("gruvbox-dark", config) != 0 ||
-		ranks.rank("vscode-dark", config) != 0 {
+		ranks.rank("gruvbox-dark", config) != 0 || ranks.rank("vscode-dark", config) != 0 {
 		t.Fatal("curated rank, hidden theme or unrelated VS Code port received an incorrect rank")
 	}
 	config.Themes["dracula"] = model.Theme{RadarRepo: "rose-pine/rose-pine-theme"}
