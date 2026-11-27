@@ -50,11 +50,13 @@ themeset current
   check that any configured destinations also point into it.
 - Flags are accepted before or after positional arguments.
 
-`apply` without a theme opens a single-selection fzf picker: themes on the left,
-a sourced visual preview and per-tool support on the right. The picker ignores
-`FZF_DEFAULT_OPTS` and `FZF_DEFAULT_OPTS_FILE`; Tab/Shift+Tab do not mark multiple
-themes. Enter reviews the current theme's plan; a separate `[y/N]` confirmation
-is required before any configuration/state write.
+`apply` without a theme first opens a group picker: All, Dark, Light, or Other
+(configured themes). Enter opens the corresponding theme picker, with themes
+on the left and a sourced visual preview and per-tool support on the right.
+The picker ignores `FZF_DEFAULT_OPTS` and `FZF_DEFAULT_OPTS_FILE`;
+Tab/Shift+Tab do not mark multiple themes. Enter reviews the selected theme's
+plan; a separate `[y/N]` confirmation is required before any configuration/state
+write.
 Escape or a declined confirmation changes nothing. `apply --dry-run` uses the
 picker and shows the plan without confirmation or writes. Interactive selection
 needs a terminal and fzf (Homebrew installs it); `--json` requires an explicit
@@ -77,8 +79,11 @@ explicitly identified light themes show `light`: `ayu-light`,
 `catppuccin-latte`, `flexoki-light`, `kanagawa-lotus`, `rose-pine-dawn`,
 `solarized-light`, and `tokyo-night-day`. `-` means unspecified,
 not necessarily dark; custom theme appearance is not guessed. The interactive
-picker marks light entries with `[light]` in its selection list and
-`Appearance: light` in the preview; the selected value remains the exact ID.
+picker groups curated dark themes, light themes, then other configured themes
+in the All view, preserving order within each group. Only the All view shows
+`[dark]`, `[light]`, or `[other]` beside each theme; the individual group views
+show just theme IDs. Light previews also show `Appearance: light`.
+Selection returns the exact ID.
 `--json` keeps the existing string array without `--details`; with it, each
 entry has `id`, `listed`, `tools`, and optional `appearance` and `support_site`
 fields. Declared tools are catalog/config metadata, not proof that the app or
@@ -172,7 +177,8 @@ completion, and the interactive picker; the shortlist is not a promise that
 every tool supports each theme.
 Without a `listed` override, IDs registered under `themes` in the user config
 are added to this shortlist. A user `listed` array replaces the displayed
-shortlist exactly; `list` and the picker preserve its order, while completion
+shortlist exactly; `list` preserves its order, while the picker groups curated
+dark, light, and other entries and preserves order within each group. Completion
 sorts suggestions. `[]` hides every discovery entry.
 Hidden IDs remain usable with `apply THEME` and may still serve as
 `default_theme`; find their exact names with `list --all`. `listed` changes

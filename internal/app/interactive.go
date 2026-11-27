@@ -63,31 +63,21 @@ func pickerTerminal() (*os.File, error) {
 	return terminal, nil
 }
 
-// selectTheme only selects a known identifier. Planning, confirmation, and
-// application belong to its caller, not to the shared fzf invocation.
-func selectTheme(opts options, config model.Config, terminal *os.File, query, action string) (string, bool, error) {
-	fzf, err := exec.LookPath("fzf")
-	if err != nil {
-		return "", false, errors.New("theme picker requires fzf; install fzf or use apply THEME")
+func pickerCategory(theme string, bundled map[string]bool) string {
+	if catalog.IsLight(theme) {
+		return "light"
 	}
-	executable, err := os.Executable()
-	if err != nil {
-		return "", false, err
+	if bundled[theme] {
+		return "dark"
 	}
-	names := themeIDs(config)
-	var input bytes.Buffer
-	for _, name := range names {
-		input.WriteString(name)
-		if catalog.IsLight(name) {
-			input.WriteString("\t[light]")
-		}
-		input.WriteByte(0)
-	}
-	command := exec.Command(fzf, "--no-multi", "--read0", "--print0", "--delimiter=\t", "--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query, "--header=[light] light | Enter: "+action+" | Esc: cancel", "--preview="+previewCommand(executable, opts), "--preview-window=right,60%,wrap")
-	command.Stdin = &input
+	return "other"
+}
+
+// runPicker isolates user fzf defaults for both selection stages.
+func runPicker(fzf string, terminal *os.File, input []byte, args ...string) (string, bool, error) {
+	command := exec.Command(fzf, args...)
+	command.Stdin = bytes.NewReader(input)
 	command.Stderr = terminal
-	// User picker defaults may bind Enter to other actions. Keep this picker isolated;
-	// POSIX sh is also the contract used by previewCommand's argument quoting.
 	for _, value := range os.Environ() {
 		key, _, _ := strings.Cut(value, "=")
 		if key != "FZF_DEFAULT_OPTS" && key != "FZF_DEFAULT_OPTS_FILE" && key != "SHELL" {
@@ -106,24 +96,78 @@ func selectTheme(opts options, config model.Config, terminal *os.File, query, ac
 	if len(output) == 0 || output[len(output)-1] != 0 {
 		return "", false, errors.New("theme picker returned an invalid selection")
 	}
-	row := string(output[:len(output)-1])
+	return string(output[:len(output)-1]), true, nil
+}
+
+// selectTheme only selects a known identifier. Planning, confirmation, and
+// application belong to its caller, not to the shared fzf invocation.
+func selectTheme(opts options, config model.Config, terminal *os.File, query, action string) (string, bool, error) {
+	fzf, err := exec.LookPath("fzf")
+	if err != nil {
+		return "", false, errors.New("theme picker requires fzf; install fzf or use apply THEME")
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return "", false, err
+	}
+	category, selected, err := runPicker(fzf, terminal, []byte("all\x00dark\x00light\x00other\x00"),
+		"--no-multi", "--no-sort", "--read0", "--print0", "--layout=reverse", "--border",
+		"--height=10", "--prompt=Group> ", "--header=Choose a group | Enter: continue | Esc: cancel")
+	if err != nil || !selected {
+		return "", false, err
+	}
+	switch category {
+	case "all", "dark", "light", "other":
+	default:
+		return "", false, errors.New("theme picker returned an unknown group")
+	}
+	names := themeIDs(config)
+	bundled := make(map[string]bool)
+	for _, name := range catalog.Listed() {
+		bundled[name] = true
+	}
+	var input bytes.Buffer
+	for _, group := range []string{"dark", "light", "other"} {
+		if category != "all" && category != group {
+			continue
+		}
+		for _, name := range names {
+			if pickerCategory(name, bundled) != group {
+				continue
+			}
+			input.WriteString(name)
+			if category == "all" {
+				fmt.Fprintf(&input, "\t[%s]", group)
+			}
+			input.WriteByte(0)
+		}
+	}
+	row, selected, err := runPicker(fzf, terminal, input.Bytes(),
+		"--no-multi", "--no-sort", "--read0", "--print0", "--delimiter=\t",
+		"--layout=reverse", "--border", "--height=85%", "--prompt=Theme> ", "--query="+query,
+		"--header=Group: "+category+" | Enter: "+action+" | Esc: cancel",
+		"--preview="+previewCommand(executable, opts), "--preview-window=right,60%,wrap")
+	if err != nil || !selected {
+		return "", false, err
+	}
 	theme, _, _ := strings.Cut(row, "\t")
-	known := false
 	for _, name := range names {
 		if theme != name {
 			continue
 		}
-		if catalog.IsLight(name) {
-			known = row == name+"\t[light]"
-		} else {
-			known = row == name
+		if category != "all" && pickerCategory(name, bundled) != category {
+			break
+		}
+		expected := name
+		if category == "all" {
+			expected += "\t[" + pickerCategory(name, bundled) + "]"
+		}
+		if row == expected {
+			return theme, true, nil
 		}
 		break
 	}
-	if !known {
-		return "", false, errors.New("theme picker returned an unknown theme")
-	}
-	return theme, true, nil
+	return "", false, errors.New("theme picker returned an unknown theme")
 }
 
 func printPickedTheme(opts options, config model.Config, query string, stdout, stderr io.Writer) int {

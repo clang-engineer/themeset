@@ -138,16 +138,23 @@ func TestPickSelectionOnlyWithRedirectedStdin(t *testing.T) {
 	fixtureFile(t, filepath.Join(home, ".config", "themeset", "state.json"), "existing state\n")
 	before := pickerSnapshot(t, home)
 	args := []string{"__pick", "--config", config, "apply", "--home", home, "--tools", "tmux", "--json", "--dry-run", "dr"}
-	result, _ := pickerProcess(t, args, map[string]string{"THEMESET_PICKER_THEME": "custom theme"}, true)
+	result, directory := pickerProcess(t, args, map[string]string{"THEMESET_PICKER_GROUP": "other", "THEMESET_PICKER_THEME": "custom theme"}, true)
 	if result.Code != 0 || result.Stdout != "custom theme\n" || result.Stderr != "" {
 		t.Fatalf("selection result=%+v", result)
+	}
+	rows, err := os.ReadFile(filepath.Join(directory, "rows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(rows, []byte("custom theme\x00")) {
+		t.Fatalf("other group contains unexpected themes: %q", rows)
 	}
 	if after := pickerSnapshot(t, home); !reflect.DeepEqual(before, after) {
 		t.Fatalf("selection changed home: before=%v after=%v", before, after)
 	}
 }
 
-func TestPickerShowsLightLabelsButReturnsExactThemeID(t *testing.T) {
+func TestPickerGroupsAppearanceAndReturnsExactThemeID(t *testing.T) {
 	result, directory := pickerProcess(t, []string{"__pick", "apply", ""}, map[string]string{
 		"THEMESET_PICKER_THEME": "catppuccin-latte\t[light]",
 	}, true)
@@ -160,9 +167,35 @@ func TestPickerShowsLightLabelsButReturnsExactThemeID(t *testing.T) {
 	}
 	if !bytes.Contains(rows, []byte("catppuccin-latte\t[light]\x00")) ||
 		!bytes.Contains(rows, []byte("rose-pine-dawn\t[light]\x00")) ||
-		!bytes.Contains(rows, []byte("catppuccin-mocha\x00")) ||
-		bytes.Contains(rows, []byte("catppuccin-mocha\t[light]")) {
+		!bytes.Contains(rows, []byte("catppuccin-mocha\t[dark]\x00")) ||
+		bytes.Index(rows, []byte("catppuccin-mocha\t[dark]\x00")) > bytes.Index(rows, []byte("catppuccin-latte\t[light]\x00")) {
 		t.Fatalf("incorrect picker labels: %q", rows)
+	}
+}
+
+func TestPickerCategorySelection(t *testing.T) {
+	for _, test := range []struct {
+		group, theme, want, absent string
+	}{
+		{"dark", "dracula", "dracula\x00", "ayu-light\x00"},
+		{"light", "ayu-light", "ayu-light\x00", "dracula\x00"},
+	} {
+		t.Run(test.group, func(t *testing.T) {
+			result, directory := pickerProcess(t, []string{"__pick", "apply", ""}, map[string]string{
+				"THEMESET_PICKER_GROUP": test.group, "THEMESET_PICKER_THEME": test.theme,
+			}, true)
+			if result.Code != 0 || result.Stdout != test.theme+"\n" || result.Stderr != "" {
+				t.Fatalf("picker result=%+v", result)
+			}
+			rows, err := os.ReadFile(filepath.Join(directory, "rows"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(rows, []byte(test.want)) || bytes.Contains(rows, []byte(test.absent)) ||
+				bytes.Contains(rows, []byte("[light]")) || bytes.Contains(rows, []byte("[dark]")) {
+				t.Fatalf("incorrect category rows: %q", rows)
+			}
+		})
 	}
 }
 
@@ -266,7 +299,15 @@ func pickerProcess(t *testing.T, words []string, values map[string]string, redir
 	}
 	if values["THEMESET_PICKER_MISSING_FZF"] != "1" {
 		fixtureFile(t, filepath.Join(bin, "fzf"), `#!/bin/sh
-	/bin/cat > "$THEMESET_PICKER_CAPTURE/rows"
+for arg do
+    if [ "$arg" = "--prompt=Group> " ]; then
+        /bin/cat > "$THEMESET_PICKER_CAPTURE/groups"
+        if [ -n "$THEMESET_PICKER_EXIT" ]; then exit "$THEMESET_PICKER_EXIT"; fi
+        printf '%s\000' "$THEMESET_PICKER_GROUP"
+        exit
+    fi
+done
+/bin/cat > "$THEMESET_PICKER_CAPTURE/rows"
 if [ -n "$THEMESET_PICKER_EXIT" ]; then exit "$THEMESET_PICKER_EXIT"; fi
 case "$THEMESET_PICKER_MODE" in
     invalid) printf '%s' "$THEMESET_PICKER_THEME" ;;
@@ -307,8 +348,8 @@ esac
 	environment := map[string]string{
 		"PATH": bin, "THEMESET_PICKER_HELPER": "1", "THEMESET_PICKER_WORDS": string(encoded),
 		"THEMESET_PICKER_RESULT": filepath.Join(directory, "result.json"), "THEMESET_PICKER_CAPTURE": directory,
-		"THEMESET_PICKER_THEME": "dracula", "THEMESET_PICKER_EXIT": "", "THEMESET_PICKER_MODE": "",
-		"THEMESET_PICKER_FAIL_OUTPUT": "", "THEMESET_PICKER_REDIRECT_STDIN": "0",
+		"THEMESET_PICKER_THEME": "dracula\t[dark]", "THEMESET_PICKER_EXIT": "", "THEMESET_PICKER_MODE": "",
+		"THEMESET_PICKER_GROUP": "all", "THEMESET_PICKER_FAIL_OUTPUT": "", "THEMESET_PICKER_REDIRECT_STDIN": "0",
 		"FZF_DEFAULT_OPTS": "--bind=enter:abort", "FZF_DEFAULT_OPTS_FILE": "/nonexistent/options", "SHELL": "/bin/sh",
 	}
 	if redirectStdin {
