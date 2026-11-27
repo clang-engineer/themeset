@@ -2,17 +2,18 @@
 package app
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/clang-engineer/themeset/internal/adapter"
+	"github.com/clang-engineer/themeset/internal/adapter/shared"
 	"github.com/clang-engineer/themeset/internal/model"
 )
 
@@ -24,6 +25,7 @@ const usage = `Usage: themeset [flags] COMMAND [flags] [THEME]
 Commands:
   apply [THEME] Apply a theme, or preview and select interactively when omitted
   current       Show the last apply result (including skips and failures)
+  rollback      Restore files from the last pre-Themeset backups
   list          List themes with associated project Stars, creation and last-push dates
   list tools    List registered tool IDs and whether each app is installed
   completion SHELL  Print Bash, Zsh, or Fish completion definitions
@@ -232,6 +234,11 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			fmt.Fprintln(stderr, "error: current expects no arguments")
 			return 2
 		}
+	case "rollback":
+		if len(opts.positionals) != 1 {
+			fmt.Fprintln(stderr, "error: rollback expects no arguments")
+			return 2
+		}
 	case "__preview":
 		if len(opts.positionals) != 2 {
 			fmt.Fprintln(stderr, "error: __preview expects one theme argument")
@@ -267,6 +274,42 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 1
 	}
 	env.Paths = config.Paths
+	if command == "rollback" {
+		count, err := shared.Rollback(env.Home)
+		searched := map[string]bool{filepath.Clean(env.Home): true}
+		if env.ConfigHome != env.Home && !strings.HasPrefix(env.ConfigHome, env.Home+string(os.PathSeparator)) {
+			searched[filepath.Clean(env.ConfigHome)] = true
+			more, rollbackErr := shared.Rollback(env.ConfigHome)
+			count += more
+			err = errors.Join(err, rollbackErr)
+		}
+		for _, configuredPath := range env.Paths {
+			directory := filepath.Dir(shared.Expand(configuredPath, env))
+			clean := filepath.Clean(directory)
+			if searched[clean] || strings.HasPrefix(clean, env.Home+string(os.PathSeparator)) || strings.HasPrefix(clean, env.ConfigHome+string(os.PathSeparator)) {
+				continue
+			}
+			searched[clean] = true
+			more, rollbackErr := shared.Rollback(clean)
+			count += more
+			err = errors.Join(err, rollbackErr)
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, "error: rollback:", err)
+			return 1
+		}
+		if opts.json {
+			return emitJSON(stdout, stderr, struct {
+				Restored int `json:"restored"`
+			}{count})
+		}
+		if count == 0 {
+			fmt.Fprintln(stdout, "No Themeset backups found.")
+		} else {
+			fmt.Fprintf(stdout, "Restored %d file(s) from Themeset backups.\n", count)
+		}
+		return 0
+	}
 	sortMode := discoverySort(config, opts.sort)
 	var ranks radarRanks
 	if command == "__preview" || picking || command == "apply" && len(opts.positionals) == 1 ||
@@ -341,11 +384,12 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			Binary    string `json:"binary"`
 			Installed bool   `json:"installed"`
 		}
-		tools := make([]tool, 0, len(adapters))
-		for _, entry := range adapters {
+		registered := append([]model.Adapter(nil), adapters...)
+		sort.Slice(registered, func(i, j int) bool { return registered[i].ID < registered[j].ID })
+		tools := make([]tool, 0, len(registered))
+		for _, entry := range registered {
 			tools = append(tools, tool{entry.ID, entry.Binary, entry.Installed()})
 		}
-		sort.Slice(tools, func(i, j int) bool { return tools[i].ID < tools[j].ID })
 		if opts.json {
 			return emitJSON(stdout, stderr, tools)
 		}
@@ -424,65 +468,4 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		return 1
 	}
 	return code
-}
-
-func emitJSON(stdout, stderr io.Writer, value any) int {
-	encoder := json.NewEncoder(stdout)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(value); err != nil {
-		fmt.Fprintln(stderr, "error: write output:", err)
-		return 1
-	}
-	return 0
-}
-
-func printResult(stdout, stderr io.Writer, result Result) int {
-	if err := printSelectionPlan(stdout, result); err != nil {
-		fmt.Fprintln(stderr, "error: write output:", err)
-		return 1
-	}
-	// Fallbacks and ordinary skips are already visible in the grouped result.
-	// Keep unusual warnings and failures on stderr without repeating each row.
-	for _, item := range result.Tools {
-		for _, warning := range item.Warnings {
-			normalSkip := item.Status == "unsupported" && item.Outcome == "skipped" &&
-				(warning == "no verified native or official theme available" || warning == "no registered custom port; settings unchanged")
-			normalFallback := item.FallbackTheme != "" &&
-				warning == fmt.Sprintf("theme %s unavailable for %s; using default theme %s", result.Theme, item.Tool, item.FallbackTheme)
-			if normalSkip || normalFallback {
-				continue
-			}
-			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
-		}
-		if item.Error != "" {
-			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
-		}
-	}
-	return 0
-}
-
-// Human diagnostics are derived without changing stored or JSON warning metadata.
-func printDiagnostics(stderr io.Writer, result Result) {
-	unsupported := 0
-	for _, item := range result.Tools {
-		normalSkip := item.Status == "unsupported" && item.Outcome == "skipped" && item.Error == ""
-		if normalSkip {
-			unsupported++
-		}
-		for _, warning := range item.Warnings {
-			if normalSkip && warning == "no verified native or official theme available" {
-				continue
-			}
-			if normalSkip && warning == "no registered custom port; settings unchanged" {
-				continue
-			}
-			fmt.Fprintf(stderr, "warning: %s: %s\n", item.Tool, warning)
-		}
-		if item.Error != "" {
-			fmt.Fprintf(stderr, "error: %s: %s\n", item.Tool, item.Error)
-		}
-	}
-	if unsupported > 0 {
-		fmt.Fprintf(stderr, "warning: %d unsupported tools skipped (no native/official or registered custom port); settings unchanged\n", unsupported)
-	}
 }

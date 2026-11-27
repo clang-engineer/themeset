@@ -1,10 +1,13 @@
 package shared_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/clang-engineer/themeset/internal/adapter/atuin"
 	"github.com/clang-engineer/themeset/internal/adapter/btop"
@@ -23,6 +26,84 @@ func filesTestEnv(t *testing.T) model.Environment {
 	t.Helper()
 	home := t.TempDir()
 	return model.Environment{Home: home, ConfigHome: filepath.Join(home, ".config"), OS: "linux", Paths: make(map[string]string)}
+}
+
+func TestEditYAMLKeepsCommentsAndUntouchedScalarStyle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yml")
+	original := "# User settings\ngui:\n  theme:\n    activeBorderColor: ['old'] # Keep this note\n  keybinding:\n    universal: 'keep'\n"
+	filesTestWrite(t, path, original)
+	if err := shared.EditYAML(path, func(config *yaml.Node) error {
+		return shared.MergeYAMLMap(config, map[string]any{"gui": map[string]any{
+			"theme": map[string]any{"activeBorderColor": []string{"new"}},
+		}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	updated := string(filesTestRead(t, path))
+	for _, preserved := range []string{"# User settings", "# Keep this note", "universal: 'keep'"} {
+		if !strings.Contains(updated, preserved) {
+			t.Fatalf("updated YAML did not preserve %q:\n%s", preserved, updated)
+		}
+	}
+	if strings.Contains(updated, "activeBorderColor: ['old']") || !strings.Contains(updated, "activeBorderColor: [new]") {
+		t.Fatalf("updated theme value was not applied:\n%s", updated)
+	}
+}
+
+func TestEditTOMLPreservesCommentsAndFormatting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	original := "# user comment\n\n[ui]\n# keep this note\ntheme = 'old-theme' # inline note\nscale = 1.0\n\n[unrelated]\nvalue = \"unchanged\"\n"
+	if err := os.WriteFile(path, []byte(original), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := shared.EditTOML(path, func(config map[string]any) error {
+		ui, err := shared.Table(config, "ui")
+		if err != nil {
+			return err
+		}
+		ui["theme"] = "new-theme"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"# user comment", "# keep this note", "theme = 'new-theme' # inline note", "scale = 1.0", "[unrelated]", "value = \"unchanged\""} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("edited TOML lost %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestAtomicBackupAndRollbackRestorePreviousFiles(t *testing.T) {
+	root := t.TempDir()
+	changed := filepath.Join(root, "config", "existing.toml")
+	created := filepath.Join(root, "config", "new.toml")
+	if err := os.MkdirAll(filepath.Dir(changed), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(changed, []byte("before\n"), 0640); err != nil {
+		t.Fatal(err)
+	}
+	if err := shared.Atomic(changed, []byte("after\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := shared.Atomic(created, []byte("new\n")); err != nil {
+		t.Fatal(err)
+	}
+	count, err := shared.Rollback(root)
+	if err != nil || count != 2 {
+		t.Fatalf("Rollback() = %d, %v", count, err)
+	}
+	data, err := os.ReadFile(changed)
+	if err != nil || string(data) != "before\n" {
+		t.Fatalf("existing file = %q, %v", data, err)
+	}
+	if _, err := os.Stat(created); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("new file remains after rollback: %v", err)
+	}
 }
 
 func filesTestWrite(t *testing.T, path, data string) {

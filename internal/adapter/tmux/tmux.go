@@ -16,7 +16,21 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "tmux", Binary: "tmux", Resolve: nativeResolveTmux, Apply: nativeApplyTmux}
+	return model.Adapter{
+		ID: "tmux", Binary: "tmux", Resolve: nativeResolveTmux, Apply: nativeApplyTmux,
+		UnsupportedReason: func(string) string {
+			return "no registered tmux port for this theme; upstream themes may be configured as custom ports"
+		},
+		PlanWarnings: func(port model.Port, _ model.Environment) []string {
+			if port.Kind != "native" {
+				return nil
+			}
+			if _, err := os.Stat(port.File); os.IsNotExist(err) {
+				return []string{fmt.Sprintf("apply installs the upstream plugin from %s; its code runs on the next tmux config load", port.Source)}
+			}
+			return nil
+		},
+	}
 }
 
 // Registered upstream plugins own their full layout. Missing plugins are

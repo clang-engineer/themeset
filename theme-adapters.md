@@ -398,6 +398,18 @@ roots and existing package managers; do not hardcode a developer's home path.
   Catppuccin lazydocker is not a verified registered official port; do not reuse
   lazygit YAML or invent a repository for it.
 
+## Television
+
+- **Sources:** [Television configuration](https://alexpasmantier.github.io/television/docs/user-guide/02-configuration/)
+  and its built-in theme registry.
+- **Activate:** set `[ui].theme` in `$XDG_CONFIG_HOME/television/config.toml`
+  (default `~/.config/television/config.toml`). Themeset uses the names declared
+  in the bundled catalog, including `catppuccin`, `dracula`, `gruvbox-dark`,
+  `nord-dark`, and `tokyonight`.
+- **Preserve / effect:** TOML comments, existing quote style, and unrelated
+  settings are retained; Television reads the selected built-in theme on its
+  next launch. Installed custom theme files are not downloaded or modified.
+
 ## btop
 
 - **Sources:** [btop theme documentation](https://github.com/aristocratos/btop#themes)

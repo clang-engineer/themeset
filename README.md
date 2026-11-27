@@ -63,6 +63,7 @@ themeset apply                   # select a theme and review the plan
 themeset apply dracula --dry-run # inspect without applying
 themeset apply dracula           # review, then confirm changes
 themeset current                 # last recorded result
+themeset rollback                # restore pre-Themeset files
 ```
 
 | Option | Behavior |
@@ -312,6 +313,7 @@ preservation rules, and implementation gaps, see the
 | lazydocker | Registered Dracula settings | `gui.theme` YAML fragment |
 | btop | Installed user/system themes or registered Catppuccin flavors, Dracula, Gruvbox Dark, Nord, Rosé Pine, and Tokyo Night files | Native `.theme` file |
 | eza | Registered Dracula, Gruvbox Dark, Catppuccin flavors, Rosé Pine, and Tokyo Night YAML | Native `theme.yml` fragment |
+| Television | Built-in Catppuccin, Dracula, Gruvbox Dark, Nord Dark, and Tokyo Night | Native `ui.theme` in `config.toml` |
 
 - `native` means installed and selectable, not necessarily maintained by the
   theme author. Registered `official` assets may come from an app-maintained
@@ -320,6 +322,11 @@ preservation rules, and implementation gaps, see the
 - Version and config precedence matter: Catppuccin fzf needs 0.52.0+;
   GitHub Dark and Modus Vivendi need 0.63.0+. Hardcoded Starship module styles,
   `LS_COLORS`, and `EZA_COLORS` can override selected theme colors.
+
+`themeset rollback` restores the first pre-Themeset version of each changed
+file and removes files first created by Themeset. It searches the selected
+home, XDG config directory, and directories named by `paths`. Backups remain
+available until rollback succeeds.
 
 ### Acquiring registered assets
 
@@ -364,6 +371,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
   "listed": ["dracula", "catppuccin-mocha", "my-mocha"],
   "theme_sort": "rank",
   "default_theme": "catppuccin-mocha",
+  "fallbacks": {"television": "dracula"},
   "paths": {
     "lazygit": "~/Library/Application Support/lazygit/config.yml"
   },
@@ -396,6 +404,7 @@ Default: `$XDG_CONFIG_HOME/themeset/config.json`, otherwise
 | `listed` | Optional exact replacement for `list`, completion, and picker discovery. Omit for built-in shortlist plus IDs in `themes`; include custom IDs explicitly if supplied. `[]` hides all. It neither declares sources nor restricts `apply THEME`; `list tools` is unaffected. |
 | `theme_sort` | `rank`, `listed`, or `name` for discovery order; `--sort` takes precedence for one command (see [discovery order](#bundled-catalog-and-discovery-order)). |
 | `default_theme` | Per-tool fallback if the requested theme has no available native, official, or custom port. Defaults to `catppuccin-mocha`; may name a bundled or user-defined ID. Tried once, never after inspection/apply errors; if unavailable, that tool is skipped unchanged. |
+| `fallbacks.<tool>` | Optional tool-specific fallback ID, taking precedence over `default_theme` for that tool. |
 | `paths.<tool>` | Explicit native destination override; an absolute destination can be outside `--home`. |
 | `themes.<id>.radar_repo` | Exact Radar `owner/repo` for rank metadata only: never downloads ports or grants support. Use the same family, not a similar-looking palette; overrides a bundled association. |
 | `themes.<id>.custom.<tool>` | Registered app-native port for that exact theme/tool, taking precedence over native and official ports. An invalid custom port is an error, not permission to substitute colors. `{}` registers an ID without custom ports. |

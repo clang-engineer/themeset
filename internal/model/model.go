@@ -38,6 +38,7 @@ type Config struct {
 	Paths        map[string]string `json:"paths,omitempty"`
 	Themes       map[string]Theme  `json:"themes,omitempty"`
 	DefaultTheme string            `json:"default_theme,omitempty"`
+	Fallbacks    map[string]string `json:"fallbacks,omitempty"`
 	Listed       []string          `json:"listed,omitempty"`
 	ThemeSort    string            `json:"theme_sort,omitempty"`
 }
@@ -53,11 +54,13 @@ type Environment struct {
 // Adapter resolves a bundled declaration against installed native providers,
 // then its optional verified upstream port. Errors describe inspection failures.
 type Adapter struct {
-	ID      string
-	Binary  string
-	Remote  bool // accepts explicit HTTPS theme files, not executable scripts
-	Resolve func(ThemePort, Environment) (Port, bool, error)
-	Apply   func(Port, Environment) error
+	ID                string
+	Binary            string
+	Remote            bool // accepts explicit HTTPS theme files, not executable scripts
+	Resolve           func(ThemePort, Environment) (Port, bool, error)
+	Apply             func(Port, Environment) error
+	UnsupportedReason func(theme string) string
+	PlanWarnings      func(Port, Environment) []string
 }
 
 func (a Adapter) Installed() bool {

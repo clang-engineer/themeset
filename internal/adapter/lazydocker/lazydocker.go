@@ -9,7 +9,12 @@ import (
 )
 
 func Adapter() model.Adapter {
-	return model.Adapter{ID: "lazydocker", Binary: "lazydocker", Remote: true, Resolve: resolve, Apply: apply}
+	return model.Adapter{
+		ID: "lazydocker", Binary: "lazydocker", Remote: true, Resolve: resolve, Apply: apply,
+		UnsupportedReason: func(string) string {
+			return "no compatible native theme or verified lazydocker port registered"
+		},
+	}
 }
 
 func resolve(spec model.ThemePort, _ model.Environment) (model.Port, bool, error) {

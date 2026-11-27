@@ -134,6 +134,23 @@ func Verified(tool string, port model.Port) bool {
 	return ok
 }
 
+// KnownNative reports whether a native theme name appears in bundled data.
+func KnownNative(tool, name string) bool {
+	for _, ports := range defaults.Themes {
+		for id, spec := range ports {
+			if id != tool {
+				continue
+			}
+			for _, native := range spec.Native {
+				if native == name {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // Port returns the bundled defaults for a theme and tool. Do not mutate the
 // returned declaration: it is shared for the lifetime of the process.
 func Port(theme, tool string) model.ThemePort {

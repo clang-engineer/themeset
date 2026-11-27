@@ -13,6 +13,7 @@ import (
 	"github.com/clang-engineer/themeset/internal/adapter/lazygit"
 	"github.com/clang-engineer/themeset/internal/adapter/neovim"
 	"github.com/clang-engineer/themeset/internal/adapter/starship"
+	"github.com/clang-engineer/themeset/internal/adapter/television"
 	"github.com/clang-engineer/themeset/internal/adapter/tmux"
 	"github.com/clang-engineer/themeset/internal/adapter/yazi"
 	"github.com/clang-engineer/themeset/internal/model"
@@ -23,6 +24,6 @@ func All() []model.Adapter {
 		ghostty.Adapter(), neovim.Adapter(), tmux.Adapter(), bat.Adapter(),
 		delta.Adapter(), harlequin.Adapter(), starship.Adapter(), fzf.Adapter(),
 		yazi.Adapter(), atuin.Adapter(), lazygit.Adapter(), lazydocker.Adapter(),
-		btop.Adapter(), eza.Adapter(),
+		btop.Adapter(), eza.Adapter(), television.Adapter(),
 	}
 }
