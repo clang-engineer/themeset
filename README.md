@@ -1,5 +1,16 @@
 # themeset
 
+**One command to coordinate themes across your terminal tools.**
+
+Switch between existing themes across Ghostty, Neovim, tmux, fzf, bat,
+Starship, lazygit, Yazi, and more. Preview the plan before changing settings.
+
+```sh
+brew install clang-engineer/tap/themeset
+themeset apply dracula --dry-run
+```
+
+
 Apply existing application themes together. Use explicitly registered per-tool
 overrides first, otherwise select installed native themes or fetch current
 official ports, and skip unsupported tools without changing their settings.
