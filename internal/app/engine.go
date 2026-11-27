@@ -79,14 +79,16 @@ func allThemeIDs(config model.Config) []string {
 }
 
 type themeDetail struct {
-	ID             string   `json:"id"`
-	Listed         bool     `json:"listed"`
-	Tools          []string `json:"tools"`
-	SupportSite    string   `json:"support_site,omitempty"`
-	Appearance     string   `json:"appearance,omitempty"`
-	RadarRank      int      `json:"radar_rank,omitempty"`
-	RadarStars     int      `json:"radar_stars,omitempty"`
-	RadarUpdatedAt string   `json:"radar_updated_at,omitempty"`
+	ID               string   `json:"id"`
+	Listed           bool     `json:"listed"`
+	Tools            []string `json:"tools"`
+	SupportSite      string   `json:"support_site,omitempty"`
+	Appearance       string   `json:"appearance,omitempty"`
+	RadarRank        int      `json:"radar_rank,omitempty"`
+	RadarStars       int      `json:"radar_stars,omitempty"`
+	RadarUpdatedAt   string   `json:"radar_updated_at,omitempty"`
+	ProjectCreatedAt string   `json:"project_created_at,omitempty"`
+	ProjectPushedAt  string   `json:"project_pushed_at,omitempty"`
 }
 
 func themeDetails(ids []string, config model.Config, ranks radarRanks) []themeDetail {
@@ -112,8 +114,10 @@ func themeDetails(ids []string, config model.Config, ranks radarRanks) []themeDe
 		if tools == nil {
 			tools = []string{}
 		}
+		standing := ranks.standing(id, config)
 		detail := themeDetail{ID: id, Listed: visible[id], Tools: tools, SupportSite: catalog.SupportSite(id),
-			RadarRank: ranks.rank(id, config), RadarStars: ranks.stars(id, config)}
+			RadarRank: standing.Rank, RadarStars: standing.Stars,
+			ProjectCreatedAt: standing.CreatedAt, ProjectPushedAt: standing.PushedAt}
 		if catalog.IsLight(id) {
 			detail.Appearance = "light"
 		}

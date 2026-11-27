@@ -412,12 +412,20 @@ func TestListThemes(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
-				for _, row := range strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n") {
-					id, _, ok := strings.Cut(row, "\t")
-					if !ok {
-						t.Fatalf("missing stars column: %q", row)
+				rows := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+				if !strings.Contains(rows[0], "PROJECT CREATED\tLAST PUSH") {
+					t.Fatalf("project date headings missing: %q", rows[0])
+				}
+				for _, row := range rows[1:] {
+					fields := strings.Split(row, "\t")
+					if len(fields) != 4 {
+						t.Fatalf("missing project dates: %q", row)
 					}
-					got = append(got, id)
+					if fields[0] == "dracula" && (fields[2] != "2013-10-27" || fields[3] != "2026-11-01") ||
+						fields[0] == "fixture" && (fields[2] != "-" || fields[3] != "-") {
+						t.Fatalf("incorrect associated project dates: %q", row)
+					}
+					got = append(got, fields[0])
 				}
 			}
 			if len(got) < 4 {
@@ -514,9 +522,14 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 	}
 	if !byID["dracula"].Listed || byID["dracula"].SupportSite != "https://draculatheme.com/" ||
 		byID["dracula"].RadarStars != 23620 || byID["dracula"].RadarRank != 1 ||
+		byID["dracula"].ProjectCreatedAt != "2013-10-27T12:39:02Z" ||
+		byID["dracula"].ProjectPushedAt != "2026-11-01T03:46:58Z" ||
+		byID["catppuccin-latte"].ProjectCreatedAt != byID["catppuccin-mocha"].ProjectCreatedAt ||
+		byID["my-theme"].ProjectCreatedAt != "" || byID["my-theme"].ProjectPushedAt != "" ||
 		!reflect.DeepEqual(byID["my-theme"].Tools, []string{"fzf"}) || !byID["my-theme"].Listed ||
 		byID["kanagawa"].Listed || byID["kanagawa"].SupportSite != "https://github.com/rebelot/kanagawa.nvim" ||
 		!slices.Contains(byID["kanagawa"].Tools, "eza") || !slices.Contains(byID["kanagawa"].Tools, "yazi") {
+		t.Fatalf("incorrect project metadata or declared tools: %#v", byID)
 	}
 	if byID["catppuccin-latte"].Appearance != "light" || byID["rose-pine-dawn"].Appearance != "light" ||
 		byID["solarized-light"].Appearance != "light" || byID["ayu-light"].Appearance != "light" ||
@@ -529,11 +542,12 @@ func TestListDetailsDescribeDeclaredPortsNotRuntimeSupport(t *testing.T) {
 	}
 	stdout.Reset()
 	if code := Run([]string{"list", "--all", "--details", "--home", home, "--config", config}, &stdout, &stderr); code != 0 ||
-		!strings.HasPrefix(stdout.String(), "THEME\tGITHUB STARS (") ||
-		!strings.Contains(stdout.String(), "solarized-light\t16,020\thidden\tlight\t") ||
-		!strings.Contains(stdout.String(), "kanagawa\t6,461\thidden\t-\t") || !strings.Contains(stdout.String(), "dracula\t23,620\tlisted\t-\t") ||
+		!strings.Contains(strings.SplitN(stdout.String(), "\n", 2)[0], "PROJECT CREATED\tLAST PUSH") ||
+		!strings.Contains(stdout.String(), "kanagawa\t6,461\t2021-12-20\t2026-05-10\thidden\t-\t") ||
+		!strings.Contains(stdout.String(), "dracula\t23,620\t2013-10-27\t2026-11-01\tlisted\t-\t") ||
+		!strings.Contains(stdout.String(), "my-theme\t-\t-\t-\tlisted\t-\t") ||
 		!strings.Contains(stdout.String(), "Missing projects may be ports of listed families or target unsupported apps") {
-		t.Fatalf("details text omitted heading or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
+		t.Fatalf("details text omitted project dates or visibility: code=%d output=%q diagnostics=%s", code, stdout.String(), stderr.String())
 	}
 }
 
@@ -694,7 +708,7 @@ func TestListedOverrideControlsDiscoveryWithoutRestrictingApply(t *testing.T) {
 	})
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"list", "--config", config, "--home", home}, &stdout, &stderr); code != 0 ||
-		stdout.String() != "rose-pine\t-\nmy-theme\t-\n" || stderr.Len() != 0 {
+		!strings.HasSuffix(stdout.String(), "rose-pine\t-\t-\t-\nmy-theme\t-\t-\t-\n") || stderr.Len() != 0 {
 		t.Fatalf("listed override did not replace the displayed themes: %d %q %q", code, stdout.String(), stderr.String())
 	}
 	if got := completeWords([]string{"--config", config, "--home", home, "apply", ""}, adapter.All()); !reflect.DeepEqual(got, []string{"my-theme", "rose-pine"}) {

@@ -36,6 +36,7 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 	items := append([]radarItem(nil), bundled.Items...)
 	items[0], items[1] = items[1], items[0]
 	items[0].Stars = 31415
+	items[0].PushedAt = "2026-12-31T23:00:00Z"
 	const updated = "2027-01-01T00:00:00Z"
 	body, err := json.Marshal(map[string]any{
 		"updatedAt": updated,
@@ -58,8 +59,9 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 	fresh := refreshRadar(path, bundled, false)
 	if fresh.UpdatedAt != updated || requests != 1 ||
 		ranksFor(fresh).rank("catppuccin-mocha", model.Config{}) != 1 ||
-		ranksFor(fresh).stars("catppuccin-mocha", model.Config{}) != 31415 {
-		t.Fatalf("new ranking not adopted: %+v requests=%d", fresh, requests)
+		ranksFor(fresh).stars("catppuccin-mocha", model.Config{}) != 31415 ||
+		ranksFor(fresh).standing("catppuccin-mocha", model.Config{}).PushedAt != items[0].PushedAt {
+		t.Fatalf("new ranking and project activity not adopted: %+v requests=%d", fresh, requests)
 	}
 	if got := refreshRadar(path, fresh, true); got.UpdatedAt != updated || requests != 1 {
 		t.Fatalf("fresh cache caused another fetch: %+v requests=%d", got, requests)
@@ -81,6 +83,10 @@ func TestRadarRefreshKeepsFullCategoryAndOfflineCache(t *testing.T) {
 	missingStars := bytes.Replace(body, []byte(`"stars":31415`), []byte(`"stars":0`), 1)
 	if _, err := decodeRadarFeed(bytes.NewReader(missingStars)); err == nil {
 		t.Fatal("Radar feed with absent or zero Stars accepted")
+	}
+	invalidDate := bytes.Replace(body, []byte(`"pushedAt":"2026-12-31T23:00:00Z"`), []byte(`"pushedAt":"yesterday"`), 1)
+	if _, err := decodeRadarFeed(bytes.NewReader(invalidDate)); err == nil {
+		t.Fatal("invalid project date accepted")
 	}
 }
 
@@ -108,6 +114,18 @@ func TestBundledRadarSupersedesSameDateShortCache(t *testing.T) {
 	fixtureFile(t, filepath.Join(home, ".cache", "themeset", "radar-ranks.json"), string(legacy))
 	if got := loadRadar(model.Environment{Home: home}, false); len(got.Items) != len(bundled.Items) || got.Items[0].Stars != bundled.Items[0].Stars {
 		t.Fatalf("legacy rank-only cache masked bundled Stars: %+v", got)
+	}
+	undated := radarData{UpdatedAt: bundled.UpdatedAt, Items: append([]radarItem(nil), bundled.Items...)}
+	for i := range undated.Items {
+		undated.Items[i].CreatedAt, undated.Items[i].PushedAt = "", ""
+	}
+	content, err := json.Marshal(undated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtureFile(t, filepath.Join(home, ".cache", "themeset", "radar-ranks.json"), string(content))
+	if got := loadRadar(model.Environment{Home: home}, false); got.Items[0].CreatedAt != bundled.Items[0].CreatedAt {
+		t.Fatalf("same-date undated cache masked offline project dates: %+v", got.Items[0])
 	}
 }
 

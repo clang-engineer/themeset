@@ -23,7 +23,7 @@ const usage = `Usage: themeset [flags] COMMAND [flags] [THEME]
 Commands:
   apply [THEME] Apply a theme, or preview and select interactively when omitted
   current       Show the last apply result (including skips and failures)
-  list          List recommended theme IDs; --all includes hidden registered IDs
+  list          List themes with associated project Stars, creation and last-push dates
   list tools    List registered tool IDs and whether each app is installed
   completion SHELL  Print Bash, Zsh, or Fish completion definitions
   help          Show this help
@@ -283,7 +283,7 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 			if opts.json {
 				return emitJSON(stdout, stderr, details)
 			}
-			if _, err := fmt.Fprintf(stdout, "THEME\tGITHUB STARS (%s)\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
+			if _, err := fmt.Fprintf(stdout, "THEME\tGITHUB STARS (%s)\tPROJECT CREATED\tLAST PUSH\tDISCOVERY\tAPPEARANCE\tDECLARED TOOLS\tSUPPORT SITE\n", ranks.UpdatedAt[:10]); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -306,12 +306,13 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 				if item.RadarRank != 0 {
 					stars = formatStars(item.RadarStars)
 				}
-				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, stars, status, appearance, tools, site); err != nil {
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", item.ID, stars,
+					projectDate(item.ProjectCreatedAt), projectDate(item.ProjectPushedAt), status, appearance, tools, site); err != nil {
 					fmt.Fprintln(stderr, "error:", err)
 					return 1
 				}
 			}
-			if _, err := fmt.Fprintln(stdout, "\nStars: Radar's GitHub project counts, not theme-specific stars. Missing projects may be ports of listed families or target unsupported apps; '-' has no linked Radar project. Use --all for hidden registered themes."); err != nil {
+			if _, err := fmt.Fprintln(stdout, "\nStars and dates belong to the associated Radar GitHub project, not necessarily the theme variant. Last push is code activity, not GitHub metadata updates. Missing projects may be ports of listed families or target unsupported apps; '-' means unavailable. Use --all for hidden registered themes."); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}
@@ -320,13 +321,18 @@ func run(args []string, stdout, stderr io.Writer, adapters []model.Adapter) int 
 		if opts.json {
 			return emitJSON(stdout, stderr, names)
 		}
+		if _, err := fmt.Fprintf(stdout, "THEME\tGITHUB STARS (%s)\tPROJECT CREATED\tLAST PUSH\n", ranks.UpdatedAt[:10]); err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 1
+		}
 		for _, name := range names {
-			rank := ranks.rank(name, config)
+			standing := ranks.standing(name, config)
 			label := "-"
-			if rank != 0 {
-				label = formatStars(ranks.stars(name, config))
+			if standing.Rank != 0 {
+				label = formatStars(standing.Stars)
 			}
-			if _, err := fmt.Fprintf(stdout, "%s\t%s\n", name, label); err != nil {
+			if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", name, label,
+				projectDate(standing.CreatedAt), projectDate(standing.PushedAt)); err != nil {
 				fmt.Fprintln(stderr, "error:", err)
 				return 1
 			}

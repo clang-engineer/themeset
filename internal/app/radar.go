@@ -26,8 +26,10 @@ const radarCategory = "developer-color-themes"
 var radarSnapshot []byte
 
 type radarItem struct {
-	ID    string `json:"id"`
-	Stars int    `json:"stars"`
+	ID        string `json:"id"`
+	Stars     int    `json:"stars"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	PushedAt  string `json:"pushedAt,omitempty"`
 }
 
 type radarData struct {
@@ -51,12 +53,22 @@ func validRadar(data radarData) bool {
 	}
 	seen := make(map[string]bool, len(data.Items))
 	for _, item := range data.Items {
-		if !validRadarRepo(item.ID) || item.Stars <= 0 || seen[strings.ToLower(item.ID)] {
+		if !validRadarRepo(item.ID) || item.Stars <= 0 || seen[strings.ToLower(item.ID)] ||
+			!validRadarDate(item.CreatedAt) || !validRadarDate(item.PushedAt) {
 			return false
 		}
 		seen[strings.ToLower(item.ID)] = true
 	}
 	return true
+}
+
+// Old rank caches contain no project dates; absent dates remain unknown.
+func validRadarDate(value string) bool {
+	if value == "" {
+		return true
+	}
+	_, err := time.Parse(time.RFC3339, value)
+	return err == nil
 }
 
 func validRadarRepo(id string) bool {
@@ -108,7 +120,9 @@ func loadRadar(env model.Environment, refresh bool) radarData {
 		if json.Unmarshal(content, &cached) == nil && validRadar(cached) {
 			bundledTime, _ := time.Parse(time.RFC3339Nano, bundled.UpdatedAt)
 			cachedTime, _ := time.Parse(time.RFC3339Nano, cached.UpdatedAt)
-			if !cachedTime.Before(bundledTime) && (!cachedTime.Equal(bundledTime) || len(cached.Items) >= len(bundled.Items)) {
+			if !cachedTime.Before(bundledTime) && (!cachedTime.Equal(bundledTime) ||
+				len(cached.Items) > len(bundled.Items) ||
+				len(cached.Items) == len(bundled.Items) && (bundled.Items[0].CreatedAt == "" || cached.Items[0].CreatedAt != "")) {
 				current, cacheCurrent = cached, true
 			}
 		}
@@ -151,8 +165,10 @@ func refreshRadar(path string, current radarData, cacheCurrent bool) radarData {
 }
 
 type radarStanding struct {
-	Rank  int
-	Stars int
+	Rank      int
+	Stars     int
+	CreatedAt string
+	PushedAt  string
 }
 
 type radarRanks struct {
@@ -163,7 +179,9 @@ type radarRanks struct {
 func ranksFor(data radarData) radarRanks {
 	ranks := radarRanks{UpdatedAt: data.UpdatedAt, byRepo: make(map[string]radarStanding, len(data.Items))}
 	for i, item := range data.Items {
-		ranks.byRepo[strings.ToLower(item.ID)] = radarStanding{Rank: i + 1, Stars: item.Stars}
+		ranks.byRepo[strings.ToLower(item.ID)] = radarStanding{
+			Rank: i + 1, Stars: item.Stars, CreatedAt: item.CreatedAt, PushedAt: item.PushedAt,
+		}
 	}
 	return ranks
 }
@@ -183,6 +201,13 @@ func (r radarRanks) rank(theme string, config model.Config) int {
 func (r radarRanks) stars(theme string, config model.Config) int {
 	return r.standing(theme, config).Stars
 }
+func projectDate(timestamp string) string {
+	if timestamp == "" {
+		return "-"
+	}
+	return timestamp[:10]
+}
+
 func formatStars(value int) string {
 	var digits [32]byte
 	index := len(digits)
