@@ -22,7 +22,13 @@ Type "themeset apply --dry-run"
 Enter
 Sleep 2s
 Enter
-Sleep 2s
+Sleep 1s
+Type "tomorrow"
+Sleep 3s
+Backspace 8
+Type "tomorrow-night"
+Sleep 3s
+Backspace 14
 Type "dracula"
 Sleep 3s
 Enter

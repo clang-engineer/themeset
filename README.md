@@ -10,9 +10,11 @@ be cloned when a theme is applied.
 
 ![Interactive theme selection, native preview, and dry-run plan](docs/demo.gif)
 
-The [recording script](docs/demo.tape) builds a temporary binary and runs
-`themeset apply --dry-run` in a disposable home; it does not change your app
-settings. To regenerate: `vhs docs/demo.tape` (requires VHS, fzf, and bat).
+The [recording script](docs/demo.tape) contrasts Tomorrow's light and dark
+**native previews**, then shows a Dracula dry-run plan. The terminal itself
+does not switch themes: the script uses a disposable home and changes no app
+settings. To regenerate: `vhs docs/demo.tape` (requires VHS, fzf, bat, and
+Ghostty for the light/dark previews).
 
 ## Install
 
