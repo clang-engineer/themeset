@@ -46,3 +46,29 @@ func TestMoonflyTmuxUsesDeclaredStyleKeys(t *testing.T) {
 		t.Fatal("accepted a source missing the required pane border color")
 	}
 }
+
+func TestNightfoxTmuxImportsStylesWithoutReplacingStatusLayout(t *testing.T) {
+	port := *catalog.Port("nightfox", "tmux").Official
+	const source = `#!/usr/bin/env bash
+set -g pane-active-border-style "fg=#719cd6"
+set -g status-style "fg=#aeafb0,bg=#131a24"
+setw -g window-status-style "NONE,fg=#71839b,bg=#131a24"
+set -g status-left "#[fg=#131a24] #S"
+setw -g window-status-current-format "#[fg=#aeafb0] #I"
+set -g status-right-length "100"
+`
+	styles, err := filesTmuxStyles([]byte(source), port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(styles), "pane-active-border-style") ||
+		!strings.Contains(string(styles), "window-status-style") ||
+		strings.Contains(string(styles), "status-left") ||
+		strings.Contains(string(styles), "window-status-current-format") ||
+		strings.Contains(string(styles), "status-right-length") {
+		t.Fatalf("nightfox style selection changed status layout: %s", styles)
+	}
+	if _, err := filesTmuxStyles([]byte("set -g status-left \"layout only\"\n"), port); err == nil {
+		t.Fatal("accepted Nightfox source without required style colors")
+	}
+}

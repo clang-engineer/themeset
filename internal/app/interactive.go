@@ -209,8 +209,8 @@ func chooseTheme(opts options, config model.Config, env model.Environment, selec
 		return "", false, err
 	}
 	result := plan(theme, config, env, selected, true)
-	if printResult(stdout, stderr, result) != 0 {
-		return "", false, errors.New("could not display the application plan")
+	if err := printSelectionPlan(stdout, result); err != nil {
+		return "", false, fmt.Errorf("display application plan: %w", err)
 	}
 	if opts.dryRun {
 		if failed(result) {
@@ -241,8 +241,17 @@ func printPreview(theme string, config model.Config, env model.Environment, sele
 		fmt.Fprintln(stderr, "preview:", err)
 	}
 	result := plan(theme, config, env, selected, true)
-	fmt.Fprintln(stdout, "\nApplication plan (no settings changed):")
-	fmt.Fprintf(stdout, "Theme: %s\n", theme)
+	fmt.Fprintln(stdout)
+	if err := printSelectionPlan(stdout, result); err != nil {
+		fmt.Fprintln(stderr, "error: write preview:", err)
+		return 1
+	}
+	return 0
+}
+
+// Selection reports what will actually be used, not just whether a tool has a
+// planned port. The explicit apply/result output and JSON retain full metadata.
+func printSelectionPlan(w io.Writer, result Result) error {
 	direct, fallback, skipped, failures := 0, 0, 0, 0
 	for _, item := range result.Tools {
 		switch {
@@ -256,18 +265,47 @@ func printPreview(theme string, config model.Config, env model.Environment, sele
 			direct++
 		}
 	}
-	fmt.Fprintf(stdout, "Support: %d requested, %d default fallback, %d skipped, %d errors\n", direct, fallback, skipped, failures)
-	for _, item := range result.Tools {
-		switch {
-		case item.Error != "" || item.Outcome == "failed":
-			fmt.Fprintf(stdout, "  %s: ERROR: %s\n", item.Tool, item.Error)
-		case item.Outcome == "skipped":
-			fmt.Fprintf(stdout, "  %s: skipped (%s)\n", item.Tool, item.Reason)
-		case item.FallbackTheme != "":
-			fmt.Fprintf(stdout, "  %s: %s via default %s (requested theme unavailable)\n", item.Tool, item.Status, item.FallbackTheme)
-		default:
-			fmt.Fprintf(stdout, "  %s: %s\n", item.Tool, item.Status)
+	if _, err := fmt.Fprintf(w, "Theme: %s\nPlan: %d requested, %d default fallback, %d skipped, %d errors (no settings changed)\n", result.Theme, direct, fallback, skipped, failures); err != nil {
+		return err
+	}
+	counts := [...]int{direct, fallback, skipped, failures}
+	labels := [...]string{"Requested theme", "Default theme instead", "Skipped", "Errors"}
+	for group, count := range counts {
+		if count == 0 {
+			continue
+		}
+		label := labels[group]
+		if _, err := fmt.Fprintf(w, "\n%s (%d):\n", label, count); err != nil {
+			return err
+		}
+		for _, item := range result.Tools {
+			category := 0
+			switch {
+			case item.Error != "" || item.Outcome == "failed":
+				category = 3
+			case item.Outcome == "skipped":
+				category = 2
+			case item.FallbackTheme != "":
+				category = 1
+			}
+			if category != group {
+				continue
+			}
+			var err error
+			switch group {
+			case 0:
+				_, err = fmt.Fprintf(w, "  %s (%s)\n", item.Tool, item.Status)
+			case 1:
+				_, err = fmt.Fprintf(w, "  %s -> %s (%s)\n", item.Tool, item.FallbackTheme, item.Status)
+			case 2:
+				_, err = fmt.Fprintf(w, "  %s: %s\n", item.Tool, item.Reason)
+			case 3:
+				_, err = fmt.Fprintf(w, "  %s: %s\n", item.Tool, item.Error)
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return 0
+	return nil
 }

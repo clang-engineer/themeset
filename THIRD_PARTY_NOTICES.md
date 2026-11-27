@@ -14,6 +14,9 @@ settings. The upstream repositories retain their own licensing terms.
 - Moonfly: [official extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras)
   for fzf, Starship, and tmux. Shell commands, prompt layouts, and tmux status
   layouts are not imported.
+- Nightfox: [theme-author extras](https://github.com/EdenEast/nightfox.nvim/tree/main/extra/nightfox)
+  for Ghostty, Starship, and tmux. Only Starship palette colors and literal
+  tmux color styles are imported; prompt and status layouts are not imported.
 - Cyberdream: [theme-author extras](https://github.com/scottmckendry/cyberdream.nvim/tree/main/extras)
   for btop, Ghostty, lazydocker, lazygit, and Yazi, with Yazi syntax from
   the upstream TextMate extra. Only theme-specific settings are imported;

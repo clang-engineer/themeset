@@ -57,6 +57,7 @@
     "catppuccin-latte": {
       "atuin": {"native": ["catppuccin-latte-mauve"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/latte/catppuccin-latte-mauve.toml", "variant": "catppuccin-latte-mauve"}},
       "bat": {"native": ["Catppuccin Latte"]},
+      "neovim": {"native": ["catppuccin-latte"]},
       "btop": {"native": ["catppuccin_latte", "catppuccin-latte"], "official": {"name": "catppuccin_latte", "source": "https://raw.githubusercontent.com/catppuccin/btop/main/themes/catppuccin_latte.theme"}},
       "delta": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/delta/main/catppuccin.gitconfig"}},
       "eza": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/eza/main/themes/latte/catppuccin-latte-mauve.yml", "format": "eza-flat"}},
@@ -69,6 +70,7 @@
     "catppuccin-frappe": {
       "atuin": {"native": ["catppuccin-frappe-mauve"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/frappe/catppuccin-frappe-mauve.toml", "variant": "catppuccin-frappe-mauve"}},
       "bat": {"native": ["Catppuccin Frappe"]},
+      "neovim": {"native": ["catppuccin-frappe"]},
       "btop": {"native": ["catppuccin_frappe", "catppuccin-frappe"], "official": {"name": "catppuccin_frappe", "source": "https://raw.githubusercontent.com/catppuccin/btop/main/themes/catppuccin_frappe.theme"}},
       "delta": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/delta/main/catppuccin.gitconfig"}},
       "eza": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/eza/main/themes/frappe/catppuccin-frappe-mauve.yml", "format": "eza-flat"}},
@@ -82,6 +84,7 @@
       "atuin": {"native": ["catppuccin-macchiato-mauve"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/macchiato/catppuccin-macchiato-mauve.toml", "variant": "catppuccin-macchiato-mauve"}},
       "bat": {"native": ["Catppuccin Macchiato"]},
       "btop": {"native": ["catppuccin_macchiato", "catppuccin-macchiato"], "official": {"name": "catppuccin_macchiato", "source": "https://raw.githubusercontent.com/catppuccin/btop/main/themes/catppuccin_macchiato.theme"}},
+      "neovim": {"native": ["catppuccin-macchiato"]},
       "delta": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/delta/main/catppuccin.gitconfig"}},
       "eza": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/eza/main/themes/macchiato/catppuccin-macchiato-mauve.yml", "format": "eza-flat"}},
       "fzf": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/fzf/main/themes/catppuccin-fzf-macchiato.rc", "format": "fzf-rc"}},
@@ -247,7 +250,9 @@
     },
     "nightfox": {
       "ghostty": {"official": {"source": "https://raw.githubusercontent.com/EdenEast/nightfox.nvim/main/extra/nightfox/nightfox.ghostty"}},
-      "neovim": {"native": ["nightfox"]}
+      "neovim": {"native": ["nightfox"]},
+      "starship": {"official": {"source": "https://raw.githubusercontent.com/EdenEast/nightfox.nvim/main/extra/nightfox/starship.toml", "format": "starship-preset"}},
+      "tmux": {"official": {"source": "https://raw.githubusercontent.com/EdenEast/nightfox.nvim/main/extra/nightfox/nightfox.tmux", "style_keys": "mode-style message-style message-command-style pane-border-style pane-active-border-style status-style window-status-activity-style window-status-style", "required_style_keys": "pane-active-border-style status-style"}}
     },
     "modus-vivendi": {
       "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Modus Vivendi"}},

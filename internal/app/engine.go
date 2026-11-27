@@ -242,7 +242,7 @@ func resolveTheme(theme string, config model.Config, env model.Environment, adap
 func unsupportedReason(tool, theme string) string {
 	switch tool {
 	case "tmux":
-		return "no registered styles-only theme; full plugins can replace the existing status layout"
+		return "themeset has no registered styles-only tmux port for this theme; upstream plugins may exist but can change the status layout"
 	case "yazi":
 		return "no complete compatible installed flavor or pinned official flavor recipe"
 	case "lazydocker":

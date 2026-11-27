@@ -144,7 +144,8 @@ roots and existing package managers; do not hardcode a developer's home path.
 - **Sources:** [Dracula's TPM route](https://draculatheme.com/tmux),
   [dracula/tmux](https://github.com/dracula/tmux),
   [TPM scripted operations](https://github.com/tmux-plugins/tpm/blob/master/docs/managing_plugins_via_cmd_line.md),
-  and [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras).
+  [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras),
+  and [Nightfox extras](https://github.com/EdenEast/nightfox.nvim/tree/main/extra/nightfox).
 - **Detect / acquire:** a full Dracula plugin needs its entrypoint and scripts,
   not just a color file. With TPM, register `set -g @plugin 'dracula/tmux'` and
   use TPM installation (`prefix + I`, or its documented `bin/install_plugins`).
@@ -159,10 +160,11 @@ roots and existing package managers; do not hardcode a developer's home path.
   executes shell code and changes status layouts; it cannot be described as a
   colors-only operation that preserves an Oh my tmux! status layout.
 - **Current / target gap:** the bundled catalog declares the permitted and
-  required color-style keys for Moonfly and Tokyo Night. One tmux parser imports
-  only matching literal style commands into a managed include; it never runs TPM
-  or installs/activates Dracula. Full-plugin recipes must explicitly declare
-  their layout impact.
+  required color-style keys for Moonfly, Tokyo Night, and Nightfox. One tmux
+  parser imports only matching literal style commands into a managed include;
+  Nightfox's upstream status layout and shell code are ignored. It never runs
+  TPM or installs/activates Dracula. Full-plugin recipes must explicitly
+  declare their layout impact.
 
 ## bat
 

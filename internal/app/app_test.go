@@ -211,6 +211,23 @@ func TestCustomPrecedesNativeAndInvalidOverrideDoesNotFallBack(t *testing.T) {
 	}
 }
 
+func TestInstalledCatppuccinNeovimFlavorsAvoidMochaFallback(t *testing.T) {
+	installedFixtures(t, "nvim")
+	for _, flavor := range []string{"frappe", "latte", "macchiato"} {
+		t.Run(flavor, func(t *testing.T) {
+			home := t.TempDir()
+			name := "catppuccin-" + flavor
+			fixtureFile(t, filepath.Join(home, ".local", "share", "nvim", "lazy", "catppuccin", "colors", name+".lua"), "require('catppuccin').load('"+flavor+"')\n")
+			code, result, diagnostics := invoke(t, "--home", home, "--tools", "neovim", "apply", name, "--dry-run")
+			if code != 0 || len(result.Tools) != 1 || result.Tools[0].Status != "native" ||
+				result.Tools[0].Port == nil || result.Tools[0].Port.Name != name || result.Tools[0].FallbackTheme != "" ||
+				strings.Contains(diagnostics, "using default theme") {
+				t.Fatalf("installed %s not selected: code=%d result=%+v diagnostics=%s", name, code, result, diagnostics)
+			}
+		})
+	}
+}
+
 func TestPartialFailureRecordsActualOutcomes(t *testing.T) {
 	installedFixtures(t, "bat", "tmux")
 	home, directory := t.TempDir(), t.TempDir()
@@ -528,10 +545,27 @@ func TestPreviewShowsFallbackSeparatelyFromRequestedTheme(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"__preview", "requested", "--home", home, "--config", config}, &stdout, &stderr)
 	output := stdout.String()
-	if code != 0 || !strings.Contains(output, "Support: 0 requested, 1 default fallback, 1 skipped, 0 errors") ||
-		!strings.Contains(output, "tmux: custom via default fallback (requested theme unavailable)") ||
-		!strings.Contains(output, "lazydocker: skipped (") ||
+	if code != 0 || !strings.Contains(output, "0 requested, 1 default fallback, 1 skipped") ||
+		!strings.Contains(output, "Default theme instead") ||
+		!strings.Contains(output, "tmux -> fallback (custom)") ||
+		!strings.Contains(output, "lazydocker: no compatible native theme") ||
 		strings.Contains(output, "warning:") || strings.Contains(stderr.String(), "warning:") {
+		t.Fatalf("code=%d preview=%q diagnostics=%q", code, output, stderr.String())
+	}
+}
+
+func TestEverforestSelectionSeparatesRequestedFallbackAndSkippedTools(t *testing.T) {
+	installedFixtures(t, "nvim", "starship", "tmux")
+	home := t.TempDir()
+	fixtureFile(t, filepath.Join(home, ".config", "nvim", "colors", "everforest.lua"), "vim.g.colors_name = 'everforest'\n")
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"__preview", "everforest", "--tools", "neovim,starship,tmux", "--home", home}, &stdout, &stderr)
+	output := stdout.String()
+	if code != 0 || !strings.Contains(output, "1 requested, 1 default fallback, 1 skipped") ||
+		!strings.Contains(output, "neovim (native)") ||
+		!strings.Contains(output, "starship -> catppuccin-mocha") ||
+		!strings.Contains(output, "tmux: themeset has no registered styles-only tmux port") ||
+		strings.Contains(output, "warning:") || stderr.Len() != 0 {
 		t.Fatalf("code=%d preview=%q diagnostics=%q", code, output, stderr.String())
 	}
 }
@@ -759,6 +793,20 @@ func TestHiddenPreviewNeverWrites(t *testing.T) {
 	entries, err := os.ReadDir(home)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("preview wrote files or state: %v, %v", entries, err)
+	}
+}
+
+func TestFrappéTmuxSkipExplainsMissingThemesetPort(t *testing.T) {
+	installedFixtures(t, "tmux")
+	code, result, diagnostics := invoke(t, "--home", t.TempDir(), "--tools", "tmux", "apply", "catppuccin-frappe", "--dry-run")
+	if code != 0 || len(result.Tools) != 1 {
+		t.Fatalf("unexpected Frappé plan: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
+	}
+	item := result.Tools[0]
+	if item.Status != "unsupported" || item.Outcome != "skipped" ||
+		!strings.Contains(item.Reason, "themeset has no registered styles-only tmux port") ||
+		!strings.Contains(item.Reason, "upstream plugins may exist") {
+		t.Fatalf("tmux skip implies upstream lacks Frappé: %+v", item)
 	}
 }
 

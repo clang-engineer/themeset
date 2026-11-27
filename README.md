@@ -65,10 +65,11 @@ theme and remains suitable for scripts.
 Visuals use an installed bat syntax theme or an actual native/custom Ghostty
 asset, labeled with source app and exact variant. Ghostty swatches and ANSI
 samples are not a promise of editor syntax colors. Missing source assets
-explicitly show **Preview unavailable**. Below the visual, the picker separates
-tools using the requested theme, tools using `default_theme`, skipped tools,
-and errors; a fallback is not presented as support for the requested theme.
-Browsing only inspects support/assets; it never applies a theme.
+explicitly show **Preview unavailable**. Both the preview and the post-selection
+review group tools by requested theme, `default_theme` fallback, skips, and
+errors; fallback rows name the theme actually selected instead of repeating
+warnings. The review makes no changes until `[y/N]` is confirmed. Explicit
+`apply THEME` output and JSON retain their detailed result metadata.
 
 Core commands are `apply`, `list`, and `current`. `list` shows the curated
 theme IDs; `list --all` also shows hidden bundled and configured IDs that can
@@ -165,9 +166,12 @@ The bundled discovery list in `internal/catalog/defaults.json` includes the
 Dracula, Catppuccin, Gruvbox, Tokyo Night, Nord, Kanagawa, Everforest, Rose
 Pine, Solarized Light, and Nightfox families, alongside other supported IDs.
 `github-dark` and `vscode-dark` also appear in the default list. Nightfox
-declares an upstream Ghostty port and the installed Neovim `nightfox`
-colorscheme; other tools use the configured fallback where no Nightfox port
-exists. Each bundled `listed` entry has an `id` and, where available, a
+declares upstream Ghostty, Starship palette-only, and tmux color-style-only
+ports, plus the installed Neovim `nightfox` colorscheme. Other tools use the
+configured fallback where no Nightfox port exists. Catppuccin Latte, Frappé,
+and Macchiato select their matching Neovim colorscheme when the plugin is
+installed; themeset does not install it. Each bundled `listed` entry has an
+`id` and, where available, a
 `support_site` pointing to the theme project's port directory.
 The separate `light` metadata includes both curated and hidden bundled IDs.
 These links are reference metadata, not verified themeset ports or download
@@ -188,6 +192,13 @@ native candidates for bat and Neovim and verified upstream ports for btop,
 Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a
 separately installed Bat syntax theme and is not registered as an automatic
 port; unregistered tools retain the documented fallback behavior.
+
+Catppuccin provides an [official tmux plugin](https://github.com/catppuccin/tmux)
+for Latte, Frappé, Macchiato, and Mocha. Its flavor files define colors, but
+running the plugin can also change the status-line layout. Themeset does not
+install or run it automatically; `unsupported` for tmux means no styles-only
+port is registered in themeset, not that the upstream theme lacks tmux support.
+You can explicitly register a trusted tmux configuration through `custom.file`.
 
 `kanagawa` selects the Wave variant with registered btop, eza, Ghostty, and
 Yazi ports; Bat and Delta use a previously installed `Kanagawa` syntax theme

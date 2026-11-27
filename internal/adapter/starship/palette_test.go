@@ -85,6 +85,37 @@ func TestPaletteFamilyCatppuccinFetchesLatestAndImportsOnlyPalette(t *testing.T)
 	}
 }
 
+func TestNightfoxImportsOnlyPaletteFromUpstreamPreset(t *testing.T) {
+	env := testutil.Env(t)
+	path := shared.Path("starship", env)
+	testutil.Write(t, path, "format = '$directory'\n[directory]\ntruncation_length = 2\n[palettes.keep]\nblue = '#112233'\n")
+	port, ok, err := filesResolveStarship(catalog.Port("nightfox", "starship"), env)
+	if err != nil || !ok || port.Kind != "official" || port.Format != "starship-preset" {
+		t.Fatalf("Nightfox preset unavailable: %#v, %v, %v", port, ok, err)
+	}
+	testutil.AssetClient(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != port.Source {
+			t.Fatalf("unexpected Nightfox source: %s", r.URL)
+		}
+		source := "format = 'REPLACE PROMPT'\npalette = 'nightfox'\n[palettes.nightfox]\nred = '#c94f6d'\ndir_bg = '#81b29a'\n[directory]\ntruncation_length = 99\n"
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(source))}, nil
+	})
+	if err := filesApplyStarship(port, env); err != nil {
+		t.Fatal(err)
+	}
+	config, err := shared.TOML(testutil.Read(t, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	palettes := config["palettes"].(map[string]any)
+	if config["palette"] != "nightfox" || config["format"] != "$directory" ||
+		config["directory"].(map[string]any)["truncation_length"] != int64(2) ||
+		palettes["keep"].(map[string]any)["blue"] != "#112233" ||
+		palettes["nightfox"].(map[string]any)["dir_bg"] != "#81b29a" {
+		t.Fatalf("Nightfox preset replaced unrelated prompt settings or lost colors: %#v", config)
+	}
+}
+
 func TestPaletteFamilyOfflinePreservesConfiguration(t *testing.T) {
 	env := testutil.Env(t)
 	path := shared.Path("starship", env)
