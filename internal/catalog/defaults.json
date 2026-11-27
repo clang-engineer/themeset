@@ -52,6 +52,7 @@
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/lazygit/main/themes/mocha/mauve.yml"}},
       "neovim": {"native": ["catppuccin-mocha"]},
       "starship": {"native": ["catppuccin_mocha", "catppuccin-mocha"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/starship/main/themes/mocha.toml", "format": "starship-palette", "variant": "catppuccin_mocha"}},
+      "tmux": {"native": ["catppuccin-mocha"]},
       "yazi": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/mocha/catppuccin-mocha-mauve.toml", "syntax_url": "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme", "format": "yazi-direct"}}
     },
     "catppuccin-latte": {
@@ -65,6 +66,7 @@
       "ghostty": {"native": ["Catppuccin Latte"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/ghostty/main/themes/catppuccin-latte.conf"}},
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/lazygit/main/themes/latte/mauve.yml"}},
       "starship": {"native": ["catppuccin_latte", "catppuccin-latte"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/starship/main/themes/latte.toml", "format": "starship-palette", "variant": "catppuccin_latte"}},
+      "tmux": {"native": ["catppuccin-latte"]},
       "yazi": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/latte/catppuccin-latte-mauve.toml", "syntax_url": "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Latte.tmTheme", "format": "yazi-direct"}}
     },
     "catppuccin-frappe": {
@@ -78,6 +80,7 @@
       "ghostty": {"native": ["Catppuccin Frappe"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/ghostty/main/themes/catppuccin-frappe.conf"}},
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/lazygit/main/themes/frappe/mauve.yml"}},
       "starship": {"native": ["catppuccin_frappe", "catppuccin-frappe"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/starship/main/themes/frappe.toml", "format": "starship-palette", "variant": "catppuccin_frappe"}},
+      "tmux": {"native": ["catppuccin-frappe"]},
       "yazi": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/frappe/catppuccin-frappe-mauve.toml", "syntax_url": "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Frappe.tmTheme", "format": "yazi-direct"}}
     },
     "catppuccin-macchiato": {
@@ -91,6 +94,7 @@
       "ghostty": {"native": ["Catppuccin Macchiato"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/ghostty/main/themes/catppuccin-macchiato.conf"}},
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/lazygit/main/themes/macchiato/mauve.yml"}},
       "starship": {"native": ["catppuccin_macchiato", "catppuccin-macchiato"], "official": {"source": "https://raw.githubusercontent.com/catppuccin/starship/main/themes/macchiato.toml", "format": "starship-palette", "variant": "catppuccin_macchiato"}},
+      "tmux": {"native": ["catppuccin-macchiato"]},
       "yazi": {"official": {"source": "https://raw.githubusercontent.com/catppuccin/yazi/main/themes/macchiato/catppuccin-macchiato-mauve.toml", "syntax_url": "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Macchiato.tmTheme", "format": "yazi-direct"}}
     },
     "dracula": {
@@ -105,6 +109,7 @@
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/dracula/lazygit/main/config/dracula.yml"}},
       "neovim": {"native": ["dracula"]},
       "starship": {"native": ["dracula"], "official": {"source": "https://raw.githubusercontent.com/dracula/starship/master/starship.toml", "format": "starship-preset"}},
+      "tmux": {"native": ["dracula"]},
       "yazi": {"native": ["dracula"], "official": {"source": "https://github.com/yazi-rs/flavors/tree/main/dracula.yazi", "format": "yazi-flavor-bundle", "asset_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/tmtheme.xml", "license_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE", "license_syntax_url": "https://raw.githubusercontent.com/yazi-rs/flavors/main/dracula.yazi/LICENSE-tmtheme"}}
     },
     "gruvbox": {
@@ -117,6 +122,7 @@
       "harlequin": {"native": ["gruvbox"]},
       "neovim": {"native": ["gruvbox"]},
       "starship": {"native": ["gruvbox_dark", "gruvbox"], "official": {"source": "https://raw.githubusercontent.com/starship/starship/master/docs/public/presets/toml/gruvbox-rainbow.toml", "format": "starship-palette", "variant": "gruvbox_dark"}},
+      "tmux": {"native": ["gruvbox"]},
       "yazi": {"native": ["gruvbox"]}
     },
     "moonfly": {
@@ -136,6 +142,7 @@
       "harlequin": {"native": ["nord"]},
       "neovim": {"native": ["nord"]},
       "starship": {"native": ["nord"]},
+      "tmux": {"native": ["nord"]},
       "yazi": {"native": ["nord"]}
     },
     "rose-pine": {
@@ -150,6 +157,7 @@
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/rose-pine/lazygit/main/themes/rose-pine.yml"}},
       "neovim": {"native": ["rose-pine-main"]},
       "starship": {"native": ["rose-pine"], "official": {"source": "https://raw.githubusercontent.com/rose-pine/starship/main/rose-pine.toml", "format": "starship-palette"}},
+      "tmux": {"native": ["rose-pine"]},
       "yazi": {"native": ["rose-pine"], "official": {"source": "https://github.com/rose-pine/yazi/tree/main/flavors/rose-pine.yazi", "format": "yazi-flavor-pair", "asset_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine.yazi/tmtheme.xml"}}
     },
     "rose-pine-dawn": {
@@ -161,6 +169,7 @@
       "ghostty": {"native": ["Rose Pine Dawn", "rose-pine-dawn"], "official": {"source": "https://raw.githubusercontent.com/rose-pine/ghostty/main/dist/rose-pine-dawn"}},
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/rose-pine/lazygit/main/themes/rose-pine-dawn.yml"}},
       "starship": {"official": {"source": "https://raw.githubusercontent.com/rose-pine/starship/main/rose-pine-dawn.toml", "format": "starship-palette"}, "native": ["rose-pine-dawn"]},
+      "tmux": {"native": ["rose-pine-dawn"]},
       "yazi": {"native": ["rose-pine-dawn"], "official": {"source": "https://github.com/rose-pine/yazi/tree/main/flavors/rose-pine-dawn.yazi", "format": "yazi-flavor-pair", "asset_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine-dawn.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine-dawn.yazi/tmtheme.xml"}}
     },
     "rose-pine-moon": {
@@ -172,6 +181,7 @@
       "ghostty": {"native": ["Rose Pine Moon", "rose-pine-moon"], "official": {"source": "https://raw.githubusercontent.com/rose-pine/ghostty/main/dist/rose-pine-moon"}},
       "lazygit": {"official": {"source": "https://raw.githubusercontent.com/rose-pine/lazygit/main/themes/rose-pine-moon.yml"}},
       "starship": {"official": {"source": "https://raw.githubusercontent.com/rose-pine/starship/main/rose-pine-moon.toml", "format": "starship-palette"}, "native": ["rose-pine-moon"]},
+      "tmux": {"native": ["rose-pine-moon"]},
       "yazi": {"native": ["rose-pine-moon"], "official": {"source": "https://github.com/rose-pine/yazi/tree/main/flavors/rose-pine-moon.yazi", "format": "yazi-flavor-pair", "asset_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine-moon.yazi/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/rose-pine/yazi/main/flavors/rose-pine-moon.yazi/tmtheme.xml"}}
     },
     "tokyo-night": {
@@ -213,6 +223,7 @@
       "fzf": {"official": {"source": "https://raw.githubusercontent.com/junegunn/junegunn.github.io/master/static/js/fzf-color-themes.js", "format": "fzf-presets", "variant": "Everforest Dark"}},
       "ghostty": {"native": ["Everforest Dark Med", "everforest"]},
       "neovim": {"native": ["everforest"]},
+      "tmux": {"native": ["everforest"]},
       "yazi": {"native": ["everforest-medium"], "official": {"source": "https://github.com/Chromium-3-Oxide/everforest-medium.yazi", "asset_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/flavor.toml", "syntax_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/tmtheme.xml", "license_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/LICENSE", "license_syntax_url": "https://raw.githubusercontent.com/Chromium-3-Oxide/everforest-medium.yazi/main/LICENSE-tmtheme", "format": "yazi-flavor-bundle"}}
     },
     "github-dark": {

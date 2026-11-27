@@ -76,7 +76,7 @@ func TestConfiguredFallbackCustomPortThroughCLI(t *testing.T) {
 			"tmux": map[string]string{"file": "theme.conf"},
 		}}},
 	})
-	code, result, diagnostics := invoke(t, "apply", "nord", "--home", home, "--config", configPath)
+	code, result, diagnostics := invoke(t, "apply", "solarized-light", "--home", home, "--config", configPath)
 	if code != 0 || len(result.Tools) != 1 || result.Tools[0].FallbackTheme != "personal" ||
 		result.Tools[0].Outcome != "applied" || !strings.Contains(diagnostics, "personal") {
 		t.Fatalf("configured fallback: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
@@ -320,15 +320,17 @@ func TestOmittedToolsSelectAllAndMissingAppsSkip(t *testing.T) {
 func TestSkippedToolsExplainUnchangedSettings(t *testing.T) {
 	installedFixtures(t, "tmux")
 	home := t.TempDir()
-	code, result, diagnostics := invoke(t, "apply", "nord", "--dry-run", "--home", home, "--tools", "tmux,lazydocker")
+	config := filepath.Join(t.TempDir(), "config.json")
+	fixtureConfig(t, config, map[string]any{"default_theme": "solarized-light"})
+	code, result, diagnostics := invoke(t, "apply", "solarized-light", "--dry-run", "--home", home, "--config", config, "--tools", "tmux,lazydocker")
 	if code != 0 || len(result.Tools) != 2 {
 		t.Fatalf("code=%d result=%+v diagnostics=%s", code, result, diagnostics)
 	}
 	if result.Tools[0].Status != "not-installed" || !strings.Contains(result.Tools[0].Reason, "lazydocker") {
 		t.Fatalf("missing executable not explained: %+v", result.Tools[0])
 	}
-	if result.Tools[1].Status != "unsupported" || !strings.Contains(result.Tools[1].Reason, "status layout") {
-		t.Fatalf("unsafe plugin not distinguished from absent binary: %+v", result.Tools[1])
+	if result.Tools[1].Status != "unsupported" || result.Tools[1].Outcome != "skipped" || result.Tools[1].Reason == "" {
+		t.Fatalf("unsupported theme not distinguished from absent binary: %+v", result.Tools[1])
 	}
 	var stdout, stderr bytes.Buffer
 	if printResult(&stdout, &stderr, result) != 0 || !strings.Contains(stdout.String(), result.Tools[1].Reason) {
@@ -561,10 +563,10 @@ func TestEverforestSelectionSeparatesRequestedFallbackAndSkippedTools(t *testing
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"__preview", "everforest", "--tools", "neovim,starship,tmux", "--home", home}, &stdout, &stderr)
 	output := stdout.String()
-	if code != 0 || !strings.Contains(output, "1 requested, 1 default fallback, 1 skipped") ||
+	if code != 0 || !strings.Contains(output, "2 requested, 1 default fallback, 0 skipped") ||
 		!strings.Contains(output, "neovim (native)") ||
+		!strings.Contains(output, "tmux (native)") ||
 		!strings.Contains(output, "starship -> catppuccin-mocha") ||
-		!strings.Contains(output, "tmux: themeset has no registered styles-only tmux port") ||
 		strings.Contains(output, "warning:") || stderr.Len() != 0 {
 		t.Fatalf("code=%d preview=%q diagnostics=%q", code, output, stderr.String())
 	}
@@ -796,17 +798,24 @@ func TestHiddenPreviewNeverWrites(t *testing.T) {
 	}
 }
 
-func TestFrappéTmuxSkipExplainsMissingThemesetPort(t *testing.T) {
+func TestCatppuccinTmuxMissingPluginPlansWithoutWriting(t *testing.T) {
 	installedFixtures(t, "tmux")
-	code, result, diagnostics := invoke(t, "--home", t.TempDir(), "--tools", "tmux", "apply", "catppuccin-frappe", "--dry-run")
+	home := t.TempDir()
+	code, result, diagnostics := invoke(t, "--home", home, "--tools", "tmux", "apply", "catppuccin-frappe", "--dry-run")
 	if code != 0 || len(result.Tools) != 1 {
 		t.Fatalf("unexpected Frappé plan: code=%d result=%+v diagnostics=%s", code, result, diagnostics)
 	}
 	item := result.Tools[0]
-	if item.Status != "unsupported" || item.Outcome != "skipped" ||
-		!strings.Contains(item.Reason, "themeset has no registered styles-only tmux port") ||
-		!strings.Contains(item.Reason, "upstream plugins may exist") {
-		t.Fatalf("tmux skip implies upstream lacks Frappé: %+v", item)
+	if item.Status != "native" || item.Outcome != "planned" || item.Port == nil ||
+		item.Port.File != filepath.Join(home, ".config", "tmux", "plugins", "catppuccin", "tmux", "catppuccin.tmux") {
+		t.Fatalf("missing plugin not planned for installation: %+v", item)
+	}
+	if len(item.Warnings) != 1 || !strings.Contains(item.Warnings[0], "https://github.com/catppuccin/tmux") ||
+		!strings.Contains(item.Warnings[0], "next tmux config load") {
+		t.Fatalf("install and execution risk missing from plan: %+v", item)
+	}
+	if entries, err := os.ReadDir(home); err != nil || len(entries) != 0 {
+		t.Fatalf("dry run wrote files: %v, %v", entries, err)
 	}
 }
 

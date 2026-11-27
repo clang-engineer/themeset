@@ -231,6 +231,11 @@ func resolveTheme(theme string, config model.Config, env model.Environment, adap
 		item.Status, item.Outcome = "error", "failed"
 	case found:
 		item.Status, item.Port = port.Kind, &port
+		if adapter.ID == "tmux" && port.Kind == "native" {
+			if _, err := os.Stat(port.File); os.IsNotExist(err) {
+				item.Warnings = append(item.Warnings, fmt.Sprintf("apply installs the upstream plugin from %s; its code runs on the next tmux config load", port.Source))
+			}
+		}
 	default:
 		item.Status, item.Outcome = "unsupported", "skipped"
 		item.Reason = unsupportedReason(adapter.ID, theme)
@@ -242,7 +247,7 @@ func resolveTheme(theme string, config model.Config, env model.Environment, adap
 func unsupportedReason(tool, theme string) string {
 	switch tool {
 	case "tmux":
-		return "themeset has no registered styles-only tmux port for this theme; upstream plugins may exist but can change the status layout"
+		return "no registered tmux port for this theme; upstream themes may be configured as custom ports"
 	case "yazi":
 		return "no complete compatible installed flavor or pinned official flavor recipe"
 	case "lazydocker":

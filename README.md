@@ -193,12 +193,45 @@ Ghostty, lazydocker, lazygit, and Yazi. Its Delta upstream feature requires a
 separately installed Bat syntax theme and is not registered as an automatic
 port; unregistered tools retain the documented fallback behavior.
 
-Catppuccin provides an [official tmux plugin](https://github.com/catppuccin/tmux)
-for Latte, Frappé, Macchiato, and Mocha. Its flavor files define colors, but
-running the plugin can also change the status-line layout. Themeset does not
-install or run it automatically; `unsupported` for tmux means no styles-only
-port is registered in themeset, not that the upstream theme lacks tmux support.
-You can explicitly register a trusted tmux configuration through `custom.file`.
+tmux supports upstream plugins for
+[Catppuccin](https://github.com/catppuccin/tmux) (all four flavors),
+[Rosé Pine](https://github.com/rose-pine/tmux) (main, Moon, Dawn),
+[Dracula](https://github.com/dracula/tmux),
+[Nord](https://github.com/nordtheme/tmux),
+[Gruvbox](https://github.com/egel/tmux-gruvbox) (dark256), and
+[Everforest](https://github.com/TanglingTreats/tmux-everforest) (dark-medium).
+On `apply`, themeset reuses a complete installed plugin or clones its registered
+upstream repository to `$XDG_CONFIG_HOME/tmux/plugins/OWNER/REPO/` (normally
+`~/.config/tmux/plugins/OWNER/REPO/`). It checks required files in a temporary
+directory before moving the clone into place. An incomplete existing directory
+is never overwritten: repair it manually if installation fails. No plugin is
+downloaded by `list`, preview, or `apply --dry-run`. Git and network access are
+required only when a plugin is missing. Catppuccin is installed at tag v2.3.2
+and requires tmux 3.2+; other plugins use their upstream default branch at
+installation time and are not automatically updated. An existing TPM plugin at
+`~/.tmux/plugins/REPO` is reused when complete; plugins named `tmux` share that
+TPM directory, while themeset's separate XDG paths allow multiple families.
+These plugins run upstream shell code on the next tmux config load and may
+execute additional status commands. Themeset does not copy or generate their
+colors. To avoid executing third-party code, use `--dry-run` or choose a
+style-only theme or an explicitly trusted `custom.file` instead.
+
+Applying a plugin writes a flavor selector and an upstream `run-shell` include
+to the selected tmux config. When invoked inside tmux for the current user's
+home, themeset automatically reloads **that tmux server** after saving. If the
+top-level config directly includes the managed file, it reloads that config
+first, restoring the base layout (including Oh my tmux!) before applying the
+new theme. Otherwise it reloads only the changed file. A plugin can replace
+the existing status-line layout; load themeset after other status owners
+(and TPM) to give it precedence. `--home` targeting a scratch home, commands
+outside tmux, and `--dry-run` do not reload a server. A failed reload reports
+an error after saving the theme file.
+
+Switching to Moonfly, Tokyo Night, or Nightfox replaces the managed include
+with upstream styles only. If the top-level config does not directly include
+the managed file, those styles cannot undo a full plugin's status layout on
+the running server; reload the base layout or restart the server. Other tmux
+themes can use `custom.file`.
 
 `kanagawa` selects the Wave variant with registered btop, eza, Ghostty, and
 Yazi ports; Bat and Delta use a previously installed `Kanagawa` syntax theme
@@ -310,8 +343,8 @@ Yazi Dracula and eza's files are application-maintained, not necessarily
 theme-author ports. Relaunch Yazi; eza and Starship use their new settings
 on the next invocation/prompt.
 
-Dracula still has no Atuin or tmux official source; where supported, a missing
-Dracula port uses the configured default theme instead.
+Dracula has no registered Atuin source; tmux uses its installed upstream
+plugin rather than a downloaded color file.
 
 Changes take effect on the next application launch or prompt/invocation; running
 apps are not forcibly restarted. Neovim's generated selection runs on VimEnter.

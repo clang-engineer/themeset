@@ -141,30 +141,42 @@ roots and existing package managers; do not hardcode a developer's home path.
 
 ## tmux
 
-- **Sources:** [Dracula's TPM route](https://draculatheme.com/tmux),
-  [dracula/tmux](https://github.com/dracula/tmux),
-  [TPM scripted operations](https://github.com/tmux-plugins/tpm/blob/master/docs/managing_plugins_via_cmd_line.md),
-  [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/2c883835f5b7b380a0a9e80695c420f7efebdfe4/extras),
+- **Sources:** [Catppuccin tmux](https://github.com/catppuccin/tmux),
+  [Rosé Pine tmux](https://github.com/rose-pine/tmux),
+  [Dracula tmux](https://github.com/dracula/tmux),
+  [Nord tmux](https://github.com/nordtheme/tmux),
+  [Gruvbox tmux](https://github.com/egel/tmux-gruvbox),
+  [Everforest tmux](https://github.com/TanglingTreats/tmux-everforest),
+  [Moonfly extras](https://github.com/bluz71/vim-moonfly-colors/tree/master/extras),
+  [Tokyo Night extras](https://github.com/folke/tokyonight.nvim/tree/main/extras/tmux),
   and [Nightfox extras](https://github.com/EdenEast/nightfox.nvim/tree/main/extra/nightfox).
-- **Detect / acquire:** a full Dracula plugin needs its entrypoint and scripts,
-  not just a color file. With TPM, register `set -g @plugin 'dracula/tmux'` and
-  use TPM installation (`prefix + I`, or its documented `bin/install_plugins`).
-  That installer can install other declared missing plugins too; it is not an
-  isolated single-theme operation. Respect an existing TPM installation root.
-- **Activate:** keep TPM's loader after plugin declarations/options. A simple
-  official style-only asset, such as Moonfly's styles, can instead be selected
-  through a managed `source-file` include. These are distinct recipe kinds.
-- **Effect / preserve:** config loading affects the addressed tmux server; a
-  documented `tmux source-file <config>` reload is not a machine-wide broadcast.
-  Existing plugin options and keybindings must survive. Dracula's full plugin
-  executes shell code and changes status layouts; it cannot be described as a
-  colors-only operation that preserves an Oh my tmux! status layout.
-- **Current / target gap:** the bundled catalog declares the permitted and
-  required color-style keys for Moonfly, Tokyo Night, and Nightfox. One tmux
-  parser imports only matching literal style commands into a managed include;
-  Nightfox's upstream status layout and shell code are ignored. It never runs
-  TPM or installs/activates Dracula. Full-plugin recipes must explicitly
-  declare their layout impact.
+- **Detect / acquire:** resolve registered full plugins as native ports without
+  network access; reuse complete installs in
+  `$XDG_CONFIG_HOME/tmux/plugins/OWNER/REPO` or `~/.tmux/plugins/REPO`.
+  On apply only, Git clones a missing registered upstream repository into
+  temporary XDG storage, checks the entrypoint and known companion files,
+  then renames it into place. Existing incomplete directories and failed
+  clones are never promoted or overwritten. Catppuccin is pinned to v2.3.2
+  and requires tmux 3.2+; other plugins use their upstream default branch.
+  TPM is never invoked. Style-only ports fetch their upstream files on apply.
+- **Activate:** write the plugin's variant option (if applicable) and run its
+  installed entrypoint from one managed `source-file` include. Catppuccin also
+  selects its upstream session/application status modules. The installed
+  plugins own their colors and full status layout; themeset has no color
+  palette for them. Moonfly, Tokyo Night, and Nightfox instead import only
+  declared literal style fields from upstream and leave the layout alone.
+- **Effect / preserve:** after writing the config, reload the current tmux
+  client's socket only when applying to the current account's real home.
+  Scratch homes and commands outside tmux never reload a server. Reload the
+  top-level config when it directly includes the managed file, restoring a
+  base layout such as OMT before the selected theme. Otherwise source just
+  the managed file. A plugin can replace the OMT status layout, and another
+  status owner loaded afterward can override it; load themeset last. If no
+  direct top-level include exists, switching back to a style-only port cannot
+  restore a previous plugin layout in an already running server: reload its
+  base config or restart it. Reload failures report an error after saving the
+  file. User config outside the managed line and keybindings remain unchanged.
+  An explicit `custom.file` is trusted executable tmux config.
 
 ## bat
 
