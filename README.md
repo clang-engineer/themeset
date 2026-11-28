@@ -1,5 +1,7 @@
 # themeset
 
+> **Discontinued:** Homebrew distribution and active development have ended. Source is retained for reference. The author's dotfiles now use [Tinty](https://github.com/tinted-theming/tinty).
+
 **One command to coordinate native themes across your terminal tools.**
 
 Use existing application themes and official ports instead of generating approximate palettes.
@@ -14,13 +16,11 @@ Use existing application themes and official ports instead of generating approxi
 - Preserves unrelated application settings; skips unsupported tools.
 - Bash, Zsh, and Fish completions.
 
-## Install
+## Build from source (historical)
 
 ```sh
-brew install clang-engineer/tap/themeset
+go build -o themeset ./cmd/themeset
 ```
-
-Homebrew supports macOS and Linux (arm64/amd64). See the [manual](docs/manual.md#install) for source builds and platform limitations.
 
 ## Quick start
 
