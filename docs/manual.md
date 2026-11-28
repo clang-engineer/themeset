@@ -1,5 +1,7 @@
 # themeset
 
+> Historical reference: Homebrew installation and release instructions below are no longer active.
+
 **One command to coordinate themes across your terminal tools.**
 
 Switch between existing themes across Ghostty, Neovim, tmux, fzf, bat,
